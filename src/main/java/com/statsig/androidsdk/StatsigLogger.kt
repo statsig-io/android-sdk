@@ -46,6 +46,12 @@ class StatsigLogger(private val sdkKey: String, private val api: String, private
         apiPostLogs(this.api, "log_event", sdkKey, Gson().toJson(body))
     }
 
+    fun onUpdateUser() {
+        this.flush()
+        this.configExposures = HashSet()
+        this.gateExposures = HashSet()
+    }
+
     fun logGateExposure(gateName: String, value: Boolean, user: StatsigUser? ) {
         if (gateExposures.contains(gateName)) {
             return;

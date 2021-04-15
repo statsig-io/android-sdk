@@ -23,29 +23,55 @@ interface StatsigCallback {
     fun onStatsigReady()
 }
 
-
+/**
+ * A singleton class for interfacing with gates, configs, and logging in the Statsig console
+ */
 class Statsig {
 
     companion object {
 
-        private const val INITIALIZE_RESPONSE_KEY : String = "INITIALIZE_RESPONSE"
+        private const val INITIALIZE_RESPONSE_KEY: String = "INITIALIZE_RESPONSE"
 
-        private var state : StatsigState? = null
-        private var user : StatsigUser? = null
+        private var state: StatsigState? = null
+        private var user: StatsigUser? = null
 
-        private var callback : StatsigCallback? = null
-        private lateinit var application : Application
-        private lateinit var sdkKey : String
-        private lateinit var options : StatsigOptions
+        private var callback: StatsigCallback? = null
+        private lateinit var application: Application
+        private lateinit var sdkKey: String
+        private lateinit var options: StatsigOptions
 
-        private lateinit var logger : StatsigLogger
+        private lateinit var logger: StatsigLogger
         private lateinit var statsigMetadata: StatsigMetadata
         private lateinit var sharedPrefs: SharedPreferences
 
+        /**
+         * Initializes the SDK for the given user.  Initialization is complete when the callback
+         * is invoked
+         * @param application - the Android application Statsig is operating in
+         * @param sdkKey - a client or test SDK Key from the Statsig console
+         * @param callback - invoked when initialization is complete
+         * @param user - the user to associate with feature gate checks, config fetches, and logging
+         * @param options - advanced SDK setup
+         * Checking Gates/Configs before initialization calls back will return default values
+         * Logging Events before initialization will drop those events
+         * Susequent calls to initialize will be ignored.  To switch the user or update user values,
+         * use updateUser()
+         */
         @JvmOverloads
-        @JvmStatic fun initialize(application: Application, sdkKey: String, callback: StatsigCallback, user: StatsigUser? = null, options: StatsigOptions? = null) {
+        @JvmStatic
+        fun initialize(
+            application: Application,
+            sdkKey: String,
+            callback: StatsigCallback,
+            user: StatsigUser? = null,
+            options: StatsigOptions? = null
+        ) {
             if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
                 throw Exception("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
+            }
+            if (this.sdkKey != null) {
+                // initialize has already been called
+                return
             }
             this.application = application
             this.sdkKey = sdkKey
@@ -60,13 +86,17 @@ class Statsig {
 
             this.statsigMetadata = StatsigMetadata()
             this.statsigMetadata.stableID = StatsigId.getStableID(this.sharedPrefs)
-            val stringID : Int = application.applicationInfo.labelRes;
-            this.statsigMetadata.appIdentifier = if(stringID == 0) application.applicationInfo.nonLocalizedLabel.toString() else application.getString(stringID)
+            val stringID: Int = application.applicationInfo.labelRes;
+            this.statsigMetadata.appIdentifier =
+                if (stringID == 0) application.applicationInfo.nonLocalizedLabel.toString() else application.getString(
+                    stringID
+                )
             try {
                 val pInfo: PackageInfo =
                     application.packageManager.getPackageInfo(application.packageName, 0)
                 this.statsigMetadata.appVersion = pInfo.versionName
-            } catch (e: PackageManager.NameNotFoundException) {}
+            } catch (e: PackageManager.NameNotFoundException) {
+            }
 
             this.application.registerActivityLifecycleCallbacks(StatsigActivityLifecycleListener())
             this.logger = StatsigLogger(sdkKey, this.options.api, this.statsigMetadata)
@@ -77,7 +107,15 @@ class Statsig {
             apiPost(this.options.api, "initialize", sdkKey, Gson().toJson(body), ::setState)
         }
 
-        @JvmStatic fun checkGate(gateName: String): Boolean {
+        /**
+         * Check the value of a Feature Gate configured in the Statsig console for the initialized
+         * user
+         * @param gateName the name of the feature gate to check
+         * @return the value of the gate for the initialized user, or false if not found
+         * or the SDK is not initialized
+         */
+        @JvmStatic
+        fun checkGate(gateName: String): Boolean {
             if (this.state == null) {
                 return false
             }
@@ -87,7 +125,15 @@ class Statsig {
             return gateValue
         }
 
-        @JvmStatic fun getConfig(configName: String): DynamicConfig? {
+        /**
+         * Check the value of a Dynamic Config configured in the Statsig console for the initialized
+         * user
+         * @param configName the name of the Dynamic Config to check
+         * @return the Dynamic Config the initialized user, or null if not found (or the SDK
+         * has not been initialized)
+         */
+        @JvmStatic
+        fun getConfig(configName: String): DynamicConfig? {
             if (this.state == null) {
                 return null
             }
@@ -98,8 +144,22 @@ class Statsig {
             return config
         }
 
+        /**
+         * Log an event to Statsig for the current user
+         * @param eventName the name of the event to track
+         * @param value an optional value assocaited with the event, for aggregations/analysis
+         * @param metadata an optional map of metadata associated with the event
+         */
         @JvmOverloads
-        @JvmStatic fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
+        @JvmStatic
+        fun logEvent(
+            eventName: String,
+            value: Double? = null,
+            metadata: Map<String, String>? = null
+        ) {
+            if (this.state == null) {
+                return
+            }
             var event = LogEvent(eventName)
             event.value = value
             event.metadata = metadata
@@ -107,7 +167,17 @@ class Statsig {
             logger.log(event)
         }
 
-        @JvmStatic fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
+        /**
+         * Log an event to Statsig for the current user
+         * @param eventName the name of the event to track
+         * @param value an optional value assocaited with the event
+         * @param metadata an optional map of metadata associated with the event
+         */
+        @JvmStatic
+        fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
+            if (this.state == null) {
+                return
+            }
             var event = LogEvent(eventName)
             event.value = value
             event.metadata = metadata
@@ -115,7 +185,16 @@ class Statsig {
             logger.log(event)
         }
 
-        @JvmStatic fun logEvent(eventName: String, metadata: Map<String, String>) {
+        /**
+         * Log an event to Statsig for the current user
+         * @param eventName the name of the event to track
+         * @param metadata an optional map of metadata associated with the event
+         */
+        @JvmStatic
+        fun logEvent(eventName: String, metadata: Map<String, String>) {
+            if (this.state == null) {
+                return
+            }
             var event = LogEvent(eventName)
             event.value = null
             event.metadata = metadata
@@ -123,19 +202,38 @@ class Statsig {
             logger.log(event)
         }
 
-        @JvmStatic fun updateUser(user: StatsigUser?, callback: StatsigCallback) {
-            this.logger.flush()
+        /**
+         * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
+         * user with additional properties
+         *
+         * @param user the updated user
+         * @param callback a callback to invoke upon update completion. Before this callback is
+         * invoked, checking Gates will return false, getting Configs will return null, and
+         * Log Events will be dropped
+         */
+        @JvmStatic
+        fun updateUser(user: StatsigUser?, callback: StatsigCallback) {
             clearCache()
+            this.state = null
+            if (this.user?.userID !== user.userID) {
+                this.statsigMetadata.stableID = StatsigId.getNewStableID(this.sharedPrefs)
+                this.logger.onUpdateUser()
+            } else {
+                this.logger.flush()
+            }
             this.user = user
             this.callback = callback
-            this.statsigMetadata.stableID = StatsigId.getNewStableID(this.sharedPrefs)
             this.statsigMetadata.sessionID = StatsigId.getNewSessionID()
 
             var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
             apiPost(options.api, "initialize", sdkKey, Gson().toJson(body), ::setState)
         }
 
-        @JvmStatic fun shutdown() {
+        /**
+         * Informs the Statsig SDK that the client is shutting down to complete cleanup saving state
+         */
+        @JvmStatic
+        fun shutdown() {
             this.logger.flush()
         }
 
