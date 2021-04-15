@@ -230,6 +230,16 @@ class Statsig {
         }
 
         /**
+         * Checks to see if the SDK is in a ready state to check gates and configs
+         * If the SDK is initializing, or switching users, it is not in a ready state.
+         * @return the ready state of the SDK
+         */
+        @JvmStatic
+        fun isReady() {
+            return this.state != null
+        }
+
+        /**
          * Informs the Statsig SDK that the client is shutting down to complete cleanup saving state
          */
         @JvmStatic
