@@ -67,9 +67,9 @@ class Statsig {
             options: StatsigOptions? = null
         ) {
             if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
-                throw Exception("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
+                throw IllegalArgumentException("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
             }
-            if (this.sdkKey != null) {
+            if (this::sdkKey.isInitialized) {
                 // initialize has already been called
                 return
             }
@@ -215,7 +215,7 @@ class Statsig {
         fun updateUser(user: StatsigUser?, callback: StatsigCallback) {
             clearCache()
             this.state = null
-            if (this.user?.userID !== user.userID) {
+            if (this.user?.userID !== user?.userID) {
                 this.statsigMetadata.stableID = StatsigId.getNewStableID(this.sharedPrefs)
                 this.logger.onUpdateUser()
             } else {
@@ -235,7 +235,7 @@ class Statsig {
          * @return the ready state of the SDK
          */
         @JvmStatic
-        fun isReady() {
+        fun isReady(): Boolean {
             return this.state != null
         }
 
