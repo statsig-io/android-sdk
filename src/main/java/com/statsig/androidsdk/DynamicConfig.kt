@@ -20,11 +20,11 @@ class DynamicConfig(private val config: Config) {
      * @return the value at the given key, or the default value if not found
      */
     @JvmOverloads
-    fun <T: Any> getValue(key: String, default: T? = null): T? {
+    fun <T : Any> getValue(key: String, default: T? = null): T? {
         if (!config.value.containsKey(key)) {
             return default;
         }
-        return this.config.value[key] as T
+        return this.config.value[key] as? T?
     }
 
     override fun toString(): String {

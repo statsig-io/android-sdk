@@ -11,8 +11,8 @@ const val GATE_EXPOSURE = "statsig::gate_exposure"
 
 class StatsigLogger(private val sdkKey: String, private val api: String, private val statsigMetadata: StatsigMetadata) {
     private var events : MutableList<LogEvent> = ArrayList()
-    private val gateExposures : MutableSet<String> = HashSet()
-    private val configExposures : MutableSet<String> = HashSet()
+    private var gateExposures : MutableSet<String> = HashSet()
+    private var configExposures : MutableSet<String> = HashSet()
 
     fun log(event: LogEvent) {
         this.events.add(event)
@@ -40,9 +40,7 @@ class StatsigLogger(private val sdkKey: String, private val api: String, private
         flushEvents.addAll(this.events)
         this.events = ArrayList()
 
-        val metadata = mapOf("sdkType" to "statsig-kotlin-sdk")
         val body = mapOf("events" to flushEvents, "statsigMetadata" to this.statsigMetadata)
-
         apiPostLogs(this.api, "log_event", sdkKey, Gson().toJson(body))
     }
 

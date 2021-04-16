@@ -11,7 +11,7 @@ import kotlin.reflect.KClass
 private val completableJob = Job()
 private val coroutineScope = CoroutineScope(Dispatchers.IO + completableJob)
 
-private val RETRY_CODES : IntArray = intArrayOf(
+private val RETRY_CODES: IntArray = intArrayOf(
     HttpURLConnection.HTTP_CLIENT_TIMEOUT,
     HttpURLConnection.HTTP_INTERNAL_ERROR,
     HttpURLConnection.HTTP_BAD_GATEWAY,
@@ -22,15 +22,35 @@ private val RETRY_CODES : IntArray = intArrayOf(
     599
 )
 
-fun apiPost(api: String, endpoint: String, sdkKey: String, bodyString: String, callback: (InitializeResponse?) -> Unit) {
+fun apiPost(
+    api: String,
+    endpoint: String,
+    sdkKey: String,
+    bodyString: String,
+    callback: (InitializeResponse?) -> Unit
+) {
     coroutineScope.launch(Dispatchers.IO) {
         var response = withTimeoutOrNull(3000) {
-            postRequestAsync(api, endpoint, sdkKey, bodyString, InitializeResponse::class, 0).await()
+            postRequestAsync(
+                api,
+                endpoint,
+                sdkKey,
+                bodyString,
+                InitializeResponse::class,
+                0
+            ).await()
         }
 
         if (response == null) {
             callback(null)
-            response = postRequestAsync(api, endpoint, sdkKey, bodyString, InitializeResponse::class, 3).await()
+            response = postRequestAsync(
+                api,
+                endpoint,
+                sdkKey,
+                bodyString,
+                InitializeResponse::class,
+                3
+            ).await()
         }
 
         if (response == null) {
@@ -47,8 +67,16 @@ fun apiPostLogs(api: String, endpoint: String, sdkKey: String, bodyString: Strin
     }
 }
 
-suspend fun <T: Any> postRequestAsync(api: String, endpoint: String, sdkKey: String, bodyString: String, responseType: KClass<T>, retries: Int, retryAttempt: Int = 0): Deferred<T?> = GlobalScope.async {
-    val connection : HttpURLConnection = URL("$api/$endpoint").openConnection() as HttpURLConnection
+suspend fun <T : Any> postRequestAsync(
+    api: String,
+    endpoint: String,
+    sdkKey: String,
+    bodyString: String,
+    responseType: KClass<T>,
+    retries: Int,
+    retryAttempt: Int = 0
+): Deferred<T?> = GlobalScope.async {
+    val connection: HttpURLConnection = URL("$api/$endpoint").openConnection() as HttpURLConnection
 
     connection.requestMethod = "POST"
     connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
@@ -87,7 +115,7 @@ suspend fun <T: Any> postRequestAsync(api: String, endpoint: String, sdkKey: Str
         } else {
             null
         }
-    } catch (e : Exception) {
+    } catch (e: Exception) {
         null
     }
 }
