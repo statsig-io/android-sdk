@@ -98,6 +98,28 @@ class DynamicConfig(private val config: Config) {
         return ret
     }
 
+    /**
+     * Gets a dictionary from the config, falling back to the provided default value
+     * @param key the index within the DynamicConfig to fetch a dictionary from
+     * @param default the default value to return if the expected key does not exist in the config
+     * @return the value at the given key, or the default value if not found
+     */
+    fun getDictionary(key: String, default: Map<String, Any>): Map<String, Any> {
+        if (!config.value.containsKey(key)) {
+            return default;
+        }
+        val innerConfig = config.value[key] as? Map<String, Any>
+        if (innerConfig == null) {
+            return default
+        }
+        return innerConfig
+    }
+
+    /**
+     * Gets a value from the config as a new DynamicConfig, or null if not found
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key as a DynamicConfig, or null
+     */
     fun getConfig(key: String): DynamicConfig? {
         if (!config.value.containsKey(key)) {
             return null;
