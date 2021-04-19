@@ -7,7 +7,7 @@ import java.util.*
 data class StatsigMetadata(
     @SerializedName("appIdentifier") var appIdentifier: String? = null,
     @SerializedName("appVersion") var appVersion: String? = null,
-    @SerializedName("deviceModel") var deviceModel: String = Build.MODEL,
+    @SerializedName("deviceModel") var deviceModel: String? = Build.MODEL,
     @SerializedName("deviceOS") var deviceOS: String = "Android",
     @SerializedName("language") var language: String? = Locale.getDefault().displayLanguage,
     @SerializedName("sdkVersion") var sdkVersion: String? = com.statsig.androidsdk.BuildConfig.VERSION_NAME,

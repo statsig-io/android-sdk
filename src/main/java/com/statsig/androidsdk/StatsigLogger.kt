@@ -41,7 +41,7 @@ class StatsigLogger(private val sdkKey: String, private val api: String, private
         this.events = ArrayList()
 
         val body = mapOf("events" to flushEvents, "statsigMetadata" to this.statsigMetadata)
-        apiPostLogs(this.api, "log_event", sdkKey, Gson().toJson(body))
+        StatsigNetwork.apiPostLogs(this.api, "log_event", sdkKey, Gson().toJson(body))
     }
 
     fun onUpdateUser() {
