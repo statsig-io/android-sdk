@@ -10,10 +10,9 @@ import android.os.Bundle
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.security.MessageDigest
-
 
 private val completableJob = Job()
 private val coroutineScope = CoroutineScope(Dispatchers.Main + completableJob)
@@ -42,7 +41,6 @@ class Statsig {
 
         private lateinit var logger: StatsigLogger
         private lateinit var statsigMetadata: StatsigMetadata
-        private lateinit var sharedPrefs: SharedPreferences
 
         /**
          * Initializes the SDK for the given user.  Initialization is complete when the callback
@@ -82,19 +80,22 @@ class Statsig {
             } else {
                 this.options = options
             }
-            this.sharedPrefs = application.getSharedPreferences("STATSIG", Context.MODE_PRIVATE);
 
             this.statsigMetadata = StatsigMetadata()
-            this.statsigMetadata.stableID = StatsigId.getStableID(this.sharedPrefs)
-            val stringID: Int = application.applicationInfo.labelRes;
-            this.statsigMetadata.appIdentifier =
+            this.statsigMetadata.stableID = StatsigId.getStableID(this.getSharedPrefs())
+            val stringID: Int? = application.applicationInfo?.labelRes;
+            if (stringID != null) {
                 if (stringID == 0) application.applicationInfo.nonLocalizedLabel.toString() else application.getString(
                     stringID
                 )
+            }
+
             try {
-                val pInfo: PackageInfo =
-                    application.packageManager.getPackageInfo(application.packageName, 0)
-                this.statsigMetadata.appVersion = pInfo.versionName
+                if (application.packageManager != null) {
+                    val pInfo: PackageInfo =
+                        application.packageManager.getPackageInfo(application.packageName, 0)
+                    this.statsigMetadata.appVersion = pInfo.versionName
+                }
             } catch (e: PackageManager.NameNotFoundException) {
             }
 
@@ -104,7 +105,7 @@ class Statsig {
             loadFromCache()
 
             var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
-            apiPost(this.options.api, "initialize", sdkKey, Gson().toJson(body), ::setState)
+            StatsigNetwork.apiPost(this.options.api, "initialize", sdkKey, Gson().toJson(body), ::setState)
         }
 
         /**
@@ -120,7 +121,7 @@ class Statsig {
                 return false
             }
 
-            val gateValue = this.state!!.checkGate(getHashedString(gateName))
+            val gateValue = this.state!!.checkGate(StatsigUtil.getHashedString(gateName))
             this.logger.logGateExposure(gateName, gateValue, this.user)
             return gateValue
         }
@@ -137,7 +138,7 @@ class Statsig {
             if (this.state == null) {
                 return null
             }
-            val config = this.state!!.getConfig(getHashedString(configName))
+            val config = this.state!!.getConfig(StatsigUtil.getHashedString(configName))
             if (config != null) {
                 this.logger.logConfigExposure(configName, config.getGroup(), this.user)
             }
@@ -216,7 +217,7 @@ class Statsig {
             clearCache()
             this.state = null
             if (this.user?.userID !== user?.userID) {
-                this.statsigMetadata.stableID = StatsigId.getNewStableID(this.sharedPrefs)
+                this.statsigMetadata.stableID = StatsigId.getNewStableID(this.getSharedPrefs())
                 this.logger.onUpdateUser()
             } else {
                 this.logger.flush()
@@ -226,7 +227,7 @@ class Statsig {
             this.statsigMetadata.sessionID = StatsigId.getNewSessionID()
 
             var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
-            apiPost(options.api, "initialize", sdkKey, Gson().toJson(body), ::setState)
+            StatsigNetwork.apiPost(options.api, "initialize", sdkKey, Gson().toJson(body), ::setState)
         }
 
         /**
@@ -248,39 +249,52 @@ class Statsig {
         }
 
         private fun loadFromCache() {
-            val cachedResponse = this.sharedPrefs.getString(INITIALIZE_RESPONSE_KEY, null) ?: return
+            val sharedPrefs = this.getSharedPrefs()
+            if (sharedPrefs == null) {
+                return
+            }
+            val cachedResponse = sharedPrefs.getString(INITIALIZE_RESPONSE_KEY, null) ?: return
             val json = Gson().fromJson(cachedResponse, InitializeResponse::class.java)
             this.state = StatsigState(json)
         }
 
         private fun saveToCache(initializeData: InitializeResponse) {
+            val sharedPrefs = this.getSharedPrefs()
+            if (sharedPrefs == null) {
+                return
+            }
             val json = Gson().toJson(initializeData)
-            this.sharedPrefs.edit().putString(INITIALIZE_RESPONSE_KEY, json).commit()
+            sharedPrefs.edit().putString(INITIALIZE_RESPONSE_KEY, json).commit()
         }
 
         private fun clearCache() {
-            this.sharedPrefs.edit().remove(INITIALIZE_RESPONSE_KEY)
+            val sharedPrefs = this.getSharedPrefs()
+            if (sharedPrefs == null) {
+                return
+            }
+            sharedPrefs.edit().remove(INITIALIZE_RESPONSE_KEY)
         }
 
-        private fun setState(result: InitializeResponse?) {
+        private fun setState(result: InitializeResponse?, dispatcher: CoroutineDispatcher? = Dispatchers.Main) {
             if (result != null) {
-                state = StatsigState(result)
+                this.state = StatsigState(result)
                 saveToCache(result)
             }
             val cb = this.callback
             this.callback = null
             if (cb != null) {
-                coroutineScope.launch(Dispatchers.Main) {
+                if (dispatcher != null) {
+                    coroutineScope.launch(dispatcher) {
+                        cb.onStatsigReady()
+                    }
+                } else {
                     cb.onStatsigReady()
                 }
             }
         }
 
-        private fun getHashedString(gateName: String): String {
-            val md = MessageDigest.getInstance("SHA-256")
-            val input = gateName.toByteArray()
-            val bytes = md.digest(input)
-            return android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        private fun getSharedPrefs(): SharedPreferences? {
+            return application.getSharedPreferences("STATSIG", Context.MODE_PRIVATE)
         }
 
         private class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {

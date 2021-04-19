@@ -23,21 +23,19 @@ class StatsigId {
             return this.sessionID!!
         }
 
-        fun getNewStableID(prefs : SharedPreferences): String {
+        fun getNewStableID(prefs : SharedPreferences?): String {
             this.stableID = UUID.randomUUID().toString()
-            prefs.edit().putString(STABLE_ID_KEY, this.stableID).commit()
-            return this.stableID!!
-        }
-
-        fun getStableID(prefs : SharedPreferences): String {
-            if (this.stableID == null && prefs.contains(STABLE_ID_KEY)) {
-                this.stableID = prefs.getString(STABLE_ID_KEY, null)
-            }
-            if (this.stableID == null) {
-                this.stableID = UUID.randomUUID().toString()
+            if (prefs != null) {
                 prefs.edit().putString(STABLE_ID_KEY, this.stableID).commit()
             }
             return this.stableID!!
+        }
+
+        fun getStableID(prefs : SharedPreferences?): String {
+            if (this.stableID == null && prefs != null && prefs.contains(STABLE_ID_KEY)) {
+                this.stableID = prefs.getString(STABLE_ID_KEY, null)
+            }
+            return this.getNewStableID(prefs)
         }
     }
 
