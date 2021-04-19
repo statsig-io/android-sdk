@@ -57,7 +57,7 @@ class StatsigLogger(private val sdkKey: String, private val api: String, private
         gateExposures.add(gateName)
         var event = LogEvent(GATE_EXPOSURE)
         event.user = user
-        event.metadata = mapOf("gate" to gateName, "gateValue" to value)
+        event.metadata = mapOf("gate" to gateName, "gateValue" to value.toString())
         this.log(event)
     }
 
