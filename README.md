@@ -1,5 +1,7 @@
 # Statsig Android SDK
 
+![Release](https://jitpack.io/v/statsig-io/android-sdk.svg)
+
 ## Common Setup
 
 In `build.gradle` include the statsig dependency, directly from the github source (via jitpack).
