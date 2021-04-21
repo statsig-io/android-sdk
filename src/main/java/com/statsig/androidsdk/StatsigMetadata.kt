@@ -2,7 +2,7 @@ package com.statsig.androidsdk
 
 import android.os.Build
 import com.google.gson.annotations.SerializedName
-import java.util.*
+import java.util.Locale
 
 data class StatsigMetadata(
     @SerializedName("appIdentifier") var appIdentifier: String? = null,
@@ -13,6 +13,6 @@ data class StatsigMetadata(
     @SerializedName("sdkVersion") var sdkVersion: String? = com.statsig.androidsdk.BuildConfig.VERSION_NAME,
     @SerializedName("sessionID") var sessionID: String? = StatsigId.getSessionID(),
     @SerializedName("stableID") var stableID: String? = null,
-    @SerializedName("systemVersion") var systemVersion: String = "".plus(Build.VERSION.SDK_INT),
+    @SerializedName("systemVersion") var systemVersion: String = Build.VERSION.SDK_INT.toString(),
     @SerializedName("systemName") var systemName: String? = Build.VERSION.RELEASE,
 )
