@@ -11,7 +11,7 @@ import io.mockk.*
 
 class StatsigTest {
 
-    private lateinit var app : Application
+    private lateinit var app: Application
 
     @Before
     internal fun setup() {
@@ -94,7 +94,7 @@ class StatsigTest {
 
     @Test
     fun testInitialize() {
-        var callbackComplete : Boolean = false
+        var callbackComplete: Boolean = false
         val initializeCallback = object : StatsigCallback {
             override fun onStatsigReady() {
                 assertTrue(Statsig.isReady())

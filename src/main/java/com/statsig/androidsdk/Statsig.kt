@@ -105,7 +105,13 @@ class Statsig {
             loadFromCache()
 
             var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
-            StatsigNetwork.apiPost(this.options.api, "initialize", sdkKey, Gson().toJson(body), ::setState)
+            StatsigNetwork.apiPost(
+                this.options.api,
+                "initialize",
+                sdkKey,
+                Gson().toJson(body),
+                ::setState
+            )
         }
 
         /**
@@ -227,7 +233,13 @@ class Statsig {
             this.statsigMetadata.sessionID = StatsigId.getNewSessionID()
 
             var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
-            StatsigNetwork.apiPost(options.api, "initialize", sdkKey, Gson().toJson(body), ::setState)
+            StatsigNetwork.apiPost(
+                options.api,
+                "initialize",
+                sdkKey,
+                Gson().toJson(body),
+                ::setState
+            )
         }
 
         /**
@@ -275,7 +287,10 @@ class Statsig {
             sharedPrefs.edit().remove(INITIALIZE_RESPONSE_KEY)
         }
 
-        private fun setState(result: InitializeResponse?, dispatcher: CoroutineDispatcher? = Dispatchers.Main) {
+        private fun setState(
+            result: InitializeResponse?,
+            dispatcher: CoroutineDispatcher? = Dispatchers.Main
+        ) {
             if (result != null) {
                 this.state = StatsigState(result)
                 saveToCache(result)

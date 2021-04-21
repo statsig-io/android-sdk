@@ -6,39 +6,43 @@ import org.junit.Before
 
 class DynamicConfigTest {
 
-    private lateinit var dc : DynamicConfig
+    private lateinit var dc: DynamicConfig
 
     @Before
     internal fun setup() {
-        dc = DynamicConfig(Config(
-            "test_config",
-            mapOf(
-                "testString" to "test",
-                "testBoolean" to true,
-                "testInt" to 12,
-                "testDouble" to 42.3,
-                "testArray" to arrayOf("one", "two"),
-                "testIntArray" to intArrayOf(3, 2),
-                "testDoubleArray" to doubleArrayOf(3.1, 2.1),
-                "testBooleanArray" to booleanArrayOf(true, false),
-                "testNested" to mapOf(
-                    "nestedString" to "nested",
-                    "nestedBoolean" to true,
-                    "nestedDouble" to 13.74,
-                    "nestedInt" to 13
+        dc = DynamicConfig(
+            Config(
+                "test_config",
+                mapOf(
+                    "testString" to "test",
+                    "testBoolean" to true,
+                    "testInt" to 12,
+                    "testDouble" to 42.3,
+                    "testArray" to arrayOf("one", "two"),
+                    "testIntArray" to intArrayOf(3, 2),
+                    "testDoubleArray" to doubleArrayOf(3.1, 2.1),
+                    "testBooleanArray" to booleanArrayOf(true, false),
+                    "testNested" to mapOf(
+                        "nestedString" to "nested",
+                        "nestedBoolean" to true,
+                        "nestedDouble" to 13.74,
+                        "nestedInt" to 13
+                    ),
                 ),
-            ),
-            "default"
-        ))
+                "default"
+            )
+        )
     }
 
     @Test
     fun testEmpty() {
-        val emptyConfig = DynamicConfig(Config(
-            "test_config",
-            mapOf(),
-            "default"
-        ))
+        val emptyConfig = DynamicConfig(
+            Config(
+                "test_config",
+                mapOf(),
+                "default"
+            )
+        )
 
         assertEquals("provided default", emptyConfig.getString("test", "provided default"))
         assertEquals(12, emptyConfig.getInt("testInt", 12))
@@ -76,11 +80,13 @@ class DynamicConfigTest {
         assertEquals(13, dc.getConfig("testNested")!!.getInt("nestedInt", 13))
         assertNull(dc.getConfig("testNested")!!.getConfig("testNestedAgain"))
 
-        assertEquals(mapOf(
-            "nestedString" to "nested",
-            "nestedBoolean" to true,
-            "nestedDouble" to 13.74,
-            "nestedInt" to 13
-        ), dc.getDictionary("testNested", mapOf()))
+        assertEquals(
+            mapOf(
+                "nestedString" to "nested",
+                "nestedBoolean" to true,
+                "nestedDouble" to 13.74,
+                "nestedInt" to 13
+            ), dc.getDictionary("testNested", mapOf())
+        )
     }
 }

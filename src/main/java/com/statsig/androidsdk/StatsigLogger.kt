@@ -3,16 +3,20 @@ package com.statsig.androidsdk
 import com.google.gson.Gson
 import kotlinx.coroutines.*
 
-const val MAX_EVENTS : Int = 500
-const val FLUSH_TIMER_MS : Long = 10000
+const val MAX_EVENTS: Int = 500
+const val FLUSH_TIMER_MS: Long = 10000
 
 const val CONFIG_EXPOSURE = "statsig::config_exposure"
 const val GATE_EXPOSURE = "statsig::gate_exposure"
 
-class StatsigLogger(private val sdkKey: String, private val api: String, private val statsigMetadata: StatsigMetadata) {
-    private var events : MutableList<LogEvent> = ArrayList()
-    private var gateExposures : MutableSet<String> = HashSet()
-    private var configExposures : MutableSet<String> = HashSet()
+class StatsigLogger(
+    private val sdkKey: String,
+    private val api: String,
+    private val statsigMetadata: StatsigMetadata
+) {
+    private var events: MutableList<LogEvent> = ArrayList()
+    private var gateExposures: MutableSet<String> = HashSet()
+    private var configExposures: MutableSet<String> = HashSet()
 
     fun log(event: LogEvent) {
         this.events.add(event)
@@ -36,7 +40,7 @@ class StatsigLogger(private val sdkKey: String, private val api: String, private
         if (events.size == 0) {
             return
         }
-        val flushEvents : MutableList<LogEvent> = ArrayList(this.events.size)
+        val flushEvents: MutableList<LogEvent> = ArrayList(this.events.size)
         flushEvents.addAll(this.events)
         this.events = ArrayList()
 
@@ -50,7 +54,7 @@ class StatsigLogger(private val sdkKey: String, private val api: String, private
         this.gateExposures = HashSet()
     }
 
-    fun logGateExposure(gateName: String, value: Boolean, user: StatsigUser? ) {
+    fun logGateExposure(gateName: String, value: Boolean, user: StatsigUser?) {
         if (gateExposures.contains(gateName)) {
             return;
         }

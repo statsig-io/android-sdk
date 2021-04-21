@@ -11,7 +11,7 @@ class StatsigUtilTest {
 
         assertEquals(0, StatsigUtil.normalizeUser(mapOf())!!.size)
 
-        val inputMap : Map<String, Any> = mapOf(
+        val inputMap: Map<String, Any> = mapOf(
             "testString" to "test",
             "testBoolean" to true,
             "testInt" to 12,

@@ -16,11 +16,11 @@ object StatsigUtil {
         }
         return user.filterValues { value ->
             if (value is Array<*>) {
-                value.size == (value.filter {it is String}).size
+                value.size == (value.filter { it is String }).size
             } else {
                 value is String ||
-                value is Boolean ||
-                value is Double
+                        value is Boolean ||
+                        value is Double
             }
         }
     }

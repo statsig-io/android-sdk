@@ -141,7 +141,13 @@ class DynamicConfig(private val config: Config) {
         }
         return when (this.config.value[key]) {
             null -> null
-            is Map<*, *> -> DynamicConfig(Config(key, this.config.value[key] as Map<String, Any>, config.group))
+            is Map<*, *> -> DynamicConfig(
+                Config(
+                    key,
+                    this.config.value[key] as Map<String, Any>,
+                    config.group
+                )
+            )
             else -> null
         }
     }
