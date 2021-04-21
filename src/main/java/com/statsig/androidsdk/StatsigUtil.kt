@@ -20,7 +20,6 @@ object StatsigUtil {
             } else {
                 value is String ||
                 value is Boolean ||
-                value is Int ||
                 value is Double
             }
         }

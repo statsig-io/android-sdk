@@ -23,7 +23,7 @@ class StatsigUtilTest {
         val resultMap = StatsigUtil.normalizeUser(inputMap)
 
         assertEquals(42.3, resultMap!!.get("testDouble"))
-        assertEquals(12, resultMap.get("testInt"))
+        assertFalse(resultMap.containsKey("testInt"))
         assertEquals(true, resultMap.get("testBoolean"))
         assertEquals("test", resultMap.get("testString"))
         assertEquals(42.3, resultMap.get("testDouble"))

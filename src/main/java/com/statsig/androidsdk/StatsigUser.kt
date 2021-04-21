@@ -14,7 +14,7 @@ import com.google.gson.annotations.SerializedName
  * @property locale the locale for the user
  * @property clientVersion the current version of the app
  * @property custom any additional custom user attributes for custom conditions in the console
- *                  NOTE: values other than String, Double, Int, Boolean, Array<String>
+ *                  NOTE: values other than String, Double, Boolean, Array<String>
  *                  will be dropped from the map
  */
 data class StatsigUser(@SerializedName("userID") var userID: String? = null) {
