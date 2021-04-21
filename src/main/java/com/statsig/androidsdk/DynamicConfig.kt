@@ -19,15 +19,16 @@ class DynamicConfig(private val config: Config) {
      * @param default the default value to return if the expected key does not exist in the config
      * @return the value at the given key, or the default value if not found
      */
-    fun getString(key: String, default: String): String {
+    @JvmOverloads
+    fun getString(key: String, default: String? = null): String? {
         if (!config.value.containsKey(key)) {
             return default;
         }
-        val ret = this.config.value[key] as? String
-        if (ret == null) {
-            return default
+        return when (this.config.value[key]) {
+            null -> default
+            is String -> this.config.value[key] as String
+            else -> default
         }
-        return ret
     }
 
     /**
@@ -40,11 +41,11 @@ class DynamicConfig(private val config: Config) {
         if (!config.value.containsKey(key)) {
             return default;
         }
-        val ret = this.config.value[key] as? Boolean
-        if (ret == null) {
-            return default
+        return when (this.config.value[key]) {
+            null -> default
+            is Boolean -> this.config.value[key] as Boolean
+            else -> default
         }
-        return ret
     }
 
     /**
@@ -57,11 +58,12 @@ class DynamicConfig(private val config: Config) {
         if (!config.value.containsKey(key)) {
             return default;
         }
-        val ret = this.config.value[key] as? Double
-        if (ret == null) {
-            return default
+        return when (this.config.value[key]) {
+            null -> default
+            is Double -> this.config.value[key] as Double
+            is Int -> this.config.value[key] as Double
+            else -> default
         }
-        return ret
     }
 
     /**
@@ -74,11 +76,19 @@ class DynamicConfig(private val config: Config) {
         if (!config.value.containsKey(key)) {
             return default;
         }
-        val ret = this.config.value[key] as? Int
-        if (ret == null) {
+        if (this.config.value[key] == null) {
             return default
         }
-        return ret
+        if (
+            this.config.value[key] is Double &&
+            this.config.value[key] as Double == Math.floor(this.config.value[key] as Double)
+        ) {
+            return this.config.value[key] as Int
+        }
+        if (this.config.value[key] is Int) {
+            return this.config.value[key] as Int
+        }
+        return default
     }
 
     /**
@@ -87,15 +97,19 @@ class DynamicConfig(private val config: Config) {
      * @param default the default value to return if the expected key does not exist in the config
      * @return the value at the given key, or the default value if not found
      */
-    fun getArray(key: String, default: Array<Any>): Array<Any> {
+    @JvmOverloads
+    fun getArray(key: String, default: Array<*>? = null): Array<*>? {
         if (!config.value.containsKey(key)) {
             return default;
         }
-        val ret = this.config.value[key] as? Array<Any>
-        if (ret == null) {
-            return default
+        return when (this.config.value[key]) {
+            null -> default
+            is Array<*> -> this.config.value[key] as Array<*>
+            is IntArray -> (this.config.value[key] as IntArray).toTypedArray()
+            is DoubleArray -> (this.config.value[key] as DoubleArray).toTypedArray()
+            is BooleanArray -> (this.config.value[key] as BooleanArray).toTypedArray()
+            else -> default
         }
-        return ret
     }
 
     /**
@@ -104,15 +118,16 @@ class DynamicConfig(private val config: Config) {
      * @param default the default value to return if the expected key does not exist in the config
      * @return the value at the given key, or the default value if not found
      */
-    fun getDictionary(key: String, default: Map<String, Any>): Map<String, Any> {
+    @JvmOverloads
+    fun getDictionary(key: String, default: Map<String, Any>? = null): Map<String, Any>? {
         if (!config.value.containsKey(key)) {
             return default;
         }
-        val innerConfig = config.value[key] as? Map<String, Any>
-        if (innerConfig == null) {
-            return default
+        return when (this.config.value[key]) {
+            null -> default
+            is Map<*, *> -> this.config.value[key] as Map<String, Any>
+            else -> default
         }
-        return innerConfig
     }
 
     /**
@@ -124,11 +139,11 @@ class DynamicConfig(private val config: Config) {
         if (!config.value.containsKey(key)) {
             return null;
         }
-        val innerConfig = config.value[key] as? Map<String, Any>
-        if (innerConfig == null) {
-            return null
+        return when (this.config.value[key]) {
+            null -> null
+            is Map<*, *> -> DynamicConfig(Config(key, this.config.value[key] as Map<String, Any>, config.group))
+            else -> null
         }
-        return DynamicConfig(Config(key, innerConfig, config.group))
     }
 
     override fun toString(): String {
