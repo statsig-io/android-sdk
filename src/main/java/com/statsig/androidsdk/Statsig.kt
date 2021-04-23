@@ -47,8 +47,8 @@ class Statsig {
          * is invoked
          * @param application - the Android application Statsig is operating in
          * @param sdkKey - a client or test SDK Key from the Statsig console
-         * @param callback - invoked when initialization is complete
          * @param user - the user to associate with feature gate checks, config fetches, and logging
+         * @param callback - invoked when initialization is complete
          * @param options - advanced SDK setup
          * Checking Gates/Configs before initialization calls back will return default values
          * Logging Events before initialization will drop those events
@@ -60,8 +60,8 @@ class Statsig {
         fun initialize(
             application: Application,
             sdkKey: String,
-            callback: StatsigCallback,
             user: StatsigUser? = null,
+            callback: StatsigCallback? = null,
             options: StatsigOptions? = null
         ) {
             if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
@@ -82,22 +82,7 @@ class Statsig {
             }
 
             this.statsigMetadata = StatsigMetadata()
-            this.statsigMetadata.stableID = StatsigId.getStableID(this.getSharedPrefs())
-            val stringID: Int? = application.applicationInfo?.labelRes;
-            if (stringID != null) {
-                if (stringID == 0) application.applicationInfo.nonLocalizedLabel.toString() else application.getString(
-                    stringID
-                )
-            }
-
-            try {
-                if (application.packageManager != null) {
-                    val pInfo: PackageInfo =
-                        application.packageManager.getPackageInfo(application.packageName, 0)
-                    this.statsigMetadata.appVersion = pInfo.versionName
-                }
-            } catch (e: PackageManager.NameNotFoundException) {
-            }
+            this.populateStatsigMetadata()
 
             this.application.registerActivityLifecycleCallbacks(StatsigActivityLifecycleListener())
             this.logger = StatsigLogger(sdkKey, this.options.api, this.statsigMetadata)
@@ -258,6 +243,25 @@ class Statsig {
         @JvmStatic
         fun shutdown() {
             this.logger.flush()
+        }
+
+        private fun populateStatsigMetadata() {
+            this.statsigMetadata.stableID = StatsigId.getStableID(this.getSharedPrefs())
+            val stringID: Int? = this.application.applicationInfo?.labelRes;
+            if (stringID != null) {
+                if (stringID == 0) application.applicationInfo.nonLocalizedLabel.toString() else application.getString(
+                    stringID
+                )
+            }
+
+            try {
+                if (application.packageManager != null) {
+                    val pInfo: PackageInfo =
+                        application.packageManager.getPackageInfo(application.packageName, 0)
+                    this.statsigMetadata.appVersion = pInfo.versionName
+                }
+            } catch (e: PackageManager.NameNotFoundException) {
+            }
         }
 
         private fun loadFromCache() {

@@ -10,6 +10,6 @@ data class LogEvent(@SerializedName("eventName") val eventName: String) {
     @SerializedName("user")
     var user: StatsigUser? = null
     @SerializedName("time")
-    val time: Long = System.currentTimeMillis() / 1000
+    val time: Long = System.currentTimeMillis()
 }
 

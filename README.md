@@ -6,7 +6,7 @@
 
 In `build.gradle` include the statsig dependency, directly from the github source (via jitpack).
 
-In your root build.gradle, at the end of repositories, add:
+In your root `build.gradle`, at the end of repositories, add:
 
         allprojects {
 		repositories {
@@ -17,7 +17,7 @@ In your root build.gradle, at the end of repositories, add:
 
 Then, add the dependency, where the version is a git tag from this repository:
 
-`implementation 'com.github.statsig-io:android-sdk:v1.0.1'`
+`implementation 'com.github.statsig-io:android-sdk:1.1.0'`
 
 Finally, run a gradle sync so Intellij/Android Studio recognizes the Statsig library.
 
@@ -26,12 +26,16 @@ For more information on including a jitpack library as a dependency https://jitp
 The SDK is written in Kotlin, but can be used by Android Apps written in either Java OR Kotlin!
 ## Java
 
+    import com.statsig.androidsdk.*;
+
+    ...
+
     Statsig.initialize(  
         app,  
-        "<CLIENT_SDK_KEY>",  
-         this::onStatsigReady,  
-         new StatsigUser("<USER_ID_OR_NULL>")
-     )
+        "<CLIENT_SDK_KEY>",
+        new StatsigUser("<USER_ID_OR_NULL>")
+        this::onStatsigReady,
+    )
 
 where `onStatsigReady` is a callback, defined like this:
 
@@ -47,6 +51,10 @@ where `onStatsigReady` is a callback, defined like this:
     }
     
 ## Kotlin
+
+    import com.statsig.androidsdk.*
+
+    ...
 
     val callback = object : StatsigCallback {
         override fun onStatsigReady() {

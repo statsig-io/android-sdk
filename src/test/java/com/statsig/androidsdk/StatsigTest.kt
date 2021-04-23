@@ -85,6 +85,7 @@ class StatsigTest {
             Statsig.initialize(
                 app,
                 "secret-111aaa",
+                null,
                 cb
             )
             fail("Statsig.initialize() did not fail for a non client/test key")
@@ -124,6 +125,7 @@ class StatsigTest {
         Statsig.initialize(
             app,
             "client-111aaa",
+            null,
             initializeCallback
         )
         assertTrue(callbackComplete)
