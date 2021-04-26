@@ -38,6 +38,7 @@ class Statsig {
         private lateinit var application: Application
         private lateinit var sdkKey: String
         private lateinit var options: StatsigOptions
+        private lateinit var lifecycleListener: StatsigActivityLifecycleListener
 
         private lateinit var logger: StatsigLogger
         private lateinit var statsigMetadata: StatsigMetadata
@@ -84,7 +85,8 @@ class Statsig {
             this.statsigMetadata = StatsigMetadata()
             this.populateStatsigMetadata()
 
-            this.application.registerActivityLifecycleCallbacks(StatsigActivityLifecycleListener())
+            this.lifecycleListener = StatsigActivityLifecycleListener()
+            this.application.registerActivityLifecycleCallbacks(this.lifecycleListener)
             this.logger = StatsigLogger(sdkKey, this.options.api, this.statsigMetadata)
 
             loadFromCache()
@@ -156,6 +158,13 @@ class Statsig {
             event.value = value
             event.metadata = metadata
             event.user = this.user
+
+            if (!this.options.disableCurrentActivityLogging) {
+                var className = this.lifecycleListener.currentActivity?.javaClass?.simpleName
+                if (className != null) {
+                    event.statsigMetadata = mapOf("currentPage" to className)
+                }
+            }
             logger.log(event)
         }
 
@@ -317,19 +326,25 @@ class Statsig {
         }
 
         private class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {
+            public var currentActivity : Activity? = null
+
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                currentActivity = activity
             }
 
             override fun onActivityStarted(activity: Activity) {
+                currentActivity = activity
             }
 
             override fun onActivityResumed(activity: Activity) {
+                currentActivity = activity
             }
 
             override fun onActivityPaused(activity: Activity) {
             }
 
             override fun onActivityStopped(activity: Activity) {
+                currentActivity = null
                 shutdown()
             }
 
@@ -337,6 +352,7 @@ class Statsig {
             }
 
             override fun onActivityDestroyed(activity: Activity) {
+                currentActivity = null
             }
 
         }

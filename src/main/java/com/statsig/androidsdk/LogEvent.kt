@@ -11,5 +11,7 @@ data class LogEvent(@SerializedName("eventName") val eventName: String) {
     var user: StatsigUser? = null
     @SerializedName("time")
     val time: Long = System.currentTimeMillis()
+    @SerializedName("statsigMetadata")
+    var statsigMetadata: Map<String, String>? = null
 }
 
