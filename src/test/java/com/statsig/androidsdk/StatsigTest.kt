@@ -39,7 +39,7 @@ class StatsigTest {
 
         mockkObject(StatsigNetwork)
         every {
-            StatsigNetwork.apiPost(any(), any(), any(), any(), any())
+            StatsigNetwork.apiPost(any(), any(), any(), any(), any(), any())
         } answers {
             val callback = lastArg<(InitializeResponse?, CoroutineDispatcher?) -> Unit>()
             callback(

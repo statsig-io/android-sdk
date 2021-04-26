@@ -94,10 +94,11 @@ class Statsig {
             var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
             StatsigNetwork.apiPost(
                 this.options.api,
+                this.options.initTimeoutMs,
                 "initialize",
                 sdkKey,
                 Gson().toJson(body),
-                ::setState
+                ::setState,
             )
         }
 
@@ -228,11 +229,12 @@ class Statsig {
 
             var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
             StatsigNetwork.apiPost(
-                options.api,
+                this.options.api,
+                this.options.initTimeoutMs,
                 "initialize",
                 sdkKey,
                 Gson().toJson(body),
-                ::setState
+                ::setState,
             )
         }
 

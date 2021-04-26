@@ -27,13 +27,14 @@ open class StatsigNetwork {
     companion object {
         fun apiPost(
             api: String,
+            initTimeoutMs: Long,
             endpoint: String,
             sdkKey: String,
             bodyString: String,
-            callback: (InitializeResponse?, CoroutineDispatcher?) -> Unit
+            callback: (InitializeResponse?, CoroutineDispatcher?) -> Unit,
         ) {
             coroutineScope.launch(Dispatchers.IO) {
-                var response = withTimeoutOrNull(3000) {
+                var response = withTimeoutOrNull(initTimeoutMs) {
                     postRequestAsync(
                         api,
                         endpoint,
