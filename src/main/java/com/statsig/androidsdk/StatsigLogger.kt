@@ -1,10 +1,11 @@
 package com.statsig.androidsdk
 
 import com.google.gson.Gson
+import android.content.SharedPreferences
 import kotlinx.coroutines.*
 
 const val MAX_EVENTS: Int = 500
-const val FLUSH_TIMER_MS: Long = 10000
+const val FLUSH_TIMER_MS: Long = 60000
 
 const val CONFIG_EXPOSURE = "statsig::config_exposure"
 const val GATE_EXPOSURE = "statsig::gate_exposure"
@@ -12,7 +13,8 @@ const val GATE_EXPOSURE = "statsig::gate_exposure"
 class StatsigLogger(
     private val sdkKey: String,
     private val api: String,
-    private val statsigMetadata: StatsigMetadata
+    private val statsigMetadata: StatsigMetadata,
+    private val sharedPrefs: SharedPreferences?,
 ) {
     private var events: MutableList<LogEvent> = ArrayList()
     private var gateExposures: MutableSet<String> = HashSet()
@@ -31,7 +33,6 @@ class StatsigLogger(
                 delay(FLUSH_TIMER_MS)
                 logger.flush()
             }
-
         }
     }
 
@@ -45,7 +46,7 @@ class StatsigLogger(
         this.events = ArrayList()
 
         val body = mapOf("events" to flushEvents, "statsigMetadata" to this.statsigMetadata)
-        StatsigNetwork.apiPostLogs(this.api, "log_event", sdkKey, Gson().toJson(body))
+        StatsigNetwork.apiPostLogs(this.api, sdkKey, Gson().toJson(body), this.sharedPrefs)
     }
 
     fun onUpdateUser() {

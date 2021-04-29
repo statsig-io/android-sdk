@@ -29,7 +29,9 @@ class Statsig {
 
     companion object {
 
-        private const val INITIALIZE_RESPONSE_KEY: String = "INITIALIZE_RESPONSE"
+        private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
+
+        private const val INITIALIZE_RESPONSE_KEY: String = "Statsig.INITIALIZE_RESPONSE"
 
         private var state: StatsigState? = null
         private var user: StatsigUser? = null
@@ -87,7 +89,8 @@ class Statsig {
 
             this.lifecycleListener = StatsigActivityLifecycleListener()
             this.application.registerActivityLifecycleCallbacks(this.lifecycleListener)
-            this.logger = StatsigLogger(sdkKey, this.options.api, this.statsigMetadata)
+            val sharedPrefs: SharedPreferences? = this.getSharedPrefs()
+            this.logger = StatsigLogger(sdkKey, this.options.api, this.statsigMetadata, sharedPrefs)
 
             loadFromCache()
 
@@ -100,6 +103,14 @@ class Statsig {
                 Gson().toJson(body),
                 ::setState,
             )
+
+            if (sharedPrefs != null) {
+                StatsigNetwork.apiRetryFailedLogs(
+                    this.options.api,
+                    sdkKey,
+                    sharedPrefs
+                )
+            }
         }
 
         /**
@@ -291,7 +302,7 @@ class Statsig {
                 return
             }
             val json = Gson().toJson(initializeData)
-            sharedPrefs.edit().putString(INITIALIZE_RESPONSE_KEY, json).commit()
+            sharedPrefs.edit().putString(INITIALIZE_RESPONSE_KEY, json).apply()
         }
 
         private fun clearCache() {
@@ -299,7 +310,7 @@ class Statsig {
             if (sharedPrefs == null) {
                 return
             }
-            sharedPrefs.edit().remove(INITIALIZE_RESPONSE_KEY)
+            sharedPrefs.edit().remove(INITIALIZE_RESPONSE_KEY).apply()
         }
 
         private fun setState(
@@ -324,11 +335,11 @@ class Statsig {
         }
 
         private fun getSharedPrefs(): SharedPreferences? {
-            return application.getSharedPreferences("STATSIG", Context.MODE_PRIVATE)
+            return application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
         }
 
         private class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {
-            public var currentActivity : Activity? = null
+            public var currentActivity: Activity? = null
 
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
                 currentActivity = activity
