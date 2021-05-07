@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class Config(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Map<String, Any>,
-    @SerializedName("rule") val rule: String
+    @SerializedName("rule_id") val rule: String
 )
 
 /**
