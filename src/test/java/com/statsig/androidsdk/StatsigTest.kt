@@ -45,8 +45,18 @@ class StatsigTest {
             callback(
                 InitializeResponse(
                     mapOf(
-                        "always_on" to true,
-                        "always_off" to false
+                        "always_on" to
+                                FeatureGate(
+                                    "always_on",
+                                    true,
+                                    "always_on_rule_id"
+                                ),
+                        "always_off" to
+                                FeatureGate(
+                                    "always_off",
+                                    false,
+                                    "always_on_rule_id"
+                                ),
                     ),
                     mapOf(
                         "test_config" to Config(
@@ -118,6 +128,7 @@ class StatsigTest {
                         .getString("otherNumber", "default string instead"),
                 )
                 assertNull(Statsig.getConfig("not_a_valid_config"))
+                assertEquals("default", Statsig.getConfig("test_config")!!.getRuleID())
                 callbackComplete = true
             }
         }

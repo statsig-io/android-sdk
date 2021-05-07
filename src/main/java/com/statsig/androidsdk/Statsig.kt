@@ -127,8 +127,11 @@ class Statsig {
             }
 
             val gateValue = this.state!!.checkGate(StatsigUtil.getHashedString(gateName))
-            this.logger.logGateExposure(gateName, gateValue, this.user)
-            return gateValue
+            if (gateValue != null) {
+                this.logger.logGateExposure(gateName, gateValue.value, gateValue.rule, this.user)
+                return gateValue.value
+            }
+            return false
         }
 
         /**
@@ -145,7 +148,7 @@ class Statsig {
             }
             val config = this.state!!.getConfig(StatsigUtil.getHashedString(configName))
             if (config != null) {
-                this.logger.logConfigExposure(configName, config.getGroup(), this.user)
+                this.logger.logConfigExposure(configName, config.getRuleID(), this.user)
             }
             return config
         }

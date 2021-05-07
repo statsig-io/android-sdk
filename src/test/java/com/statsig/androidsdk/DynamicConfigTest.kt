@@ -50,6 +50,7 @@ class DynamicConfigTest {
         assertEquals(3.0, emptyConfig.getDouble("test_config", 3.0), 0.0)
         val arr = arrayOf("test", "one")
         assertArrayEquals(arr, emptyConfig.getArray("test_config", arr as Array<Any>))
+        assertEquals("default", emptyConfig.getRuleID())
         assertNull(emptyConfig.getConfig("nested"))
         assertNull(emptyConfig.getString("testnodefault"))
         assertNull(emptyConfig.getArray("testnodefault"))

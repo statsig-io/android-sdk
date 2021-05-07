@@ -55,25 +55,26 @@ class StatsigLogger(
         this.gateExposures = HashSet()
     }
 
-    fun logGateExposure(gateName: String, value: Boolean, user: StatsigUser?) {
+    fun logGateExposure(gateName: String, value: Boolean, ruleID: String, user: StatsigUser?) {
         if (gateExposures.contains(gateName)) {
             return;
         }
         gateExposures.add(gateName)
         var event = LogEvent(GATE_EXPOSURE)
         event.user = user
-        event.metadata = mapOf("gate" to gateName, "gateValue" to value.toString())
+        event.metadata =
+            mapOf("gate" to gateName, "gateValue" to value.toString(), "ruleID" to ruleID)
         this.log(event)
     }
 
-    fun logConfigExposure(configName: String, group: String, user: StatsigUser?) {
+    fun logConfigExposure(configName: String, ruleID: String, user: StatsigUser?) {
         if (configExposures.contains(configName)) {
             return;
         }
         configExposures.add(configName)
         var event = LogEvent(CONFIG_EXPOSURE)
         event.user = user
-        event.metadata = mapOf("config" to configName, "configGroup" to group)
+        event.metadata = mapOf("config" to configName, "ruleID" to ruleID)
         this.log(event)
     }
 }

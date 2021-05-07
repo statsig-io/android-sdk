@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class Config(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Map<String, Any>,
-    @SerializedName("group") val group: String
+    @SerializedName("rule") val rule: String
 )
 
 /**
@@ -145,7 +145,7 @@ class DynamicConfig(private val config: Config) {
                 Config(
                     key,
                     this.config.value[key] as Map<String, Any>,
-                    config.group
+                    this.config.rule
                 )
             )
             else -> null
@@ -156,7 +156,7 @@ class DynamicConfig(private val config: Config) {
         return config.value.toString()
     }
 
-    fun getGroup(): String {
-        return config.group
+    fun getRuleID(): String {
+        return config.rule
     }
 }

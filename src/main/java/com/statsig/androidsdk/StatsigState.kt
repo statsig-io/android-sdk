@@ -1,11 +1,11 @@
 package com.statsig.androidsdk
 
 class StatsigState(private val initializeResponse: InitializeResponse) {
-    fun checkGate(gateName: String): Boolean {
-        if (initializeResponse.gates == null) {
-            return false
+    fun checkGate(gateName: String): FeatureGate? {
+        if (initializeResponse.featureGates == null) {
+            return null
         }
-        return initializeResponse.gates[gateName] == true;
+        return initializeResponse.featureGates[gateName];
     }
 
     fun getConfig(configName: String): DynamicConfig? {
