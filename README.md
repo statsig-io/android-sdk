@@ -68,3 +68,8 @@ where `onStatsigReady` is a callback, defined like this:
 	    StatsigUser("<USER_ID_OR_NULL>"),  
 	    callback,
 	)
+
+
+## What is Statsig?
+
+Statsig helps you move faster with Feature Gates (Feature Flags) and Dynamic Configs. It also allows you to run A/B tests to validate your new features and understand their impact on your KPIs. If you're new to Statsig, create an account at [statsig.com](https://www.statsig.com).
