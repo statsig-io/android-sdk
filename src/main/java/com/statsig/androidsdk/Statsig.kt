@@ -91,7 +91,6 @@ class Statsig {
             this.application.registerActivityLifecycleCallbacks(this.lifecycleListener)
             val sharedPrefs: SharedPreferences? = this.getSharedPrefs()
             this.logger = StatsigLogger(sdkKey, this.options.api, this.statsigMetadata, sharedPrefs)
-
             loadFromCache()
 
             var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
@@ -122,6 +121,7 @@ class Statsig {
          */
         @JvmStatic
         fun checkGate(gateName: String): Boolean {
+            enforceInitialized("checkGate");
             if (this.state == null) {
                 return false
             }
@@ -134,6 +134,12 @@ class Statsig {
             return false
         }
 
+        private fun enforceInitialized(functionName: String) {
+            if (!this::sdkKey.isInitialized) {
+                throw IllegalStateException("The SDK must be initialized prior to invoking " + functionName)
+            }
+        }
+
         /**
          * Check the value of a Dynamic Config configured in the Statsig console for the initialized
          * user
@@ -142,15 +148,17 @@ class Statsig {
          * has not been initialized)
          */
         @JvmStatic
-        fun getConfig(configName: String): DynamicConfig? {
+        fun getConfig(configName: String): DynamicConfig {
+            enforceInitialized("getConfig")
             if (this.state == null) {
-                return null
+                return DynamicConfig()
             }
             val config = this.state!!.getConfig(StatsigUtil.getHashedString(configName))
             if (config != null) {
                 this.logger.logConfigExposure(configName, config.getRuleID(), this.user)
+                return config
             }
-            return config
+            return DynamicConfig()
         }
 
         /**
@@ -166,6 +174,7 @@ class Statsig {
             value: Double? = null,
             metadata: Map<String, String>? = null
         ) {
+            enforceInitialized("logEvent")
             if (this.state == null) {
                 return
             }
@@ -250,16 +259,6 @@ class Statsig {
                 Gson().toJson(body),
                 ::setState,
             )
-        }
-
-        /**
-         * Checks to see if the SDK is in a ready state to check gates and configs
-         * If the SDK is initializing, or switching users, it is not in a ready state.
-         * @return the ready state of the SDK
-         */
-        @JvmStatic
-        fun isReady(): Boolean {
-            return this.state != null
         }
 
         /**
@@ -370,8 +369,6 @@ class Statsig {
             override fun onActivityDestroyed(activity: Activity) {
                 currentActivity = null
             }
-
         }
     }
-
 }

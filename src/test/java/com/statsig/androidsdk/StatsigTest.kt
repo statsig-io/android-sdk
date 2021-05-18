@@ -29,7 +29,6 @@ class StatsigTest {
             app.registerActivityLifecycleCallbacks(any())
         } returns Unit
 
-
         mockkObject(StatsigUtil)
         every {
             StatsigUtil.getHashedString(any())
@@ -78,13 +77,6 @@ class StatsigTest {
     }
 
     @Test
-    fun beforeInitialize() {
-        assertFalse(Statsig.checkGate("any_gate_name"))
-
-        assertNull(Statsig.getConfig("any_config"))
-    }
-
-    @Test
     fun initializeBadInput() {
         val cb = object : StatsigCallback {
             override fun onStatsigReady() {
@@ -108,8 +100,6 @@ class StatsigTest {
         var callbackComplete: Boolean = false
         val initializeCallback = object : StatsigCallback {
             override fun onStatsigReady() {
-                assertTrue(Statsig.isReady())
-
                 assertTrue(Statsig.checkGate("always_on"))
                 assertFalse(Statsig.checkGate("always_off"))
                 assertFalse(Statsig.checkGate("not_a_valid_gate_name"))
@@ -127,7 +117,7 @@ class StatsigTest {
                     Statsig.getConfig("test_config")!!
                         .getString("otherNumber", "default string instead"),
                 )
-                assertNull(Statsig.getConfig("not_a_valid_config"))
+                assertNull(Statsig.getConfig("not_a_valid_config").getRuleID())
                 assertEquals("default", Statsig.getConfig("test_config")!!.getRuleID())
                 callbackComplete = true
             }

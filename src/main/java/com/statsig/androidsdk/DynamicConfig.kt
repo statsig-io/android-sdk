@@ -5,8 +5,10 @@ import com.google.gson.annotations.SerializedName
 data class Config(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Map<String, Any>,
-    @SerializedName("rule_id") val rule: String
+    @SerializedName("rule_id") val rule: String?
 )
+
+fun DynamicConfig() = DynamicConfig(Config("", mapOf(), null))
 
 /**
  * A helper class for interfacing with Dynamic Configs defined in the Statsig console
@@ -19,8 +21,7 @@ class DynamicConfig(private val config: Config) {
      * @param default the default value to return if the expected key does not exist in the config
      * @return the value at the given key, or the default value if not found
      */
-    @JvmOverloads
-    fun getString(key: String, default: String? = null): String? {
+    fun getString(key: String, default: String?): String? {
         if (!config.value.containsKey(key)) {
             return default;
         }
@@ -97,8 +98,7 @@ class DynamicConfig(private val config: Config) {
      * @param default the default value to return if the expected key does not exist in the config
      * @return the value at the given key, or the default value if not found
      */
-    @JvmOverloads
-    fun getArray(key: String, default: Array<*>? = null): Array<*>? {
+    fun getArray(key: String, default: Array<*>?): Array<*>? {
         if (!config.value.containsKey(key)) {
             return default;
         }
@@ -118,8 +118,7 @@ class DynamicConfig(private val config: Config) {
      * @param default the default value to return if the expected key does not exist in the config
      * @return the value at the given key, or the default value if not found
      */
-    @JvmOverloads
-    fun getDictionary(key: String, default: Map<String, Any>? = null): Map<String, Any>? {
+    fun getDictionary(key: String, default: Map<String, Any>?): Map<String, Any>? {
         if (!config.value.containsKey(key)) {
             return default;
         }
@@ -152,11 +151,16 @@ class DynamicConfig(private val config: Config) {
         }
     }
 
-    override fun toString(): String {
-        return config.value.toString()
+    /**
+     * Returns a Map representing the JSON object backing this config
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key as a DynamicConfig, or null
+     */
+    fun getValue(): Map<String, Any> {
+        return config.value
     }
 
-    fun getRuleID(): String {
+    fun getRuleID(): String? {
         return config.rule
     }
 }

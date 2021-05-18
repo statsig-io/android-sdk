@@ -35,6 +35,22 @@ class DynamicConfigTest {
     }
 
     @Test
+    fun testDummy() {
+        val dummyConfig = DynamicConfig()
+        assertEquals("provided default", dummyConfig.getString("test", "provided default"))
+        assertEquals(true, dummyConfig.getBoolean("test", true))
+        assertEquals(12, dummyConfig.getInt("test", 12))
+        assertEquals("hello world", dummyConfig.getString("test", "hello world"))
+        assertEquals(0, dummyConfig.getValue().size)
+        assertNull(dummyConfig.getString("test", null))
+        assertNull(dummyConfig.getConfig("nested"))
+        assertNull(dummyConfig.getString("testnodefault", null))
+        assertNull(dummyConfig.getArray("testnodefault", null))
+        assertNull(dummyConfig.getDictionary("testnodefault", null))
+        assertNull(dummyConfig.getRuleID())
+    }
+
+    @Test
     fun testEmpty() {
         val emptyConfig = DynamicConfig(
             Config(
@@ -52,9 +68,9 @@ class DynamicConfigTest {
         assertArrayEquals(arr, emptyConfig.getArray("test_config", arr as Array<Any>))
         assertEquals("default", emptyConfig.getRuleID())
         assertNull(emptyConfig.getConfig("nested"))
-        assertNull(emptyConfig.getString("testnodefault"))
-        assertNull(emptyConfig.getArray("testnodefault"))
-        assertNull(emptyConfig.getDictionary("testnodefault"))
+        assertNull(emptyConfig.getString("testnodefault", null))
+        assertNull(emptyConfig.getArray("testnodefault", null))
+        assertNull(emptyConfig.getDictionary("testnodefault", null))
     }
 
     @Test

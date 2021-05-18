@@ -36,6 +36,7 @@ android {
     buildTypes {
         debug {
             buildConfigField("String", "VERSION_NAME", "\"${defaultConfig.versionName}\"")
+            debuggable true
         }
         release {
             buildConfigField("String", "VERSION_NAME", "\"${defaultConfig.versionName}\"")

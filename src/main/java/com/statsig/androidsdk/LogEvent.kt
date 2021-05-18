@@ -7,7 +7,7 @@ data class LogEvent(@SerializedName("eventName") val eventName: String) {
     var value: Any? = null
 
     @SerializedName("metadata")
-    var metadata: Map<String, String>? = null
+    var metadata: Map<String, String?>? = null
 
     @SerializedName("user")
     var user: StatsigUser? = null
@@ -16,6 +16,6 @@ data class LogEvent(@SerializedName("eventName") val eventName: String) {
     val time: Long = System.currentTimeMillis()
 
     @SerializedName("statsigMetadata")
-    var statsigMetadata: Map<String, String>? = null
+    var statsigMetadata: Map<String, String?>? = null
 }
 
