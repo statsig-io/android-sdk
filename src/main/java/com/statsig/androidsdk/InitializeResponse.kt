@@ -4,7 +4,9 @@ import com.google.gson.annotations.SerializedName
 
 data class InitializeResponse(
     @SerializedName("feature_gates") val featureGates: Map<String, FeatureGate>?,
-    @SerializedName("dynamic_configs") val configs: Map<String, Config>?
+    @SerializedName("dynamic_configs") val configs: Map<String, Config>?,
+    @SerializedName("has_updates") val hasUpdates: Boolean,
+    @SerializedName("time") val time: Long,
 )
 
 data class FeatureGate(

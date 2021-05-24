@@ -8,19 +8,9 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
 import com.google.gson.Gson
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-
-private val completableJob = Job()
-private val coroutineScope = CoroutineScope(Dispatchers.Main + completableJob)
-
-@FunctionalInterface
-interface StatsigCallback {
-    fun onStatsigReady()
-}
+import kotlinx.coroutines.*
+import kotlinx.coroutines.future.future
+import java.util.concurrent.CompletableFuture
 
 /**
  * A singleton class for interfacing with gates, configs, and logging in the Statsig console
@@ -36,7 +26,7 @@ class Statsig {
         private var state: StatsigState? = null
         private var user: StatsigUser? = null
 
-        private var callback: StatsigCallback? = null
+        private var pollingJob: Job? = null
         private lateinit var application: Application
         private lateinit var sdkKey: String
         private lateinit var options: StatsigOptions
@@ -51,7 +41,6 @@ class Statsig {
          * @param application - the Android application Statsig is operating in
          * @param sdkKey - a client or test SDK Key from the Statsig console
          * @param user - the user to associate with feature gate checks, config fetches, and logging
-         * @param callback - invoked when initialization is complete
          * @param options - advanced SDK setup
          * Checking Gates/Configs before initialization calls back will return default values
          * Logging Events before initialization will drop those events
@@ -60,12 +49,32 @@ class Statsig {
          */
         @JvmOverloads
         @JvmStatic
-        fun initialize(
+        fun initializeAsync(
             application: Application,
             sdkKey: String,
             user: StatsigUser? = null,
-            callback: StatsigCallback? = null,
-            options: StatsigOptions? = null
+            options: StatsigOptions = StatsigOptions(),
+        ): CompletableFuture<Unit> = GlobalScope.future {
+            initialize(application, sdkKey, user, options)
+        }
+
+        /**
+         * Initializes the SDK for the given user.  Initialization is complete when the callback
+         * is invoked
+         * @param application - the Android application Statsig is operating in
+         * @param sdkKey - a client or test SDK Key from the Statsig console
+         * @param user - the user to associate with feature gate checks, config fetches, and logging
+         * @param options - advanced SDK setup
+         * Checking Gates/Configs before initialization calls back will return default values
+         * Logging Events before initialization will drop those events
+         * Susequent calls to initialize will be ignored.  To switch the user or update user values,
+         * use updateUser()
+         */
+        suspend fun initialize(
+            application: Application,
+            sdkKey: String,
+            user: StatsigUser? = null,
+            options: StatsigOptions = StatsigOptions(),
         ) {
             if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
                 throw IllegalArgumentException("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
@@ -77,12 +86,7 @@ class Statsig {
             this.application = application
             this.sdkKey = sdkKey
             this.user = user
-            this.callback = callback
-            if (options == null) {
-                this.options = StatsigOptions()
-            } else {
-                this.options = options
-            }
+            this.options = options
 
             this.statsigMetadata = StatsigMetadata()
             this.populateStatsigMetadata()
@@ -93,15 +97,20 @@ class Statsig {
             this.logger = StatsigLogger(sdkKey, this.options.api, this.statsigMetadata, sharedPrefs)
             loadFromCache()
 
-            var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
-            StatsigNetwork.apiPost(
+            val initResponse = StatsigNetwork.initialize(
                 this.options.api,
-                this.options.initTimeoutMs,
-                "initialize",
                 sdkKey,
-                Gson().toJson(body),
-                ::setState,
+                user,
+                this.statsigMetadata,
+                this.options.initTimeoutMs,
             )
+
+            val instance = this
+            runBlocking {
+                instance.setState(initResponse)
+            }
+
+            instance.pollForUpdates()
 
             if (sharedPrefs != null) {
                 StatsigNetwork.apiRetryFailedLogs(
@@ -227,6 +236,13 @@ class Statsig {
             logger.log(event)
         }
 
+        @JvmStatic
+        fun updateUserAsync(
+            user: StatsigUser?,
+        ): CompletableFuture<Unit> = GlobalScope.future {
+            updateUser(user)
+        }
+
         /**
          * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
          * user with additional properties
@@ -236,8 +252,8 @@ class Statsig {
          * invoked, checking Gates will return false, getting Configs will return null, and
          * Log Events will be dropped
          */
-        @JvmStatic
-        fun updateUser(user: StatsigUser?, callback: StatsigCallback) {
+        suspend fun updateUser(user: StatsigUser?) {
+            this.pollingJob?.cancel()
             clearCache()
             this.state = null
             if (this.user?.userID !== user?.userID) {
@@ -247,18 +263,20 @@ class Statsig {
                 this.logger.flush()
             }
             this.user = user
-            this.callback = callback
             this.statsigMetadata.sessionID = StatsigId.getNewSessionID()
 
-            var body = mapOf("user" to user, "statsigMetadata" to this.statsigMetadata)
-            StatsigNetwork.apiPost(
+            val initResponse = StatsigNetwork.initialize(
                 this.options.api,
+                this.sdkKey,
+                this.user,
+                this.statsigMetadata,
                 this.options.initTimeoutMs,
-                "initialize",
-                sdkKey,
-                Gson().toJson(body),
-                ::setState,
             )
+            val instance = this
+            runBlocking {
+                instance.setState(initResponse)
+                instance.pollForUpdates()
+            }
         }
 
         /**
@@ -266,7 +284,18 @@ class Statsig {
          */
         @JvmStatic
         fun shutdown() {
+            this.pollingJob?.cancel()
             this.logger.flush()
+        }
+
+        private fun pollForUpdates() {
+            this.pollingJob = StatsigNetwork.pollForChanges(
+                this.options.api,
+                this.sdkKey,
+                this.user,
+                this.statsigMetadata,
+                ::setState
+            )
         }
 
         private fun populateStatsigMetadata() {
@@ -316,23 +345,11 @@ class Statsig {
         }
 
         private fun setState(
-            result: InitializeResponse?,
-            dispatcher: CoroutineDispatcher? = Dispatchers.Main
+            result: InitializeResponse?
         ) {
-            if (result != null) {
+            if (result != null && result.hasUpdates) {
                 this.state = StatsigState(result)
                 saveToCache(result)
-            }
-            val cb = this.callback
-            this.callback = null
-            if (cb != null) {
-                if (dispatcher != null) {
-                    coroutineScope.launch(dispatcher) {
-                        cb.onStatsigReady()
-                    }
-                } else {
-                    cb.onStatsigReady()
-                }
             }
         }
 

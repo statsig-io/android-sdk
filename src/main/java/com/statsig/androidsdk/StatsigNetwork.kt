@@ -30,46 +30,85 @@ private val RETRY_CODES: IntArray = intArrayOf(
 private val OFFLINE_LOGS_KEY: String = "StatsigNetwork.OFFLINE_LOGS"
 private val LOGGING_ENDPOINT: String = "log_event"
 
+private val INITIALIZE_ENDPOINT: String = "initialize"
+private val POLLING_INTERVAL_MS: Long = 10000
+
 open class StatsigNetwork {
     companion object {
-        fun apiPost(
+
+        private var lastSyncTimeForUser: Long = 0
+
+        suspend fun initialize(
             api: String,
-            initTimeoutMs: Long,
-            endpoint: String,
             sdkKey: String,
-            bodyString: String,
-            callback: (InitializeResponse?, CoroutineDispatcher?) -> Unit,
-        ) {
-            coroutineScope.launch(Dispatchers.IO) {
-                var response = withTimeoutOrNull(initTimeoutMs) {
+            user: StatsigUser?,
+            metadata: StatsigMetadata,
+            initTimeoutMs: Long,
+        ): InitializeResponse? {
+            if (initTimeoutMs == 0L) {
+                return initializeImpl(api, sdkKey, user, metadata)
+            }
+            return withTimeoutOrNull(initTimeoutMs) {
+                initializeImpl(api, sdkKey, user, metadata)
+            }
+        }
+
+        private suspend fun initializeImpl(
+            api: String,
+            sdkKey: String,
+            user: StatsigUser?,
+            metadata: StatsigMetadata,
+        ): InitializeResponse? {
+            try {
+                var body = mapOf("user" to user, "statsigMetadata" to metadata)
+                val response =
                     postRequestAsync(
                         api,
-                        endpoint,
+                        INITIALIZE_ENDPOINT,
                         sdkKey,
-                        bodyString,
+                        Gson().toJson(body),
                         InitializeResponse::class,
                         0,
                         null,
-                    ).await()
+                    )
+                val instance = this
+                return runBlocking {
+                    instance.lastSyncTimeForUser = response?.time ?: instance.lastSyncTimeForUser
+                    response
                 }
+            } catch (_e : Exception) {
+                return null
+            }
+        }
 
-                if (response == null) {
-                    callback(null, Dispatchers.Main)
-                    response = postRequestAsync(
+        fun pollForChanges(
+            api: String,
+            sdkKey: String,
+            user: StatsigUser?,
+            metadata: StatsigMetadata,
+            callback: (InitializeResponse?) -> Unit,
+        ): Job {
+            val network = this
+            return CoroutineScope(Dispatchers.Default).launch {
+                while (isActive) {
+                    delay(POLLING_INTERVAL_MS)
+                    var body = mapOf(
+                        "user" to user,
+                        "statsigMetadata" to metadata,
+                        "lastSyncTimeForUser" to network.lastSyncTimeForUser
+                    )
+                    val response = postRequestAsync(
                         api,
-                        endpoint,
+                        INITIALIZE_ENDPOINT,
                         sdkKey,
-                        bodyString,
+                        Gson().toJson(body),
                         InitializeResponse::class,
-                        3,
+                        0,
                         null,
-                    ).await()
-                }
-
-                if (response == null) {
-                    callback(null, Dispatchers.Main)
-                } else {
-                    callback(response, Dispatchers.Main)
+                    )
+                    runBlocking {
+                        callback(response)
+                    }
                 }
             }
         }
@@ -81,7 +120,7 @@ open class StatsigNetwork {
             sharedPrefs: SharedPreferences?,
         ) {
             coroutineScope.launch(Dispatchers.IO) {
-                val result = postRequestAsync(
+                postRequestAsync(
                     api,
                     LOGGING_ENDPOINT,
                     sdkKey,
@@ -89,7 +128,7 @@ open class StatsigNetwork {
                     LogEventResponse::class,
                     3,
                     sharedPrefs,
-                ).await()
+                )
             }
         }
 
@@ -152,9 +191,10 @@ open class StatsigNetwork {
             retries: Int,
             sharedPrefs: SharedPreferences?,
             retryAttempt: Int = 0,
-        ): Deferred<T?> = coroutineScope.async {
+        ): T? {
+            val url = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
             val connection: HttpURLConnection =
-                URL("$api/$endpoint").openConnection() as HttpURLConnection
+                URL(url).openConnection() as HttpURLConnection
 
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
@@ -169,35 +209,36 @@ open class StatsigNetwork {
                 connection.outputStream.flush()
                 connection.outputStream.close()
 
-                var response: T? = Gson().fromJson(
-                    InputStreamReader(connection.inputStream, Charsets.UTF_8),
-                    responseType.java
-                )
-                connection.inputStream.close()
+                return runBlocking {
+                    var response: T? = Gson().fromJson(
+                        InputStreamReader(connection.inputStream, Charsets.UTF_8),
+                        responseType.java
+                    )
+                    connection.inputStream.close()
 
-                if (connection.responseCode >= 200 && connection.responseCode < 300) {
-                    response
-                } else if (RETRY_CODES.contains(connection.responseCode)) {
-                    if (retries > 0 && retryAttempt < retries) {
-                        Thread.sleep((100.0).pow(retryAttempt + 1).toLong())
-                        response = postRequestAsync(
-                            api,
-                            endpoint,
-                            sdkKey,
-                            bodyString,
-                            responseType,
-                            retries,
-                            sharedPrefs,
-                            retryAttempt + 1
-                        ).await()
+                    if (connection.responseCode >= 200 && connection.responseCode < 300) {
                         response
-                    } else if (sharedPrefs != null && endpoint.equals(LOGGING_ENDPOINT)) {
-                        addFailedLogRequest(sharedPrefs, bodyString)
+                    } else if (RETRY_CODES.contains(connection.responseCode)) {
+                        if (retries > 0 && retryAttempt < retries) {
+                            Thread.sleep((100.0).pow(retryAttempt + 1).toLong())
+                            postRequestAsync(
+                                api,
+                                endpoint,
+                                sdkKey,
+                                bodyString,
+                                responseType,
+                                retries,
+                                sharedPrefs,
+                                retryAttempt + 1
+                            )
+                        } else if (sharedPrefs != null && endpoint.equals(LOGGING_ENDPOINT)) {
+                            addFailedLogRequest(sharedPrefs, bodyString)
+                            null
+                        }
+                        null
+                    } else {
                         null
                     }
-                    null
-                } else {
-                    null
                 }
             } catch (e: Exception) {
                 if (sharedPrefs != null && endpoint.equals(LOGGING_ENDPOINT)) {
@@ -205,6 +246,7 @@ open class StatsigNetwork {
                 }
                 null
             }
+            return null
         }
     }
 }
