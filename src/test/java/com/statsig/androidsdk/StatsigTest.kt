@@ -46,20 +46,20 @@ class StatsigTest {
             InitializeResponse(
                 featureGates = mapOf(
                     "always_on" to
-                            FeatureGate(
+                            APIFeatureGate(
                                 "always_on",
                                 true,
                                 "always_on_rule_id"
                             ),
                     "always_off" to
-                            FeatureGate(
+                            APIFeatureGate(
                                 "always_off",
                                 false,
                                 "always_on_rule_id"
                             ),
                 ),
                 configs = mapOf(
-                    "test_config" to Config(
+                    "test_config" to APIDynamicConfig(
                         "test_config",
                         mapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                         "default"
@@ -113,7 +113,7 @@ class StatsigTest {
             Statsig.getConfig("test_config")!!
                 .getString("otherNumber", "default string instead"),
         )
-        assertNull(Statsig.getConfig("not_a_valid_config").getRuleID())
+        assertEquals("", Statsig.getConfig("not_a_valid_config").getRuleID())
         assertEquals("default", Statsig.getConfig("test_config")!!.getRuleID())
     }
 }

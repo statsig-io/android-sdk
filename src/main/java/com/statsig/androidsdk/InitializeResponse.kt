@@ -3,14 +3,20 @@ package com.statsig.androidsdk
 import com.google.gson.annotations.SerializedName
 
 data class InitializeResponse(
-    @SerializedName("feature_gates") val featureGates: Map<String, FeatureGate>?,
-    @SerializedName("dynamic_configs") val configs: Map<String, Config>?,
+    @SerializedName("feature_gates") val featureGates: Map<String, APIFeatureGate>?,
+    @SerializedName("dynamic_configs") val configs: Map<String, APIDynamicConfig>?,
     @SerializedName("has_updates") val hasUpdates: Boolean,
     @SerializedName("time") val time: Long,
 )
 
-data class FeatureGate(
+data class APIFeatureGate(
     @SerializedName("name") val name: String,
-    @SerializedName("value") val value: Boolean,
-    @SerializedName("rule_id") val rule: String
+    @SerializedName("value") val value: Boolean = false,
+    @SerializedName("rule_id") val ruleID: String = ""
+)
+
+data class APIDynamicConfig(
+    @SerializedName("name") val name: String,
+    @SerializedName("value") val value: Map<String, Any>,
+    @SerializedName("rule_id") val ruleID: String?
 )

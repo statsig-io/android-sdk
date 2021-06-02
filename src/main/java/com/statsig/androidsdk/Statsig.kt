@@ -130,23 +130,13 @@ class Statsig {
          */
         @JvmStatic
         fun checkGate(gateName: String): Boolean {
-            enforceInitialized("checkGate");
-            if (this.state == null) {
-                return false
+            enforceInitialized("checkGate")
+            var res = APIFeatureGate(gateName)
+            if (this.state != null) {
+                res = this.state!!.checkGate(StatsigUtil.getHashedString(gateName))
             }
-
-            val gateValue = this.state!!.checkGate(StatsigUtil.getHashedString(gateName))
-            if (gateValue != null) {
-                this.logger.logGateExposure(gateName, gateValue.value, gateValue.rule, this.user)
-                return gateValue.value
-            }
-            return false
-        }
-
-        private fun enforceInitialized(functionName: String) {
-            if (!this::sdkKey.isInitialized) {
-                throw IllegalStateException("The SDK must be initialized prior to invoking " + functionName)
-            }
+            this.logger.logGateExposure(gateName, res.value, res.ruleID, this.user)
+            return res.value
         }
 
         /**
@@ -159,15 +149,12 @@ class Statsig {
         @JvmStatic
         fun getConfig(configName: String): DynamicConfig {
             enforceInitialized("getConfig")
-            if (this.state == null) {
-                return DynamicConfig()
+            var res = DynamicConfig(configName)
+            if (this.state != null) {
+                res = this.state!!.getConfig(StatsigUtil.getHashedString(configName))
             }
-            val config = this.state!!.getConfig(StatsigUtil.getHashedString(configName))
-            if (config != null) {
-                this.logger.logConfigExposure(configName, config.getRuleID(), this.user)
-                return config
-            }
-            return DynamicConfig()
+            this.logger.logConfigExposure(configName, res.getRuleID(), this.user)
+            return res
         }
 
         /**
@@ -288,6 +275,12 @@ class Statsig {
             this.logger.flush()
         }
 
+        private fun enforceInitialized(functionName: String) {
+            if (!this::sdkKey.isInitialized) {
+                throw IllegalStateException("The SDK must be initialized prior to invoking " + functionName)
+            }
+        }
+
         private fun pollForUpdates() {
             this.pollingJob = StatsigNetwork.pollForChanges(
                 this.options.api,
@@ -300,7 +293,7 @@ class Statsig {
 
         private fun populateStatsigMetadata() {
             this.statsigMetadata.stableID = StatsigId.getStableID(this.getSharedPrefs())
-            val stringID: Int? = this.application.applicationInfo?.labelRes;
+            val stringID: Int? = this.application.applicationInfo?.labelRes
             if (stringID != null) {
                 if (stringID == 0) application.applicationInfo.nonLocalizedLabel.toString() else application.getString(
                     stringID

@@ -1,18 +1,22 @@
 package com.statsig.androidsdk
 
 class StatsigState(private val initializeResponse: InitializeResponse) {
-    fun checkGate(gateName: String): FeatureGate? {
-        if (initializeResponse.featureGates == null) {
-            return null
+    fun checkGate(gateName: String): APIFeatureGate {
+        if (
+            initializeResponse.featureGates == null ||
+            !initializeResponse.featureGates.containsKey(gateName)) {
+            return APIFeatureGate(gateName, false, "")
         }
-        return initializeResponse.featureGates[gateName];
+        return initializeResponse.featureGates[gateName] ?: APIFeatureGate(gateName, false, "")
     }
 
-    fun getConfig(configName: String): DynamicConfig? {
-        if (initializeResponse.configs == null) {
-            return null
+    fun getConfig(configName: String): DynamicConfig {
+        if (
+            initializeResponse.configs == null ||
+            !initializeResponse.configs.containsKey(configName)) {
+            return DynamicConfig(configName)
         }
-        val config = initializeResponse.configs[configName] ?: return null
-        return DynamicConfig(config)
+        var config = initializeResponse.configs[configName]
+        return DynamicConfig(configName, config?.value ?: mapOf(), config?.ruleID ?: "")
     }
 }

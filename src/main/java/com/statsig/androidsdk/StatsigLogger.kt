@@ -67,7 +67,7 @@ class StatsigLogger(
         this.log(event)
     }
 
-    fun logConfigExposure(configName: String, ruleID: String?, user: StatsigUser?) {
+    fun logConfigExposure(configName: String, ruleID: String, user: StatsigUser?) {
         if (configExposures.contains(configName)) {
             return;
         }

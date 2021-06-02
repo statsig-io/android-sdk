@@ -11,53 +11,49 @@ class DynamicConfigTest {
     @Before
     internal fun setup() {
         dc = DynamicConfig(
-            Config(
-                "test_config",
-                mapOf(
-                    "testString" to "test",
-                    "testBoolean" to true,
-                    "testInt" to 12,
-                    "testDouble" to 42.3,
-                    "testArray" to arrayOf("one", "two"),
-                    "testIntArray" to intArrayOf(3, 2),
-                    "testDoubleArray" to doubleArrayOf(3.1, 2.1),
-                    "testBooleanArray" to booleanArrayOf(true, false),
-                    "testNested" to mapOf(
-                        "nestedString" to "nested",
-                        "nestedBoolean" to true,
-                        "nestedDouble" to 13.74,
-                        "nestedInt" to 13
-                    ),
+            "test_config",
+            mapOf(
+                "testString" to "test",
+                "testBoolean" to true,
+                "testInt" to 12,
+                "testDouble" to 42.3,
+                "testArray" to arrayOf("one", "two"),
+                "testIntArray" to intArrayOf(3, 2),
+                "testDoubleArray" to doubleArrayOf(3.1, 2.1),
+                "testBooleanArray" to booleanArrayOf(true, false),
+                "testNested" to mapOf(
+                    "nestedString" to "nested",
+                    "nestedBoolean" to true,
+                    "nestedDouble" to 13.74,
+                    "nestedInt" to 13
                 ),
-                "default"
-            )
+            ),
+            "default",
         )
     }
 
     @Test
     fun testDummy() {
-        val dummyConfig = DynamicConfig()
+        val dummyConfig = DynamicConfig("")
         assertEquals("provided default", dummyConfig.getString("test", "provided default"))
         assertEquals(true, dummyConfig.getBoolean("test", true))
         assertEquals(12, dummyConfig.getInt("test", 12))
         assertEquals("hello world", dummyConfig.getString("test", "hello world"))
         assertEquals(0, dummyConfig.getValue().size)
+        assertEquals("", dummyConfig.getRuleID())
         assertNull(dummyConfig.getString("test", null))
         assertNull(dummyConfig.getConfig("nested"))
         assertNull(dummyConfig.getString("testnodefault", null))
         assertNull(dummyConfig.getArray("testnodefault", null))
         assertNull(dummyConfig.getDictionary("testnodefault", null))
-        assertNull(dummyConfig.getRuleID())
     }
 
     @Test
     fun testEmpty() {
         val emptyConfig = DynamicConfig(
-            Config(
-                "test_config",
-                mapOf(),
-                "default"
-            )
+            "test_config",
+            mapOf(),
+            "default",
         )
 
         assertEquals("provided default", emptyConfig.getString("test", "provided default"))
