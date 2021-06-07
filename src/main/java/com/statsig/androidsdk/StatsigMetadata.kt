@@ -10,6 +10,7 @@ data class StatsigMetadata(
     @SerializedName("deviceModel") var deviceModel: String? = Build.MODEL,
     @SerializedName("deviceOS") var deviceOS: String = "Android",
     @SerializedName("language") var language: String? = Locale.getDefault().displayLanguage,
+    @SerializedName("sdkType") var sdkType: String? = "android-client",
     @SerializedName("sdkVersion") var sdkVersion: String? = com.statsig.androidsdk.BuildConfig.VERSION_NAME,
     @SerializedName("sessionID") var sessionID: String? = StatsigId.getSessionID(),
     @SerializedName("stableID") var stableID: String? = null,
