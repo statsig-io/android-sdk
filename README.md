@@ -8,7 +8,7 @@ In `build.gradle` include the statsig dependency, directly from the github sourc
 
 In your root `build.gradle`, at the end of repositories, add:
 
-        allprojects {
+    allprojects {
 		repositories {
 			...
 			maven { url 'https://jitpack.io' }
@@ -41,10 +41,10 @@ where `onStatsigReady` is a callback, defined like this:
 	    DynamicConfig androidConfig = Statsig.getConfig("android_config");
 	    if (androidConfig == null) {  
 		    return;  
-		}
-		String title androidConfig.getValue("title", "Fallback Title");
+	    }
+	    String title androidConfig.getValue("title", "Fallback Title");
 		
-		Statsig.logEvent("test_event", 10.0);
+	    Statsig.logEvent("test_event", 10.0);
     }
     
 ## Kotlin
@@ -53,18 +53,16 @@ where `onStatsigReady` is a callback, defined like this:
 
     ...
 
-    val callback = object : StatsigCallback {
-        override fun onStatsigReady() {
-            // check gates/configs and log events
-        }
+    val initialize = CoroutineScope(Dispatchers.Default).async {
+	    Statsig.initialize(  
+	        this.application,  
+	        "<CLIENT_SDK_KEY>",  
+	        StatsigUser("<USER_ID_OR_NULL>"),
+	    )
     }
+    initialize.await()
 
-	Statsig.initialize(  
-	    this.application,  
-	    "<CLIENT_SDK_KEY>",  
-	    StatsigUser("<USER_ID_OR_NULL>"),  
-	    callback,
-	)
+    val featureOn = Statsig.checkGate("<GATE_NAME>")
 
 
 ## What is Statsig?
