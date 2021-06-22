@@ -12,7 +12,7 @@ import com.google.gson.annotations.SerializedName
  * @property userAgent the user agent of the requests for this user
  * @property country the country location of the user
  * @property locale the locale for the user
- * @property clientVersion the current version of the app
+ * @property appVersion the current version of the app
  * @property custom any additional custom user attributes for custom conditions in the console
  *                  NOTE: values other than String, Double, Boolean, Array<String>
  *                  will be dropped from the map
@@ -36,8 +36,8 @@ data class StatsigUser(
     @SerializedName("locale")
     var locale: String? = null
 
-    @SerializedName("clientVersion")
-    var clientVersion: String? = null
+    @SerializedName("appVersion")
+    var appVersion: String? = null
 
     @SerializedName("custom")
     var custom: Map<String, Any>? = null

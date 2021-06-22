@@ -199,6 +199,7 @@ open class StatsigNetwork {
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
             connection.setRequestProperty("STATSIG-API-KEY", sdkKey)
+            connection.setRequestProperty("STATSIG-CLIENT-TIME", java.lang.System.currentTimeMillis())
             connection.setRequestProperty("Accept", "application/json");
 
             try {
