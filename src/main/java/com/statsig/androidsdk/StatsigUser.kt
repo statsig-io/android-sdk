@@ -41,4 +41,7 @@ data class StatsigUser(
 
     @SerializedName("custom")
     var custom: Map<String, Any>? = null
+
+    @SerializedName("statsigEnvironment")
+    internal var statsigEnvironment: Map<String, String>? = null
 }

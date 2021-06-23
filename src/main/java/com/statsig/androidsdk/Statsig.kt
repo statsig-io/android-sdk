@@ -104,8 +104,8 @@ class Statsig {
             }
             this.application = application
             this.sdkKey = sdkKey
-            this.user = user
             this.options = options
+            this.user = normalizeUser(user)
 
             this.statsigMetadata = StatsigMetadata()
             this.populateStatsigMetadata()
@@ -337,6 +337,15 @@ class Statsig {
             if (!this::sdkKey.isInitialized) {
                 throw IllegalStateException("The SDK must be initialized prior to invoking " + functionName)
             }
+        }
+
+        private fun normalizeUser(user: StatsigUser?): StatsigUser? {
+            var normalizedUser = user
+            if (this.options.getEnvironment() != null && user == null) {
+                normalizedUser = StatsigUser("")
+            }
+            normalizedUser?.statsigEnvironment = this.options.getEnvironment()
+            return normalizedUser
         }
 
         private fun pollForUpdates() {

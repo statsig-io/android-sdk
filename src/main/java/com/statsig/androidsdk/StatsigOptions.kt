@@ -2,6 +2,14 @@ package com.statsig.androidsdk
 
 import com.google.gson.annotations.SerializedName
 
+enum class Tier {
+    PRODUCTION,
+    STAGING,
+    DEVELOPMENT,
+}
+
+private const val TIER_KEY: String = "tier"
+
 /**
  * An object of properties for initializing the sdk with advanced options
  * @property api the api endpoint to use for initialization and logging
@@ -16,5 +24,23 @@ class StatsigOptions(
     @SerializedName("disableCurrentActivityLogging") var disableCurrentActivityLogging: Boolean = false,
     @SerializedName("initTimeoutMs") var initTimeoutMs: Long = 3000L,
 ) {
+
+    private var environment: MutableMap<String, String>? = null
+
+    fun setTier(tier : Tier) {
+        setEnvironmentParameter(TIER_KEY, tier.toString().lowercase())
+    }
+
+    fun setEnvironmentParameter(key: String, value: String){
+        if (environment == null) {
+            environment = mutableMapOf(key to value)
+            return
+        }
+        environment!![key] = value
+    }
+
+    fun getEnvironment(): MutableMap<String, String>? {
+        return environment
+    }
 
 }
