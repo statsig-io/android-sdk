@@ -9,8 +9,16 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import com.google.gson.Gson
 import kotlinx.coroutines.*
-import kotlinx.coroutines.future.future
-import java.util.concurrent.CompletableFuture
+
+@FunctionalInterface
+interface IStatsigInitializeCallback {
+    fun onStatsigInitialize()
+}
+
+@FunctionalInterface
+interface IStatsigUpdateUserCallback {
+    fun onStatsigUpdateUser()
+}
 
 /**
  * A singleton class for interfacing with gates, configs, and logging in the Statsig console
@@ -41,6 +49,7 @@ class Statsig {
          * @param application - the Android application Statsig is operating in
          * @param sdkKey - a client or test SDK Key from the Statsig console
          * @param user - the user to associate with feature gate checks, config fetches, and logging
+         * @param callback - a callback to execute when initialization is complete
          * @param options - advanced SDK setup
          * Checking Gates/Configs before initialization calls back will return default values
          * Logging Events before initialization will drop those events
@@ -53,18 +62,24 @@ class Statsig {
             application: Application,
             sdkKey: String,
             user: StatsigUser? = null,
+            callback: IStatsigInitializeCallback? = null,
             options: StatsigOptions = StatsigOptions(),
-        ): CompletableFuture<Unit> = GlobalScope.future {
-            initialize(application, sdkKey, user, options)
+        ) {
+            GlobalScope.async {
+                runBlocking {
+                    initialize(application, sdkKey, user, options)
+                }
+                thread.callback?.onStatsigInitialize()
+            }
         }
 
         /**
-         * Initializes the SDK for the given user.  Initialization is complete when the callback
-         * is invoked
+         * Initializes the SDK for the given user
          * @param application - the Android application Statsig is operating in
          * @param sdkKey - a client or test SDK Key from the Statsig console
          * @param user - the user to associate with feature gate checks, config fetches, and logging
          * @param options - advanced SDK setup
+         * @throws IllegalArgumentException if and Invalid SDK Key provided
          * Checking Gates/Configs before initialization calls back will return default values
          * Logging Events before initialization will drop those events
          * Susequent calls to initialize will be ignored.  To switch the user or update user values,
@@ -126,7 +141,7 @@ class Statsig {
          * user
          * @param gateName the name of the feature gate to check
          * @return the value of the gate for the initialized user, or false if not found
-         * or the SDK is not initialized
+         * @throws IllegalStateException if the SDK has not been initialized
          */
         @JvmStatic
         fun checkGate(gateName: String): Boolean {
@@ -143,8 +158,8 @@ class Statsig {
          * Check the value of a Dynamic Config configured in the Statsig console for the initialized
          * user
          * @param configName the name of the Dynamic Config to check
-         * @return the Dynamic Config the initialized user, or null if not found (or the SDK
-         * has not been initialized)
+         * @return the Dynamic Config the initialized user
+         * @throws IllegalStateException if the SDK has not been initialized
          */
         @JvmStatic
         fun getConfig(configName: String): DynamicConfig {
@@ -158,10 +173,24 @@ class Statsig {
         }
 
         /**
+         * Check the value of an Experiment configured in the Statsig console for the initialized
+         * user
+         * @param experimentName the name of the Experiment to check
+         * @return the Dynamic Config backing the experiment
+         * @throws IllegalStateException if the SDK has not been initialized
+         */
+        @JvmStatic
+        fun getExperiment(experimentName: String): DynamicConfig {
+            enforceInitialized("getExperiment")
+            return getConfig(experimentName)
+        }
+
+        /**
          * Log an event to Statsig for the current user
          * @param eventName the name of the event to track
          * @param value an optional value assocaited with the event, for aggregations/analysis
          * @param metadata an optional map of metadata associated with the event
+         * @throws IllegalStateException if the SDK has not been initialized
          */
         @JvmOverloads
         @JvmStatic
@@ -193,9 +222,11 @@ class Statsig {
          * @param eventName the name of the event to track
          * @param value an optional value assocaited with the event
          * @param metadata an optional map of metadata associated with the event
+         * @throws IllegalStateException if the SDK has not been initialized
          */
         @JvmStatic
         fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
+            enforceInitialized("logEvent")
             if (this.state == null) {
                 return
             }
@@ -210,9 +241,11 @@ class Statsig {
          * Log an event to Statsig for the current user
          * @param eventName the name of the event to track
          * @param metadata an optional map of metadata associated with the event
+         * @throws IllegalStateException if the SDK has not been initialized
          */
         @JvmStatic
         fun logEvent(eventName: String, metadata: Map<String, String>) {
+            enforceInitialized("logEvent")
             if (this.state == null) {
                 return
             }
@@ -223,13 +256,6 @@ class Statsig {
             logger.log(event)
         }
 
-        @JvmStatic
-        fun updateUserAsync(
-            user: StatsigUser?,
-        ): CompletableFuture<Unit> = GlobalScope.future {
-            updateUser(user)
-        }
-
         /**
          * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
          * user with additional properties
@@ -238,8 +264,30 @@ class Statsig {
          * @param callback a callback to invoke upon update completion. Before this callback is
          * invoked, checking Gates will return false, getting Configs will return null, and
          * Log Events will be dropped
+         * @throws IllegalStateException if the SDK has not been initialized
+         */
+        @JvmStatic
+        fun updateUserAsync(
+            user: StatsigUser?,
+            callback: IStatsigUpdateUserCallback? = null,
+        ) {
+            GlobalScope.async {
+                runBlocking {
+                    updateUser(user)
+                }
+                callback?.onStatsigUpdateUser()
+            }
+        }
+
+        /**
+         * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
+         * user with additional properties
+         *
+         * @param user the updated user
+         * @throws IllegalStateException if the SDK has not been initialized
          */
         suspend fun updateUser(user: StatsigUser?) {
+            enforceInitialized("updateUser")
             this.pollingJob?.cancel()
             clearCache()
             this.state = null
@@ -268,9 +316,11 @@ class Statsig {
 
         /**
          * Informs the Statsig SDK that the client is shutting down to complete cleanup saving state
+         * @throws IllegalStateException if the SDK has not been initialized
          */
         @JvmStatic
         fun shutdown() {
+            enforceInitialized("shutdown")
             this.pollingJob?.cancel()
             this.logger.flush()
         }

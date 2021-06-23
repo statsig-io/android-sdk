@@ -30,13 +30,21 @@ The SDK is written in Kotlin, but can be used by Android Apps written in either 
 
     ...
 
-    Application app = getApplication();
-    CompletableFuture future = Statsig.initializeAsync(app, "<CLIENT_SDK_KEY>");
-    future.thenApply(this::onStatsigReady);
+    // Implement the initialize callback interface
+    public class MainActivity extends AppCompatActivity implements IStatsigInitializeCallback {
 
-where `onStatsigReady` is a callback, defined like this:
+        ...
 
-	private Object onStatsigReady(Object empty) {
+        Application app = getApplication();
+        StatsigUser user = new StatsigUser(<USER_ID>);
+        // initialization will happen on a background thread
+        Statsig.initializeAsync(app, <CLIENT_SDK_KEY>, user, this);
+    }
+
+    @Override
+    public void onStatsigInitialize() {
+        // Callback happens on a background thread
+        // If you need to modify the UI, be sure to post back to the main thread
 	    // use your gates and feature configs now!
 	    DynamicConfig androidConfig = Statsig.getConfig("android_config");
 	    if (androidConfig == null) {  
