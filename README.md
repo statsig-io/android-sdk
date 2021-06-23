@@ -17,7 +17,7 @@ In your root `build.gradle`, at the end of repositories, add:
 
 Then, add the dependency, where the version is a git tag from this repository:
 
-`implementation 'com.github.statsig-io:android-sdk:v2.0.0'`
+`implementation 'com.github.statsig-io:android-sdk:v3.0.0'`
 
 Finally, run a gradle sync so Intellij/Android Studio recognizes the Statsig library.
 
