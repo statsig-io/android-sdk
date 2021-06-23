@@ -33,27 +33,39 @@ The SDK is written in Kotlin, but can be used by Android Apps written in either 
     // Implement the initialize callback interface
     public class MainActivity extends AppCompatActivity implements IStatsigInitializeCallback {
 
+        private Handler mHandler = null
+
         ...
+        protected void onCreate(Bundle savedInstanceState) {
+            mHandler = new android.os.Handler(Looper.getMainLooper());
+            Application app = getApplication();
+            StatsigUser user = new StatsigUser(<USER_ID>);
+            // initialization will happen on a background thread, but post back via the handler
+            Statsig.initializeAsync(app, <CLIENT_SDK_KEY>, user, this);
+        }
 
-        Application app = getApplication();
-        StatsigUser user = new StatsigUser(<USER_ID>);
-        // initialization will happen on a background thread
-        Statsig.initializeAsync(app, <CLIENT_SDK_KEY>, user, this);
-    }
-
-    @Override
-    public void onStatsigInitialize() {
-        // Callback happens on a background thread
-        // If you need to modify the UI, be sure to post back to the main thread
-	    // use your gates and feature configs now!
-	    DynamicConfig androidConfig = Statsig.getConfig("android_config");
-	    if (androidConfig == null) {  
-		    return;  
-	    }
-	    String title androidConfig.getValue("title", "Fallback Title");
+        @Override
+        public void onStatsigInitialize() {
+	        // use your gates and feature configs now!
+	        DynamicConfig androidConfig = Statsig.getConfig("android_config");
+	        if (androidConfig == null) {  
+		        return;  
+	        }
+	        String title androidConfig.getValue("title", "Fallback Title");
 		
-	    Statsig.logEvent("test_event", 10.0);
-    }
+	        Statsig.logEvent("test_event", 10.0);
+        }
+
+        @Override
+        public Handler getStatsigHandler() {
+            // return a handler for Statsig to callback to the correct thread
+            return mHandler;
+        }
+
+        @Override
+        public void onStatsigUpdateUser() {
+            // handle user updates
+        }
     
 ## Kotlin
 

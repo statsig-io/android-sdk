@@ -7,17 +7,17 @@ import android.content.SharedPreferences
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
 import com.google.gson.Gson
 import kotlinx.coroutines.*
 
 @FunctionalInterface
-interface IStatsigInitializeCallback {
+interface IStatsigCallback {
     fun onStatsigInitialize()
-}
 
-@FunctionalInterface
-interface IStatsigUpdateUserCallback {
     fun onStatsigUpdateUser()
+
+    fun getStatsigHandler(): Handler
 }
 
 /**
@@ -62,14 +62,18 @@ class Statsig {
             application: Application,
             sdkKey: String,
             user: StatsigUser? = null,
-            callback: IStatsigInitializeCallback? = null,
+            callback: IStatsigCallback? = null,
             options: StatsigOptions = StatsigOptions(),
         ) {
             GlobalScope.async {
                 runBlocking {
                     initialize(application, sdkKey, user, options)
                 }
-                thread.callback?.onStatsigInitialize()
+                if (callback != null) {
+                    callback.getStatsigHandler().post {
+                        callback.onStatsigInitialize()
+                    }
+                }
             }
         }
 
@@ -269,13 +273,17 @@ class Statsig {
         @JvmStatic
         fun updateUserAsync(
             user: StatsigUser?,
-            callback: IStatsigUpdateUserCallback? = null,
+            callback: IStatsigCallback? = null,
         ) {
             GlobalScope.async {
                 runBlocking {
                     updateUser(user)
                 }
-                callback?.onStatsigUpdateUser()
+                if (callback != null) {
+                    callback.getStatsigHandler().post {
+                        callback.onStatsigUpdateUser()
+                    }
+                }
             }
         }
 
