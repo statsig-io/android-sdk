@@ -16,6 +16,7 @@ import com.google.gson.annotations.SerializedName
  * @property custom any additional custom user attributes for custom conditions in the console
  *                  NOTE: values other than String, Double, Boolean, Array<String>
  *                  will be dropped from the map
+ * @property privateAttributes any user attributes that should be used in evaluation only and removed in any logs.
  */
 data class StatsigUser(
     @SerializedName("userID")
@@ -41,6 +42,9 @@ data class StatsigUser(
 
     @SerializedName("custom")
     var custom: Map<String, Any>? = null
+
+    @SerializedName("privateAttributes")
+    var privateAttributes: Map<String, Any>? = null
 
     @SerializedName("statsigEnvironment")
     internal var statsigEnvironment: Map<String, String>? = null
