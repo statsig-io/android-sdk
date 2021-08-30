@@ -48,4 +48,20 @@ data class StatsigUser(
 
     @SerializedName("statsigEnvironment")
     internal var statsigEnvironment: Map<String, String>? = null
+
+    internal fun getCopyForLogging(): StatsigUser {
+        val userCopy = StatsigUser(userID)
+        userCopy.email = email
+        userCopy.ip = ip
+        userCopy.userAgent = userAgent
+        userCopy.country = country
+        userCopy.locale = locale
+        userCopy.appVersion = appVersion
+        userCopy.custom = custom
+        userCopy.statsigEnvironment = statsigEnvironment
+        // DO NOT copy privateAttributes to the logging copy!
+        userCopy.privateAttributes = null
+
+        return userCopy
+    }
 }
