@@ -11,6 +11,10 @@ data class LogEvent(@SerializedName("eventName") val eventName: String) {
 
     @SerializedName("user")
     var user: StatsigUser? = null
+        set(value) {
+            // We need to use a special copy of the user object that strips out private attributes for logging purposes
+            field = value?.getCopyForLogging()
+        }
 
     @SerializedName("time")
     val time: Long = System.currentTimeMillis()
