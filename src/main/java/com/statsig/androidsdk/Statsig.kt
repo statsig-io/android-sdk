@@ -129,7 +129,9 @@ class Statsig {
                 instance.setState(initResponse)
             }
 
-            instance.pollForUpdates()
+            if (this.options.enableAutoValueUpdate) {
+                instance.pollForUpdates()
+            }
 
             if (sharedPrefs != null) {
                 StatsigNetwork.apiRetryFailedLogs(

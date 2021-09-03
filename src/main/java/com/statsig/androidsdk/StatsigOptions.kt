@@ -23,6 +23,7 @@ class StatsigOptions(
     @SerializedName("api") var api: String = "https://api.statsig.com/v1",
     @SerializedName("disableCurrentActivityLogging") var disableCurrentActivityLogging: Boolean = false,
     @SerializedName("initTimeoutMs") var initTimeoutMs: Long = 3000L,
+    @SerializedName("enableAutoValueUpdate") var enableAutoValueUpdate: Boolean = false,
 ) {
 
     private var environment: MutableMap<String, String>? = null
