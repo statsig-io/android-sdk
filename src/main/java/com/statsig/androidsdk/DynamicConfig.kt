@@ -3,7 +3,11 @@ package com.statsig.androidsdk
 /**
  * A helper class for interfacing with Dynamic Configs defined in the Statsig console
  */
-class DynamicConfig(private val name: String, private val jsonValue: Map<String, Any> = mapOf(), private val rule: String = "") {
+class DynamicConfig(
+    private val name: String,
+    private val jsonValue: Map<String, Any> = mapOf(),
+    private val rule: String = "",
+    private val secondaryExposures: Array<Map<String, String>> = arrayOf()) {
 
     /**
      * Gets a value from the config, falling back to the provided default value
@@ -147,7 +151,15 @@ class DynamicConfig(private val name: String, private val jsonValue: Map<String,
         return this.jsonValue
     }
 
-    fun getRuleID(): String {
+    fun getName(): String {
+        return this.name
+    }
+
+    internal fun getRuleID(): String {
         return this.rule
+    }
+
+    internal fun getSecondaryExposures(): Array<Map<String, String>> {
+        return this.secondaryExposures
     }
 }

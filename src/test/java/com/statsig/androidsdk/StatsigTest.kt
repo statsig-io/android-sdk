@@ -49,20 +49,26 @@ class StatsigTest {
                             APIFeatureGate(
                                 "always_on",
                                 true,
-                                "always_on_rule_id"
+                                "always_on_rule_id",
+                                arrayOf(
+                                    mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"),
+                                    mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2")
+                                )
                             ),
                     "always_off" to
                             APIFeatureGate(
                                 "always_off",
                                 false,
-                                "always_on_rule_id"
+                                "always_on_rule_id",
+                                arrayOf()
                             ),
                 ),
                 configs = mapOf(
                     "test_config" to APIDynamicConfig(
                         "test_config",
                         mapOf("string" to "test", "number" to 42, "otherNumber" to 17),
-                        "default"
+                        "default",
+                        arrayOf(mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"))
                     )
                 ),
                 hasUpdates = true,
@@ -115,5 +121,23 @@ class StatsigTest {
         )
         assertEquals("", Statsig.getConfig("not_a_valid_config").getRuleID())
         assertEquals("default", Statsig.getConfig("test_config")!!.getRuleID())
+
+        assertEquals(Statsig.logger.events.count(), 8)
+
+        // validate gate exposure
+        assertEquals(Statsig.logger.events[0].metadata!!["gate"], "always_on")
+        assertEquals(Statsig.logger.events[0].metadata!!["gateValue"], "true")
+        assertEquals(Statsig.logger.events[0].metadata!!["ruleID"], "always_on_rule_id")
+        assertEquals(Statsig.logger.events[0].secondaryExposures, arrayOf(
+            mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"),
+            mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2")
+        ))
+
+        // validate config exposure
+        assertEquals(Statsig.logger.events[3].metadata!!["config"], "test_config")
+        assertEquals(Statsig.logger.events[3].metadata!!["ruleID"], "default")
+        assertEquals(Statsig.logger.events[3].secondaryExposures, arrayOf(
+            mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1")
+        ))
     }
 }

@@ -17,6 +17,6 @@ class StatsigState(private val initializeResponse: InitializeResponse) {
             return DynamicConfig(configName)
         }
         var config = initializeResponse.configs[configName]
-        return DynamicConfig(configName, config?.value ?: mapOf(), config?.ruleID ?: "")
+        return DynamicConfig(configName, config?.value ?: mapOf(), config?.ruleID ?: "", config?.secondaryExposures ?: arrayOf())
     }
 }

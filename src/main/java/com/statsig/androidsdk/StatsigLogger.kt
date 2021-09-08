@@ -16,9 +16,7 @@ class StatsigLogger(
     private val statsigMetadata: StatsigMetadata,
     private val sharedPrefs: SharedPreferences?,
 ) {
-    private var events: MutableList<LogEvent> = ArrayList()
-    private var gateExposures: MutableSet<String> = HashSet()
-    private var configExposures: MutableSet<String> = HashSet()
+    internal var events: MutableList<LogEvent> = ArrayList()
 
     fun log(event: LogEvent) {
         this.events.add(event)
@@ -51,30 +49,22 @@ class StatsigLogger(
 
     fun onUpdateUser() {
         this.flush()
-        this.configExposures = HashSet()
-        this.gateExposures = HashSet()
     }
 
-    fun logGateExposure(gateName: String, value: Boolean, ruleID: String, user: StatsigUser?) {
-        if (gateExposures.contains(gateName)) {
-            return;
-        }
-        gateExposures.add(gateName)
+    fun logGateExposure(gate: APIFeatureGate, user: StatsigUser?) {
         var event = LogEvent(GATE_EXPOSURE)
         event.user = user
         event.metadata =
-            mapOf("gate" to gateName, "gateValue" to value.toString(), "ruleID" to ruleID)
+            mapOf("gate" to gate.name, "gateValue" to gate.value.toString(), "ruleID" to gate.ruleID)
+        event.secondaryExposures = gate.secondaryExposures
         this.log(event)
     }
 
-    fun logConfigExposure(configName: String, ruleID: String, user: StatsigUser?) {
-        if (configExposures.contains(configName)) {
-            return;
-        }
-        configExposures.add(configName)
+    fun logConfigExposure(config: DynamicConfig, user: StatsigUser?) {
         var event = LogEvent(CONFIG_EXPOSURE)
         event.user = user
-        event.metadata = mapOf("config" to configName, "ruleID" to ruleID)
+        event.metadata = mapOf("config" to config.getName(), "ruleID" to config.getRuleID())
+        event.secondaryExposures = config.getSecondaryExposures()
         this.log(event)
     }
 }

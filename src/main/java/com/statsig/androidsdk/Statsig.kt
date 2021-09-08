@@ -40,7 +40,7 @@ class Statsig {
         private lateinit var options: StatsigOptions
         private lateinit var lifecycleListener: StatsigActivityLifecycleListener
 
-        private lateinit var logger: StatsigLogger
+        internal lateinit var logger: StatsigLogger
         private lateinit var statsigMetadata: StatsigMetadata
 
         /**
@@ -156,7 +156,7 @@ class Statsig {
             if (this.state != null) {
                 res = this.state!!.checkGate(StatsigUtil.getHashedString(gateName))
             }
-            this.logger.logGateExposure(gateName, res.value, res.ruleID, this.user)
+            this.logger.logGateExposure(res, this.user)
             return res.value
         }
 
@@ -174,7 +174,7 @@ class Statsig {
             if (this.state != null) {
                 res = this.state!!.getConfig(StatsigUtil.getHashedString(configName))
             }
-            this.logger.logConfigExposure(configName, res.getRuleID(), this.user)
+            this.logger.logConfigExposure(res, this.user)
             return res
         }
 
