@@ -12,11 +12,13 @@ data class InitializeResponse(
 data class APIFeatureGate(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Boolean = false,
-    @SerializedName("rule_id") val ruleID: String = ""
+    @SerializedName("rule_id") val ruleID: String = "",
+    @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf()
 )
 
 data class APIDynamicConfig(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Map<String, Any>,
-    @SerializedName("rule_id") val ruleID: String?
+    @SerializedName("rule_id") val ruleID: String?,
+    @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf()
 )

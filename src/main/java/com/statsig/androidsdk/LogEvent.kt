@@ -21,5 +21,8 @@ data class LogEvent(@SerializedName("eventName") val eventName: String) {
 
     @SerializedName("statsigMetadata")
     var statsigMetadata: Map<String, String?>? = null
+
+    @SerializedName("secondaryExposures")
+    var secondaryExposures: Array<Map<String, String>>? = arrayOf()
 }
 
