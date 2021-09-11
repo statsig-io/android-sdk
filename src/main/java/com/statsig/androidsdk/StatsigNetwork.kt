@@ -1,20 +1,19 @@
 package com.statsig.androidsdk
 
-import kotlinx.coroutines.*
-import kotlinx.coroutines.CoroutineDispatcher
-import java.io.InputStreamReader
+import android.content.SharedPreferences
+import androidx.core.content.edit
+import com.google.gson.Gson
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.TimeUnit
-import android.content.SharedPreferences
 import kotlin.math.pow
-import kotlin.reflect.KClass
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import java.util.ArrayList
-
-private val completableJob = Job()
-private val coroutineScope = CoroutineScope(Dispatchers.IO + completableJob)
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 private val RETRY_CODES: IntArray = intArrayOf(
     HttpURLConnection.HTTP_CLIENT_TIMEOUT,
@@ -27,227 +26,186 @@ private val RETRY_CODES: IntArray = intArrayOf(
     599
 )
 
-private val OFFLINE_LOGS_KEY: String = "StatsigNetwork.OFFLINE_LOGS"
-private val LOGGING_ENDPOINT: String = "log_event"
+// Constants
+private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
+private const val POLLING_INTERVAL_MS: Long = 10000
 
-private val INITIALIZE_ENDPOINT: String = "initialize"
-private val POLLING_INTERVAL_MS: Long = 10000
+// JSON keys
+private const val USER = "user"
+private const val STATSIG_METADATA = "statsigMetadata"
+private const val LAST_SYNC_TIME_FOR_USER = "lastSyncTimeForUser"
 
-open class StatsigNetwork {
-    companion object {
+// SharedPref keys
+private const val OFFLINE_LOGS_KEY: String = "StatsigNetwork.OFFLINE_LOGS"
 
-        private var lastSyncTimeForUser: Long = 0
+// Endpoints
+private const val LOGGING_ENDPOINT: String = "log_event"
+private const val INITIALIZE_ENDPOINT: String = "initialize"
 
-        suspend fun initialize(
-            api: String,
-            sdkKey: String,
-            user: StatsigUser?,
-            metadata: StatsigMetadata,
-            initTimeoutMs: Long,
-        ): InitializeResponse? {
-            if (initTimeoutMs == 0L) {
-                return initializeImpl(api, sdkKey, user, metadata)
-            }
-            return withTimeoutOrNull(initTimeoutMs) {
-                initializeImpl(api, sdkKey, user, metadata)
-            }
+// HTTP
+private const val POST = "POST"
+private const val CONTENT_TYPE_HEADER_KEY = "Content-Type"
+private const val CONTENT_TYPE_HEADER_VALUE = "application/json; charset=UTF-8"
+private const val STATSIG_API_HEADER_KEY = "STATSIG-API-KEY"
+private const val STATSIG_CLIENT_TIME_HEADER_KEY = "STATSIG-CLIENT-TIME"
+private const val ACCEPT_HEADER_KEY = "Accept"
+private const val ACCEPT_HEADER_VALUE = "application/json"
+
+internal interface StatsigNetwork {
+
+    suspend fun initialize(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata, initTimeoutMs: Long) : InitializeResponse?
+
+    fun pollForChanges(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata): Flow<InitializeResponse?>
+
+    suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String, sharedPrefs: SharedPreferences)
+
+    suspend fun apiRetryFailedLogs(api: String, sdkKey: String, sharedPrefs: SharedPreferences)
+}
+
+internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()
+
+private class StatsigNetworkImpl : StatsigNetwork {
+
+    private val gson = Gson()
+
+    private var lastSyncTimeForUser: Long = 0
+
+    override suspend fun initialize(
+        api: String,
+        sdkKey: String,
+        user: StatsigUser?,
+        metadata: StatsigMetadata,
+        initTimeoutMs: Long,
+    ): InitializeResponse? {
+        if (initTimeoutMs == 0L) {
+            return initializeImpl(api, sdkKey, user, metadata)
         }
-
-        private suspend fun initializeImpl(
-            api: String,
-            sdkKey: String,
-            user: StatsigUser?,
-            metadata: StatsigMetadata,
-        ): InitializeResponse? {
-            try {
-                var body = mapOf("user" to user, "statsigMetadata" to metadata)
-                val response =
-                    postRequestAsync(
-                        api,
-                        INITIALIZE_ENDPOINT,
-                        sdkKey,
-                        Gson().toJson(body),
-                        InitializeResponse::class,
-                        0,
-                        null,
-                    )
-                val instance = this
-                return runBlocking {
-                    instance.lastSyncTimeForUser = response?.time ?: instance.lastSyncTimeForUser
-                    response
-                }
-            } catch (_e : Exception) {
-                return null
-            }
+        return withTimeoutOrNull(initTimeoutMs) {
+            initializeImpl(api, sdkKey, user, metadata)
         }
+    }
 
-        fun pollForChanges(
-            api: String,
-            sdkKey: String,
-            user: StatsigUser?,
-            metadata: StatsigMetadata,
-            callback: (InitializeResponse?) -> Unit,
-        ): Job {
-            val network = this
-            return CoroutineScope(Dispatchers.Default).launch {
-                while (isActive) {
-                    delay(POLLING_INTERVAL_MS)
-                    var body = mapOf(
-                        "user" to user,
-                        "statsigMetadata" to metadata,
-                        "lastSyncTimeForUser" to network.lastSyncTimeForUser
-                    )
-                    val response = postRequestAsync(
-                        api,
-                        INITIALIZE_ENDPOINT,
-                        sdkKey,
-                        Gson().toJson(body),
-                        InitializeResponse::class,
-                        0,
-                        null,
-                    )
-                    runBlocking {
-                        callback(response)
-                    }
-                }
-            }
+    private suspend fun initializeImpl(
+        api: String,
+        sdkKey: String,
+        user: StatsigUser?,
+        metadata: StatsigMetadata,
+    ): InitializeResponse? {
+        return try {
+            val body = mapOf(USER to user, STATSIG_METADATA to metadata)
+            val response = postRequest<InitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, null)
+            lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
+            response
+        } catch (_ : Exception) {
+            null
         }
+    }
 
-        fun apiPostLogs(
-            api: String,
-            sdkKey: String,
-            bodyString: String,
-            sharedPrefs: SharedPreferences?,
-        ) {
-            coroutineScope.launch(Dispatchers.IO) {
-                postRequestAsync(
-                    api,
-                    LOGGING_ENDPOINT,
-                    sdkKey,
-                    bodyString,
-                    LogEventResponse::class,
-                    3,
-                    sharedPrefs,
+    override fun pollForChanges(
+        api: String,
+        sdkKey: String,
+        user: StatsigUser?,
+        metadata: StatsigMetadata
+    ): Flow<InitializeResponse?> {
+        @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
+        return flow<InitializeResponse?> {
+            while (true) {
+                delay(POLLING_INTERVAL_MS) // If coroutine is cancelled, this delay will exit the while loop
+                val body = mapOf(
+                    USER to user,
+                    STATSIG_METADATA to metadata,
+                    LAST_SYNC_TIME_FOR_USER to lastSyncTimeForUser
                 )
+                emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, null))
             }
         }
+    }
 
-        @Synchronized
-        fun apiRetryFailedLogs(
-            api: String,
-            sdkKey: String,
-            sharedPrefs: SharedPreferences,
-        ) {
-            val savedLogs = getSavedLogs(sharedPrefs)
-            if (savedLogs == null || savedLogs.isEmpty()) {
-                return
-            }
-            sharedPrefs.edit().remove(OFFLINE_LOGS_KEY).apply()
-            savedLogs.map {
-                apiPostLogs(api, sdkKey, it.requestBody, sharedPrefs)
-            }
+    override suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String, sharedPrefs: SharedPreferences) {
+        postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, sdkKey, bodyString, 3, sharedPrefs)
+    }
+
+    override suspend fun apiRetryFailedLogs(api: String, sdkKey: String, sharedPrefs: SharedPreferences) {
+        val savedLogs = sharedPrefs.getSavedLogs()
+        if (savedLogs.isEmpty()) {
+            return
         }
+        sharedPrefs.edit { remove(OFFLINE_LOGS_KEY) }
+        savedLogs.forEach { apiPostLogs(api, sdkKey, it.requestBody, sharedPrefs) }
+    }
 
-        private fun addFailedLogRequest(sharedPrefs: SharedPreferences, requestBody: String) {
-            var savedLogs = getSavedLogs(sharedPrefs)
-            if (savedLogs == null) {
-                savedLogs = ArrayList<StatsigOfflineRequest>()
-            }
-            savedLogs.add(StatsigOfflineRequest(java.lang.System.currentTimeMillis(), requestBody))
-            saveFailedRequests(sharedPrefs, StatsigPendingRequests(ArrayList(savedLogs)))
+    private fun addFailedLogRequest(sharedPrefs: SharedPreferences?, requestBody: String) {
+        val savedLogs = sharedPrefs.getSavedLogs()
+
+        savedLogs.add(StatsigOfflineRequest(System.currentTimeMillis(), requestBody))
+        sharedPrefs.saveFailedRequests(StatsigPendingRequests(savedLogs))
+    }
+
+    private fun SharedPreferences?.saveFailedRequests(pending: StatsigPendingRequests) {
+        this?.edit { putString(OFFLINE_LOGS_KEY, gson.toJson(pending)) }
+    }
+
+    private fun SharedPreferences?.getSavedLogs(): MutableList<StatsigOfflineRequest> {
+        if (this == null) return arrayListOf()
+        val json: String = getString(OFFLINE_LOGS_KEY, null) ?: return arrayListOf()
+
+        val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
+        if (pendingRequests?.requests == null) {
+            return arrayListOf()
         }
+        val currentTime = System.currentTimeMillis()
+        return pendingRequests.requests.filter {
+            it.timestamp > currentTime - MAX_LOG_PERIOD
+        }.toMutableList()
+    }
 
-        @Synchronized
-        private fun saveFailedRequests(
-            sharedPrefs: SharedPreferences,
-            pending: StatsigPendingRequests
-        ) {
-            sharedPrefs.edit().putString(OFFLINE_LOGS_KEY, Gson().toJson(pending)).apply()
-        }
+    // Bug with Kotlin where any function that throws an IOException still triggers this lint warning
+    // https://youtrack.jetbrains.com/issue/KTIJ-838
+    @Suppress("BlockingMethodInNonBlockingContext")
+    private suspend inline fun <reified T : Any> postRequest(api: String, endpoint: String, sdkKey: String, bodyString: String, retries: Int, sharedPrefs: SharedPreferences?): T? {
+        return withContext(Dispatchers.IO) { // Perform network calls in IO thread
+            var retryAttempt = 0
+            while (isActive) {
+                val url = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
+                val connection: HttpURLConnection = URL(url).openConnection() as HttpURLConnection
 
-        fun getSavedLogs(sharedPrefs: SharedPreferences): MutableList<StatsigOfflineRequest>? {
-            val json: String? = sharedPrefs.getString(OFFLINE_LOGS_KEY, null)
-            if (json == null) {
-                return null
-            }
-            val pendingRequests = Gson().fromJson(json, StatsigPendingRequests::class.java)
-            if (pendingRequests == null || pendingRequests.requests == null) {
-                return null
-            }
-            val currentTime = java.lang.System.currentTimeMillis()
-            return (pendingRequests.requests.filter {
-                it.timestamp > currentTime - TimeUnit.DAYS.toMillis(
-                    3
-                )
-            }).toMutableList()
-        }
+                connection.requestMethod = POST
+                connection.setRequestProperty(CONTENT_TYPE_HEADER_KEY, CONTENT_TYPE_HEADER_VALUE)
+                connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
+                connection.setRequestProperty(STATSIG_CLIENT_TIME_HEADER_KEY, System.currentTimeMillis().toString())
+                connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
 
-        suspend fun <T : Any> postRequestAsync(
-            api: String,
-            endpoint: String,
-            sdkKey: String,
-            bodyString: String,
-            responseType: KClass<T>,
-            retries: Int,
-            sharedPrefs: SharedPreferences?,
-            retryAttempt: Int = 0,
-        ): T? {
-            val url = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
-            val connection: HttpURLConnection =
-                URL(url).openConnection() as HttpURLConnection
+                try {
+                    connection.outputStream.bufferedWriter(Charsets.UTF_8)
+                        .use { it.write(bodyString) }
+                    val response = connection.inputStream.bufferedReader(Charsets.UTF_8)
+                        .use { gson.fromJson(it, T::class.java) }
 
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-            connection.setRequestProperty("STATSIG-API-KEY", sdkKey)
-            connection.setRequestProperty("STATSIG-CLIENT-TIME", java.lang.System.currentTimeMillis().toString())
-            connection.setRequestProperty("Accept", "application/json");
-
-            try {
-                connection.outputStream.use { os ->
-                    val input: ByteArray = bodyString.toByteArray(Charsets.UTF_8)
-                    os.write(input, 0, input.size)
-                }
-                connection.outputStream.flush()
-                connection.outputStream.close()
-
-                return runBlocking {
-                    var response: T? = Gson().fromJson(
-                        InputStreamReader(connection.inputStream, Charsets.UTF_8),
-                        responseType.java
-                    )
-                    connection.inputStream.close()
-
-                    if (connection.responseCode >= 200 && connection.responseCode < 300) {
-                        response
-                    } else if (RETRY_CODES.contains(connection.responseCode)) {
-                        if (retries > 0 && retryAttempt < retries) {
-                            Thread.sleep((100.0).pow(retryAttempt + 1).toLong())
-                            postRequestAsync(
-                                api,
-                                endpoint,
-                                sdkKey,
-                                bodyString,
-                                responseType,
-                                retries,
-                                sharedPrefs,
-                                retryAttempt + 1
-                            )
-                        } else if (sharedPrefs != null && endpoint.equals(LOGGING_ENDPOINT)) {
-                            addFailedLogRequest(sharedPrefs, bodyString)
-                            null
+                    when (connection.responseCode) {
+                        in 200..299 -> return@withContext response
+                        in RETRY_CODES -> {
+                            if (retries > 0 && retryAttempt++ < retries) {
+                                // Don't return, just allow the loop to happen
+                                delay(100.0.pow(retryAttempt + 1).toLong())
+                            } else if (endpoint == LOGGING_ENDPOINT) {
+                                addFailedLogRequest(sharedPrefs, bodyString)
+                                return@withContext null
+                            } else {
+                                return@withContext null
+                            }
                         }
-                        null
-                    } else {
-                        null
+                        else -> return@withContext null
                     }
+                } catch (e: Exception) {
+                    if (endpoint == LOGGING_ENDPOINT) {
+                        addFailedLogRequest(sharedPrefs, bodyString)
+                    }
+                    return@withContext null
+                } finally {
+                    connection.disconnect()
                 }
-            } catch (e: Exception) {
-                if (sharedPrefs != null && endpoint.equals(LOGGING_ENDPOINT)) {
-                    addFailedLogRequest(sharedPrefs, bodyString)
-                }
-                null
             }
-            return null
+            return@withContext null
         }
     }
 }
