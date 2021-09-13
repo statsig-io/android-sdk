@@ -150,6 +150,7 @@ object Statsig {
             setState(initResponse)
 
             if (options.enableAutoValueUpdate) {
+                pollingJob?.cancel() // Cancel the previous job if it wasn't already
                 pollForUpdates()
             }
 
