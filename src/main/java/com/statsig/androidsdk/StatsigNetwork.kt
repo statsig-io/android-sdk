@@ -135,9 +135,8 @@ private class StatsigNetworkImpl : StatsigNetwork {
     }
 
     private fun addFailedLogRequest(sharedPrefs: SharedPreferences?, requestBody: String) {
-        val savedLogs = sharedPrefs.getSavedLogs()
+        val savedLogs = sharedPrefs.getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
 
-        savedLogs.add(StatsigOfflineRequest(System.currentTimeMillis(), requestBody))
         sharedPrefs.saveFailedRequests(StatsigPendingRequests(savedLogs))
     }
 
@@ -145,7 +144,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         this?.edit { putString(OFFLINE_LOGS_KEY, gson.toJson(pending)) }
     }
 
-    private fun SharedPreferences?.getSavedLogs(): MutableList<StatsigOfflineRequest> {
+    private fun SharedPreferences?.getSavedLogs(): List<StatsigOfflineRequest> {
         if (this == null) return arrayListOf()
         val json: String = getString(OFFLINE_LOGS_KEY, null) ?: return arrayListOf()
 
@@ -156,7 +155,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         val currentTime = System.currentTimeMillis()
         return pendingRequests.requests.filter {
             it.timestamp > currentTime - MAX_LOG_PERIOD
-        }.toMutableList()
+        }
     }
 
     // Bug with Kotlin where any function that throws an IOException still triggers this lint warning
