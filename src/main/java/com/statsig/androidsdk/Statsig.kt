@@ -7,7 +7,6 @@ import android.content.SharedPreferences
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Handler
 import androidx.annotation.VisibleForTesting
 import androidx.core.content.edit
 import com.google.gson.Gson
@@ -15,19 +14,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.android.asCoroutineDispatcher
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/**
+ * Callback interface for Statsig calls. All callbacks will be run on the main thread.
+ */
 @FunctionalInterface
 interface IStatsigCallback {
     fun onStatsigInitialize()
 
     fun onStatsigUpdateUser()
-
-    fun getStatsigHandler(): Handler
 }
 
 /**
@@ -83,11 +82,9 @@ object Statsig {
     ) {
         statsigScope.launch {
             initialize(application, sdkKey, user, options)
-            if (callback != null) {
-                // Run on the handler if we are already in the same looper. Else post on it via coroutines.
-                withContext(callback.getStatsigHandler().asCoroutineDispatcher().immediate) {
-                    callback.onStatsigInitialize()
-                }
+            // The scope's dispatcher may change in the future. This "withContext" will ensure we keep true to the documentation above.
+            withContext(Dispatchers.Main.immediate) {
+                callback?.onStatsigInitialize()
             }
         }
     }
@@ -244,6 +241,7 @@ object Statsig {
      * @param metadata an optional map of metadata associated with the event
      * @throws IllegalStateException if the SDK has not been initialized
      */
+    @JvmOverloads
     @JvmStatic
     fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
         enforceInitialized("logEvent")
@@ -294,12 +292,8 @@ object Statsig {
     fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
         statsigScope.launch {
             updateUser(user)
-
-            if (callback != null) {
-                // Run on the handler if we are already in the same looper. Else post on it via coroutines.
-                withContext(callback.getStatsigHandler().asCoroutineDispatcher().immediate) {
-                    callback.onStatsigUpdateUser()
-                }
+            withContext(Dispatchers.Main.immediate) {
+                callback?.onStatsigUpdateUser()
             }
         }
     }

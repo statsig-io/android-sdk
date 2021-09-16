@@ -2,7 +2,7 @@ package com.statsig.androidsdk
 
 import com.google.gson.annotations.SerializedName
 
-data class LogEvent(@SerializedName("eventName") val eventName: String) {
+internal data class LogEvent(@SerializedName("eventName") val eventName: String) {
     @SerializedName("value")
     var value: Any? = null
 
@@ -25,4 +25,3 @@ data class LogEvent(@SerializedName("eventName") val eventName: String) {
     @SerializedName("secondaryExposures")
     var secondaryExposures: Array<Map<String, String>>? = arrayOf()
 }
-
