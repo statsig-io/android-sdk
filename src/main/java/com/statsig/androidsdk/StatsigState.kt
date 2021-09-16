@@ -1,6 +1,6 @@
 package com.statsig.androidsdk
 
-class StatsigState(private val initializeResponse: InitializeResponse) {
+internal class StatsigState(private val initializeResponse: InitializeResponse) {
     fun checkGate(gateName: String): APIFeatureGate {
         if (
             initializeResponse.featureGates == null ||

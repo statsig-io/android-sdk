@@ -6,11 +6,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
-const val MAX_EVENTS: Int = 500
-const val FLUSH_TIMER_MS: Long = 60000
+internal const val MAX_EVENTS: Int = 500
+internal const val FLUSH_TIMER_MS: Long = 60000
 
-const val CONFIG_EXPOSURE = "statsig::config_exposure"
-const val GATE_EXPOSURE = "statsig::gate_exposure"
+internal const val CONFIG_EXPOSURE = "statsig::config_exposure"
+internal const val GATE_EXPOSURE = "statsig::gate_exposure"
 
 private const val EVENTS = "events"
 private const val STATSIG_METADATA = "statsigMetadata"

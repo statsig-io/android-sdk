@@ -2,7 +2,7 @@ package com.statsig.androidsdk
 
 import java.security.MessageDigest
 
-object StatsigUtil {
+internal object StatsigUtil {
     fun getHashedString(input: String): String {
         val md = MessageDigest.getInstance("SHA-256")
         val inputBytes = input.toByteArray()
