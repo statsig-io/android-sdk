@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.*
 
 /**
  * Callback interface for Statsig calls. All callbacks will be run on the main thread.
@@ -35,8 +36,8 @@ interface IStatsigCallback {
 object Statsig {
 
     private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
-
     private const val INITIALIZE_RESPONSE_KEY: String = "Statsig.INITIALIZE_RESPONSE"
+    private const val STABLE_ID_KEY: String = "STABLE_ID"
 
     private val statsigJob = SupervisorJob()
     private val statsigScope = CoroutineScope(statsigJob + Dispatchers.Main)
@@ -311,14 +312,7 @@ object Statsig {
         pollingJob?.cancel()
         clearCache()
         state = null
-        if (this.user?.userID !== user?.userID) {
-            statsigMetadata.stableID = StatsigId.getNewStableID(getSharedPrefs())
-            logger.onUpdateUser()
-        } else {
-            logger.flush()
-        }
         this.user = user
-        statsigMetadata.sessionID = StatsigId.getNewSessionID()
 
         val initResponse = statsigNetwork.initialize(
             options.api,
@@ -370,8 +364,17 @@ object Statsig {
         }.launchIn(statsigScope)
     }
 
+    private fun getStableID(): String {
+        var stableID = getSharedPrefs().getString(STABLE_ID_KEY, null)
+        if (stableID == null) {
+            stableID = UUID.randomUUID().toString()
+            getSharedPrefs().edit { putString(STABLE_ID_KEY, stableID) }
+        }
+        return stableID
+    }
+
     private fun populateStatsigMetadata() {
-        statsigMetadata.stableID = StatsigId.getStableID(getSharedPrefs())
+        statsigMetadata.stableID = getStableID()
         val stringID: Int? = application.applicationInfo?.labelRes
         if (stringID != null) {
             if (stringID == 0) {
