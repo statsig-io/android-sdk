@@ -37,7 +37,6 @@ object Statsig {
 
     private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
     private const val INITIALIZE_RESPONSE_KEY: String = "Statsig.INITIALIZE_RESPONSE"
-    private const val STABLE_ID_KEY: String = "STABLE_ID"
 
     private val statsigJob = SupervisorJob()
     private val statsigScope = CoroutineScope(statsigJob + Dispatchers.Main)
@@ -364,17 +363,7 @@ object Statsig {
         }.launchIn(statsigScope)
     }
 
-    private fun getStableID(): String {
-        var stableID = getSharedPrefs().getString(STABLE_ID_KEY, null)
-        if (stableID == null) {
-            stableID = UUID.randomUUID().toString()
-            getSharedPrefs().edit { putString(STABLE_ID_KEY, stableID) }
-        }
-        return stableID
-    }
-
     private fun populateStatsigMetadata() {
-        statsigMetadata.stableID = getStableID()
         val stringID: Int? = application.applicationInfo?.labelRes
         if (stringID != null) {
             if (stringID == 0) {
@@ -416,7 +405,7 @@ object Statsig {
         }
     }
 
-    private fun getSharedPrefs(): SharedPreferences {
+    internal fun getSharedPrefs(): SharedPreferences {
         return application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
     }
 
