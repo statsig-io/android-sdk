@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.*
 
 /**
  * Callback interface for Statsig calls. All callbacks will be run on the main thread.
@@ -35,7 +36,6 @@ interface IStatsigCallback {
 object Statsig {
 
     private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
-
     private const val INITIALIZE_RESPONSE_KEY: String = "Statsig.INITIALIZE_RESPONSE"
 
     private val statsigJob = SupervisorJob()
@@ -311,14 +311,7 @@ object Statsig {
         pollingJob?.cancel()
         clearCache()
         state = null
-        if (this.user?.userID !== user?.userID) {
-            statsigMetadata.stableID = StatsigId.getNewStableID(getSharedPrefs())
-            logger.onUpdateUser()
-        } else {
-            logger.flush()
-        }
         this.user = user
-        statsigMetadata.sessionID = StatsigId.getNewSessionID()
 
         val initResponse = statsigNetwork.initialize(
             options.api,
@@ -371,7 +364,6 @@ object Statsig {
     }
 
     private fun populateStatsigMetadata() {
-        statsigMetadata.stableID = StatsigId.getStableID(getSharedPrefs())
         val stringID: Int? = application.applicationInfo?.labelRes
         if (stringID != null) {
             if (stringID == 0) {
@@ -413,7 +405,7 @@ object Statsig {
         }
     }
 
-    private fun getSharedPrefs(): SharedPreferences {
+    internal fun getSharedPrefs(): SharedPreferences {
         return application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
     }
 
