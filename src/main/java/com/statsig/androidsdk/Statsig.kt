@@ -36,14 +36,11 @@ interface IStatsigCallback {
 object Statsig {
 
     private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
-    private const val INITIALIZE_RESPONSE_KEY: String = "Statsig.INITIALIZE_RESPONSE"
 
     private val statsigJob = SupervisorJob()
     private val statsigScope = CoroutineScope(statsigJob + Dispatchers.Main)
 
-    private val gson = Gson()
-
-    private var state: StatsigState? = null
+    private var store: Store? = null
     private var user: StatsigUser? = null
 
     private var pollingJob: Job? = null
@@ -134,7 +131,7 @@ object Statsig {
                 sharedPrefs,
                 statsigNetwork
             )
-            loadFromCache()
+            store = Store(user?.userID)
 
             val initResponse = statsigNetwork.initialize(
                 options.api,
@@ -144,7 +141,9 @@ object Statsig {
                 options.initTimeoutMs,
             )
 
-            setState(initResponse)
+            if (initResponse != null) {
+                store?.save(initResponse)
+            }
 
             if (options.enableAutoValueUpdate) {
                 pollingJob?.cancel() // Cancel the previous job if it wasn't already
@@ -166,7 +165,7 @@ object Statsig {
     fun checkGate(gateName: String): Boolean {
         enforceInitialized("checkGate")
         val res =
-            state?.checkGate(StatsigUtil.getHashedString(gateName)) ?: APIFeatureGate(gateName)
+            store?.checkGate(StatsigUtil.getHashedString(gateName)) ?: APIFeatureGate(gateName)
         statsigScope.launch {
             logger.logGateExposure(res, user)
         }
@@ -184,7 +183,7 @@ object Statsig {
     fun getConfig(configName: String): DynamicConfig {
         enforceInitialized("getConfig")
         val res =
-            state?.getConfig(StatsigUtil.getHashedString(configName)) ?: DynamicConfig(configName)
+            store?.getConfig(StatsigUtil.getHashedString(configName)) ?: DynamicConfig(configName)
         statsigScope.launch {
             logger.logConfigExposure(res, user)
         }
@@ -195,13 +194,20 @@ object Statsig {
      * Check the value of an Experiment configured in the Statsig console for the initialized
      * user
      * @param experimentName the name of the Experiment to check
+     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of the experiment
      * @return the Dynamic Config backing the experiment
      * @throws IllegalStateException if the SDK has not been initialized
      */
+    @JvmOverloads
     @JvmStatic
-    fun getExperiment(experimentName: String): DynamicConfig {
+    fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         enforceInitialized("getExperiment")
-        return getConfig(experimentName)
+        val res =
+            store?.getExperiment(StatsigUtil.getHashedString(experimentName), keepDeviceValue) ?: DynamicConfig(experimentName)
+        statsigScope.launch {
+            logger.logConfigExposure(res, user)
+        }
+        return res
     }
 
     /**
@@ -215,9 +221,6 @@ object Statsig {
     @JvmStatic
     fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
         enforceInitialized("logEvent")
-        if (state == null) {
-            return
-        }
         val event = LogEvent(eventName)
         event.value = value
         event.metadata = metadata
@@ -245,9 +248,6 @@ object Statsig {
     @JvmStatic
     fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
         enforceInitialized("logEvent")
-        if (state == null) {
-            return
-        }
         val event = LogEvent(eventName)
         event.value = value
         event.metadata = metadata
@@ -266,9 +266,6 @@ object Statsig {
     @JvmStatic
     fun logEvent(eventName: String, metadata: Map<String, String>) {
         enforceInitialized("logEvent")
-        if (state == null) {
-            return
-        }
         val event = LogEvent(eventName)
         event.value = null
         event.metadata = metadata
@@ -309,9 +306,8 @@ object Statsig {
     suspend fun updateUser(user: StatsigUser?) {
         enforceInitialized("updateUser")
         pollingJob?.cancel()
-        clearCache()
-        state = null
         this.user = user
+        store?.loadAndResetStickyUserValues(user?.userID)
 
         val initResponse = statsigNetwork.initialize(
             options.api,
@@ -320,7 +316,9 @@ object Statsig {
             statsigMetadata,
             options.initTimeoutMs,
         )
-        setState(initResponse)
+        if (initResponse != null) {
+            store?.save(initResponse)
+        }
         pollForUpdates()
     }
 
@@ -343,12 +341,9 @@ object Statsig {
         }
     }
 
-    private fun normalizeUser(user: StatsigUser?): StatsigUser? {
-        var normalizedUser = user
-        if (options.getEnvironment() != null && user == null) {
-            normalizedUser = StatsigUser("")
-        }
-        normalizedUser?.statsigEnvironment = options.getEnvironment()
+    private fun normalizeUser(user: StatsigUser?): StatsigUser {
+        var normalizedUser = user ?: StatsigUser("")
+        normalizedUser.statsigEnvironment = options.getEnvironment()
         return normalizedUser
     }
 
@@ -359,7 +354,9 @@ object Statsig {
             user,
             statsigMetadata
         ).onEach {
-            setState(it)
+            if (it?.hasUpdates == true) {
+                store?.save(it)
+            }
         }.launchIn(statsigScope)
     }
 
@@ -380,28 +377,6 @@ object Statsig {
                 statsigMetadata.appVersion = pInfo.versionName
             }
         } catch (e: PackageManager.NameNotFoundException) {
-        }
-    }
-
-    private fun loadFromCache() {
-        val cachedResponse = getSharedPrefs().getString(INITIALIZE_RESPONSE_KEY, null) ?: return
-        val json = gson.fromJson(cachedResponse, InitializeResponse::class.java)
-        state = StatsigState(json)
-    }
-
-    private fun saveToCache(initializeData: InitializeResponse) {
-        val json = gson.toJson(initializeData)
-        getSharedPrefs().edit { putString(INITIALIZE_RESPONSE_KEY, json) }
-    }
-
-    private fun clearCache() {
-        getSharedPrefs().edit { remove(INITIALIZE_RESPONSE_KEY) }
-    }
-
-    private fun setState(result: InitializeResponse?) {
-        if (result?.hasUpdates == true) {
-            state = StatsigState(result)
-            saveToCache(result)
         }
     }
 
