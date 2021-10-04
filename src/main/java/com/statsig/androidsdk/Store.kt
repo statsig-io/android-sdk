@@ -45,14 +45,14 @@ internal class Store (userID: String?) {
             stickyUserExperiments = gson.fromJson(cachedUserValues, StickyUserExperiments::class.java) ?: stickyUserExperiments
             if (stickyUserExperiments.userID != newUserID) {
                 stickyUserExperiments = StickyUserExperiments(newUserID, mutableMapOf())
-                Statsig.getSharedPrefs().edit { putString(STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperiments)) }
+                Statsig.saveStringToSharedPrefs(STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperiments))
             }
         }
     }
 
     fun save(data: InitializeResponse) {
         cache = data
-        Statsig.getSharedPrefs().edit { putString(INITIALIZE_RESPONSE_KEY, gson.toJson(cache)) }
+        Statsig.saveStringToSharedPrefs(INITIALIZE_RESPONSE_KEY, gson.toJson(cache))
     }
 
     fun checkGate(gateName: String): APIFeatureGate {
@@ -111,7 +111,7 @@ internal class Store (userID: String?) {
     }
 
     private fun cacheStickyValues() {
-        Statsig.getSharedPrefs().edit { putString(STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperiments)) }
-        Statsig.getSharedPrefs().edit { putString(STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments)) }
+        Statsig.saveStringToSharedPrefs(STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperiments))
+        Statsig.saveStringToSharedPrefs(STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments))
     }
 }

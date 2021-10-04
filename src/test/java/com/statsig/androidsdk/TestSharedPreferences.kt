@@ -3,9 +3,16 @@ package com.statsig.androidsdk
 import android.content.SharedPreferences
 
 class TestSharedPreferences : SharedPreferences {
-
+    val editor = TestEditor()
     class TestEditor : SharedPreferences.Editor {
-        override fun putString(key: String?, value: String?): SharedPreferences.Editor { return this }
+        var values: MutableMap<String, String> = mutableMapOf()
+        private var tempValues: MutableMap<String, String> = mutableMapOf()
+        override fun putString(key: String?, value: String?): SharedPreferences.Editor {
+            if (key != null && value != null) {
+                tempValues[key] = value
+            }
+            return this
+        }
 
         override fun putStringSet(key: String?, values: MutableSet<String>?): SharedPreferences.Editor { return this }
 
@@ -17,18 +24,38 @@ class TestSharedPreferences : SharedPreferences {
 
         override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor { return this }
 
-        override fun remove(key: String?): SharedPreferences.Editor { return  this }
+        override fun remove(key: String?): SharedPreferences.Editor {
+            tempValues.remove(key)
+            return this
+        }
 
         override fun clear(): SharedPreferences.Editor { return this }
 
-        override fun commit(): Boolean { return false }
+        override fun commit(): Boolean {
+            tempValues.forEach { (k, v) -> values[k] = v }
+            tempValues = mutableMapOf()
+            return true
+        }
 
-        override fun apply() {}
+        override fun apply() {
+            tempValues.forEach { (k, v) -> values[k] = v }
+            tempValues = mutableMapOf()
+            System.out.println("values: " + values)
+        }
+
+        fun getString(key: String): String? {
+            return values[key]
+        }
     }
 
     override fun getAll(): MutableMap<String, *> { return hashMapOf<String, Any?>() }
 
-    override fun getString(key: String?, defValue: String?): String? { return null }
+    override fun getString(key: String?, defValue: String?): String? {
+        if (key != null) {
+            return edit().getString(key)
+        }
+        return null
+    }
 
     override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String> { return mutableSetOf() }
 
@@ -42,7 +69,7 @@ class TestSharedPreferences : SharedPreferences {
 
     override fun contains(key: String?): Boolean { return false }
 
-    override fun edit(): SharedPreferences.Editor { return TestEditor() }
+    override fun edit(): TestEditor { return editor }
 
     override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {}
 

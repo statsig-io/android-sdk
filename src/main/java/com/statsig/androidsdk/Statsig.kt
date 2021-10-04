@@ -40,8 +40,8 @@ object Statsig {
     private val statsigJob = SupervisorJob()
     private val statsigScope = CoroutineScope(statsigJob + Dispatchers.Main)
 
-    private var store: Store? = null
-    private var user: StatsigUser? = null
+    private lateinit var store: Store
+    private lateinit var user: StatsigUser
 
     private var pollingJob: Job? = null
     private lateinit var application: Application
@@ -142,7 +142,7 @@ object Statsig {
             )
 
             if (initResponse != null) {
-                store?.save(initResponse)
+                store.save(initResponse)
             }
 
             if (options.enableAutoValueUpdate) {
@@ -164,8 +164,7 @@ object Statsig {
     @JvmStatic
     fun checkGate(gateName: String): Boolean {
         enforceInitialized("checkGate")
-        val res =
-            store?.checkGate(StatsigUtil.getHashedString(gateName)) ?: APIFeatureGate(gateName)
+        val res = store.checkGate(StatsigUtil.getHashedString(gateName))
         statsigScope.launch {
             logger.logGateExposure(res, user)
         }
@@ -182,8 +181,7 @@ object Statsig {
     @JvmStatic
     fun getConfig(configName: String): DynamicConfig {
         enforceInitialized("getConfig")
-        val res =
-            store?.getConfig(StatsigUtil.getHashedString(configName)) ?: DynamicConfig(configName)
+        val res = store.getConfig(StatsigUtil.getHashedString(configName))
         statsigScope.launch {
             logger.logConfigExposure(res, user)
         }
@@ -202,8 +200,7 @@ object Statsig {
     @JvmStatic
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         enforceInitialized("getExperiment")
-        val res =
-            store?.getExperiment(StatsigUtil.getHashedString(experimentName), keepDeviceValue) ?: DynamicConfig(experimentName)
+        val res = store.getExperiment(StatsigUtil.getHashedString(experimentName), keepDeviceValue)
         statsigScope.launch {
             logger.logConfigExposure(res, user)
         }
@@ -306,8 +303,8 @@ object Statsig {
     suspend fun updateUser(user: StatsigUser?) {
         enforceInitialized("updateUser")
         pollingJob?.cancel()
-        this.user = user
-        store?.loadAndResetStickyUserValues(user?.userID)
+        this.user = normalizeUser(user)
+        store.loadAndResetStickyUserValues(user?.userID)
 
         val initResponse = statsigNetwork.initialize(
             options.api,
@@ -317,7 +314,7 @@ object Statsig {
             options.initTimeoutMs,
         )
         if (initResponse != null) {
-            store?.save(initResponse)
+            store.save(initResponse)
         }
         pollForUpdates()
     }
@@ -355,7 +352,7 @@ object Statsig {
             statsigMetadata
         ).onEach {
             if (it?.hasUpdates == true) {
-                store?.save(it)
+                store.save(it)
             }
         }.launchIn(statsigScope)
     }
@@ -382,6 +379,12 @@ object Statsig {
 
     internal fun getSharedPrefs(): SharedPreferences {
         return application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+    }
+
+    internal fun saveStringToSharedPrefs(key: String, value: String) {
+        val editor = getSharedPrefs().edit()
+        editor.putString(key, value)
+        editor.apply()
     }
 
     private class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {

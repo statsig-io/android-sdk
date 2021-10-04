@@ -1,0 +1,199 @@
+package com.statsig.androidsdk
+
+import android.content.Context
+import io.mockk.every
+import io.mockk.mockkObject
+import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
+
+
+class StoreTest {
+
+    private lateinit var res: InitializeResponse
+
+    @Before
+    internal fun setup() {
+        val sharedPrefs = TestSharedPreferences()
+        mockkObject(Statsig)
+        every {
+            Statsig.getSharedPrefs()
+        } returns sharedPrefs
+    }
+
+    private fun getInitValue(value: String, inExperiment: Boolean = false, active: Boolean = false): InitializeResponse {
+        return InitializeResponse(
+            featureGates = mapOf(),
+            configs = mapOf(
+                "config" to APIDynamicConfig(
+                    "config",
+                    mutableMapOf("key" to value),
+                    "id",
+                    arrayOf(),
+                ),
+                "exp" to APIDynamicConfig(
+                    "exp",
+                    mutableMapOf("key" to value),
+                    "id",
+                    arrayOf(),
+                    isDeviceBased = false,
+                    isUserInExperiment = inExperiment,
+                    isExperimentActive = active,
+                ),
+                "device_exp" to APIDynamicConfig(
+                    "device_exp",
+                    mutableMapOf("key" to value),
+                    "id",
+                    arrayOf(),
+                    isDeviceBased = true,
+                    isUserInExperiment = inExperiment,
+                    isExperimentActive = active,
+                ),
+                "exp_non_stick" to APIDynamicConfig(
+                    "non_stick_exp",
+                    mutableMapOf("key" to value),
+                    "id",
+                    arrayOf(),
+                    isDeviceBased = false,
+                    isUserInExperiment = inExperiment,
+                    isExperimentActive = active,
+                ),
+            ),
+            hasUpdates = false,
+            time = 1621637839,
+        )
+    }
+
+    @Test
+    fun testStickyBucketing() {
+        val store = Store("jkw")
+        store.save(getInitValue("v0", inExperiment = true, active = true))
+
+        // getting values with keepDeviceValue = false first
+        var config = store.getExperiment("config", false)
+        var exp = store.getExperiment("exp", false)
+        var deviceExp = store.getExperiment("device_exp", false)
+        var nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v0", config.getString("key", ""))
+        assertEquals("v0", exp.getString("key", ""))
+        assertEquals("v0", deviceExp.getString("key", ""))
+        assertEquals("v0", nonStickExp.getString("key", ""))
+
+        // update values, and then get with flag set to true. All values should update
+        store.save(getInitValue("v1", inExperiment = true, active = true))
+
+        config = store.getExperiment("config", true)
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v1", config.getString("key", ""))
+        assertEquals("v1", exp.getString("key", ""))
+        assertEquals("v1", deviceExp.getString("key", ""))
+        assertEquals("v1", nonStickExp.getString("key", ""))
+
+        // update values again. Now some values should be sticky except the non-sticky ones
+        store.save(getInitValue("v2", inExperiment = true, active = true))
+
+        config = store.getExperiment("config", true)
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v2", config.getString("key", ""))
+        assertEquals("v1", exp.getString("key", ""))
+        assertEquals("v1", deviceExp.getString("key", ""))
+        assertEquals("v2", nonStickExp.getString("key", ""))
+
+        // update the experiments so that the user is no longer in experiments, should still be sticky for the right ones
+        store.save(getInitValue("v3", inExperiment = false, active = true))
+
+        config = store.getExperiment("config", true)
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v3", config.getString("key", ""))
+        assertEquals("v1", exp.getString("key", ""))
+        assertEquals("v1", deviceExp.getString("key", ""))
+        assertEquals("v3", nonStickExp.getString("key", ""))
+
+        // update the experiments to no longer be active, values should update
+        store.save(getInitValue("v4", inExperiment = false, active = false))
+
+        config = store.getExperiment("config", true)
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v4", config.getString("key", ""))
+        assertEquals("v4", exp.getString("key", ""))
+        assertEquals("v4", deviceExp.getString("key", ""))
+        assertEquals("v4", nonStickExp.getString("key", ""))
+    }
+
+    @Test
+    fun testStickyBehaviorWhenResettingUser() {
+        val store = Store("jkw")
+        store.save(getInitValue("v0", inExperiment = true, active = true))
+
+        // getting values with keepDeviceValue = false first
+        var config = store.getExperiment("config", false)
+        var exp = store.getExperiment("exp", false)
+        var deviceExp = store.getExperiment("device_exp", false)
+        var nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v0", config.getString("key", ""))
+        assertEquals("v0", exp.getString("key", ""))
+        assertEquals("v0", deviceExp.getString("key", ""))
+        assertEquals("v0", nonStickExp.getString("key", ""))
+
+        // update values, and then get with flag set to true. All values should update
+        store.save(getInitValue("v1", inExperiment = true, active = true))
+
+        config = store.getExperiment("config", true)
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v1", config.getString("key", ""))
+        assertEquals("v1", exp.getString("key", ""))
+        assertEquals("v1", deviceExp.getString("key", ""))
+        assertEquals("v1", nonStickExp.getString("key", ""))
+
+        // reset to a different user. Only device exp should stick
+        store.loadAndResetStickyUserValues("tore")
+        store.save(getInitValue("v2", inExperiment = true, active = true))
+
+        config = store.getExperiment("config", true)
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v2", config.getString("key", ""))
+        assertEquals("v2", exp.getString("key", ""))
+        assertEquals("v1", deviceExp.getString("key", ""))
+        assertEquals("v2", nonStickExp.getString("key", ""))
+    }
+
+    @Test
+    fun testStickyBehaviorAcrossSessions() {
+        var store = Store("jkw")
+        store.save(getInitValue("v0", inExperiment = true, active = true))
+
+        var config = store.getExperiment("config", true)
+        var exp = store.getExperiment("exp", true)
+        var deviceExp = store.getExperiment("device_exp", true)
+        var nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v0", config.getString("key", ""))
+        assertEquals("v0", exp.getString("key", ""))
+        assertEquals("v0", deviceExp.getString("key", ""))
+        assertEquals("v0", nonStickExp.getString("key", ""))
+
+        // Re-create store with a different user ID, update the values, user should still get sticky value for device and only device
+        store = Store("tore")
+        store.save(getInitValue("v1", inExperiment = true, active = true))
+
+        config = store.getExperiment("config", true)
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v1", config.getString("key", ""))
+        assertEquals("v1", exp.getString("key", ""))
+        assertEquals("v0", deviceExp.getString("key", ""))
+        assertEquals("v1", nonStickExp.getString("key", ""))
+    }
+}
