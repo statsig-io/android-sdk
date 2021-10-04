@@ -15,17 +15,10 @@ internal const val GATE_EXPOSURE = "statsig::gate_exposure"
 private const val EVENTS = "events"
 private const val STATSIG_METADATA = "statsigMetadata"
 
-private const val GATE = "gate"
-private const val GATE_VALUE = "gateValue"
-private const val RULE_ID = "ruleID"
-
-private const val CONFIG = "config"
-
 internal class StatsigLogger(
     private val sdkKey: String,
     private val api: String,
     private val statsigMetadata: StatsigMetadata,
-    private val sharedPrefs: SharedPreferences,
     private val statsigNetwork: StatsigNetwork
 ) {
     private val gson = Gson()
@@ -57,13 +50,7 @@ internal class StatsigLogger(
             events = arrayListOf()
 
             val body = mapOf(EVENTS to flushEvents, STATSIG_METADATA to statsigMetadata)
-            statsigNetwork.apiPostLogs(api, sdkKey, gson.toJson(body), sharedPrefs)
-        }
-    }
-
-    suspend fun onUpdateUser() {
-        withContext(Dispatchers.Main.immediate) {
-            flush()
+            statsigNetwork.apiPostLogs(api, sdkKey, gson.toJson(body))
         }
     }
 

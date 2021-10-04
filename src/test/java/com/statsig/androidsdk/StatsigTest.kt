@@ -26,9 +26,10 @@ class StatsigTest {
     @Before
     internal fun setup() {
         app = mockk()
+        val sharedPrefs = TestSharedPreferences()
         every {
             app.getSharedPreferences(any(), any())
-        } returns TestSharedPreferences()
+        } returns sharedPrefs
         every {
             app.applicationInfo
         } returns null
@@ -84,7 +85,7 @@ class StatsigTest {
                 time = 1621637839,
             )
         coEvery {
-            statsigNetwork.apiRetryFailedLogs(any(), any(), any())
+            statsigNetwork.apiRetryFailedLogs(any(), any())
         } returns Unit
 
         Statsig.statsigNetwork = statsigNetwork
