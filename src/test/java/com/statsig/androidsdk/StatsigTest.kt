@@ -75,7 +75,7 @@ class StatsigTest {
                 configs = mapOf(
                     "test_config" to APIDynamicConfig(
                         "test_config",
-                        mapOf("string" to "test", "number" to 42, "otherNumber" to 17),
+                        mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                         "default",
                         arrayOf(mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"))
                     )
