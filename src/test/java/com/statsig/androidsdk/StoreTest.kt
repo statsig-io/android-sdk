@@ -9,9 +9,6 @@ import org.junit.Test
 
 
 class StoreTest {
-
-    private lateinit var res: InitializeResponse
-
     @Before
     internal fun setup() {
         val sharedPrefs = TestSharedPreferences()
@@ -19,20 +16,28 @@ class StoreTest {
         every {
             Statsig.getSharedPrefs()
         } returns sharedPrefs
+
+        mockkObject(StatsigUtil)
+        every {
+            StatsigUtil.getHashedString(any())
+        } answers {
+            firstArg<String>() + "!"
+        }
+
     }
 
     private fun getInitValue(value: String, inExperiment: Boolean = false, active: Boolean = false): InitializeResponse {
         return InitializeResponse(
             featureGates = mapOf(),
             configs = mapOf(
-                "config" to APIDynamicConfig(
-                    "config",
+                "config!" to APIDynamicConfig(
+                    "config!",
                     mutableMapOf("key" to value),
                     "id",
                     arrayOf(),
                 ),
-                "exp" to APIDynamicConfig(
-                    "exp",
+                "exp!" to APIDynamicConfig(
+                    "exp!",
                     mutableMapOf("key" to value),
                     "id",
                     arrayOf(),
@@ -40,8 +45,8 @@ class StoreTest {
                     isUserInExperiment = inExperiment,
                     isExperimentActive = active,
                 ),
-                "device_exp" to APIDynamicConfig(
-                    "device_exp",
+                "device_exp!" to APIDynamicConfig(
+                    "device_exp!",
                     mutableMapOf("key" to value),
                     "id",
                     arrayOf(),
@@ -49,8 +54,8 @@ class StoreTest {
                     isUserInExperiment = inExperiment,
                     isExperimentActive = active,
                 ),
-                "exp_non_stick" to APIDynamicConfig(
-                    "non_stick_exp",
+                "exp_non_stick!" to APIDynamicConfig(
+                    "non_stick_exp!",
                     mutableMapOf("key" to value),
                     "id",
                     arrayOf(),
@@ -62,6 +67,17 @@ class StoreTest {
             hasUpdates = false,
             time = 1621637839,
         )
+    }
+
+    @Test
+    fun testConfigNameNotHashed() {
+        val store = Store("jkw")
+        store.save(getInitValue("v0", inExperiment = true, active = true))
+
+        var config = store.getExperiment("config", false)
+        assertEquals("config", config.getName())
+        var configFake = store.getExperiment("config_fake", false)
+        assertEquals("config_fake", configFake.getName())
     }
 
     @Test

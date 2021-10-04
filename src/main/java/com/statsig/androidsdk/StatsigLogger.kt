@@ -67,27 +67,29 @@ internal class StatsigLogger(
         }
     }
 
-    suspend fun logGateExposure(gate: APIFeatureGate, user: StatsigUser?) {
+    suspend fun logGateExposure(gateName: String, gateValue: Boolean, ruleID: String,
+                                secondaryExposures: Array<Map<String, String>>, user: StatsigUser?) {
         withContext(Dispatchers.Main.immediate) {
             var event = LogEvent(GATE_EXPOSURE)
             event.user = user
             event.metadata =
                 mapOf(
-                    "gate" to gate.name,
-                    "gateValue" to gate.value.toString(),
-                    "ruleID" to gate.ruleID
+                    "gate" to gateName,
+                    "gateValue" to gateValue.toString(),
+                    "ruleID" to ruleID
                 )
-            event.secondaryExposures = gate.secondaryExposures
+            event.secondaryExposures = secondaryExposures
             log(event)
         }
     }
 
-    suspend fun logConfigExposure(config: DynamicConfig, user: StatsigUser?) {
+    suspend fun logConfigExposure(configName: String, ruleID: String, secondaryExposures: Array<Map<String, String>>,
+                                  user: StatsigUser?) {
         withContext(Dispatchers.Main.immediate) {
             var event = LogEvent(CONFIG_EXPOSURE)
             event.user = user
-            event.metadata = mapOf("config" to config.getName(), "ruleID" to config.getRuleID())
-            event.secondaryExposures = config.getSecondaryExposures()
+            event.metadata = mapOf("config" to configName, "ruleID" to ruleID)
+            event.secondaryExposures = secondaryExposures
             log(event)
         }
     }
