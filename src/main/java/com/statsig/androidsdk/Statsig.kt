@@ -50,7 +50,7 @@ object Statsig {
     private lateinit var lifecycleListener: StatsigActivityLifecycleListener
 
     internal lateinit var logger: StatsigLogger
-    private lateinit var statsigMetadata: StatsigMetadata
+    internal lateinit var statsigMetadata: StatsigMetadata
 
     @VisibleForTesting
     internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
@@ -123,12 +123,10 @@ object Statsig {
 
             lifecycleListener = StatsigActivityLifecycleListener()
             application.registerActivityLifecycleCallbacks(lifecycleListener)
-            val sharedPrefs: SharedPreferences = getSharedPrefs()
             logger = StatsigLogger(
                 sdkKey,
                 options.api,
                 statsigMetadata,
-                sharedPrefs,
                 statsigNetwork
             )
             store = Store(user?.userID)
@@ -150,7 +148,7 @@ object Statsig {
                 pollForUpdates()
             }
 
-            statsigNetwork.apiRetryFailedLogs(options.api, sdkKey, sharedPrefs)
+            statsigNetwork.apiRetryFailedLogs(options.api, sdkKey)
         }
     }
 
@@ -384,6 +382,12 @@ object Statsig {
     internal fun saveStringToSharedPrefs(key: String, value: String) {
         val editor = getSharedPrefs().edit()
         editor.putString(key, value)
+        editor.apply()
+    }
+
+    internal fun removeFromSharedPrefs(key: String) {
+        val editor = getSharedPrefs().edit()
+        editor.remove(key)
         editor.apply()
     }
 

@@ -1,7 +1,5 @@
 package com.statsig.androidsdk
 
-import android.content.SharedPreferences
-import androidx.core.content.edit
 import com.google.gson.Gson
 import java.net.HttpURLConnection
 import java.net.URL
@@ -57,9 +55,9 @@ internal interface StatsigNetwork {
 
     fun pollForChanges(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata): Flow<InitializeResponse?>
 
-    suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String, sharedPrefs: SharedPreferences)
+    suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String)
 
-    suspend fun apiRetryFailedLogs(api: String, sdkKey: String, sharedPrefs: SharedPreferences)
+    suspend fun apiRetryFailedLogs(api: String, sdkKey: String)
 }
 
 internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()
@@ -93,7 +91,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
     ): InitializeResponse? {
         return try {
             val body = mapOf(USER to user, STATSIG_METADATA to metadata)
-            val response = postRequest<InitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, null)
+            val response = postRequest<InitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0)
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
             response
         } catch (_ : Exception) {
@@ -116,37 +114,33 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     STATSIG_METADATA to metadata,
                     LAST_SYNC_TIME_FOR_USER to lastSyncTimeForUser
                 )
-                emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, null))
+                emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0))
             }
         }
     }
 
-    override suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String, sharedPrefs: SharedPreferences) {
-        postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, sdkKey, bodyString, 3, sharedPrefs)
+    override suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String) {
+        postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, sdkKey, bodyString, 3)
     }
 
-    override suspend fun apiRetryFailedLogs(api: String, sdkKey: String, sharedPrefs: SharedPreferences) {
-        val savedLogs = sharedPrefs.getSavedLogs()
+    override suspend fun apiRetryFailedLogs(api: String, sdkKey: String) {
+        val savedLogs = getSavedLogs()
         if (savedLogs.isEmpty()) {
             return
         }
-        sharedPrefs.edit { remove(OFFLINE_LOGS_KEY) }
-        savedLogs.map { apiPostLogs(api, sdkKey, it.requestBody, sharedPrefs) }
+        Statsig.removeFromSharedPrefs(OFFLINE_LOGS_KEY)
+        savedLogs.map { apiPostLogs(api, sdkKey, it.requestBody) }
     }
 
-    private fun addFailedLogRequest(sharedPrefs: SharedPreferences?, requestBody: String) {
-        val savedLogs = sharedPrefs.getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
+    private fun addFailedLogRequest(requestBody: String) {
+        val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
 
-        sharedPrefs.saveFailedRequests(StatsigPendingRequests(savedLogs))
+        Statsig.saveStringToSharedPrefs(OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
     }
 
-    private fun SharedPreferences?.saveFailedRequests(pending: StatsigPendingRequests) {
-        this?.edit { putString(OFFLINE_LOGS_KEY, gson.toJson(pending)) }
-    }
-
-    private fun SharedPreferences?.getSavedLogs(): List<StatsigOfflineRequest> {
+    private fun getSavedLogs(): List<StatsigOfflineRequest> {
         if (this == null) return arrayListOf()
-        val json: String = getString(OFFLINE_LOGS_KEY, null) ?: return arrayListOf()
+        val json: String = Statsig.getSharedPrefs().getString(OFFLINE_LOGS_KEY, null) ?: return arrayListOf()
 
         val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
         if (pendingRequests?.requests == null) {
@@ -161,7 +155,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
     // Bug with Kotlin where any function that throws an IOException still triggers this lint warning
     // https://youtrack.jetbrains.com/issue/KTIJ-838
     @Suppress("BlockingMethodInNonBlockingContext")
-    private suspend inline fun <reified T : Any> postRequest(api: String, endpoint: String, sdkKey: String, bodyString: String, retries: Int, sharedPrefs: SharedPreferences?): T? {
+    private suspend inline fun <reified T : Any> postRequest(api: String, endpoint: String, sdkKey: String, bodyString: String, retries: Int): T? {
         return withContext(Dispatchers.IO) { // Perform network calls in IO thread
             var retryAttempt = 0
             while (isActive) {
@@ -187,7 +181,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                                 // Don't return, just allow the loop to happen
                                 delay(100.0.pow(retryAttempt + 1).toLong())
                             } else if (endpoint == LOGGING_ENDPOINT) {
-                                addFailedLogRequest(sharedPrefs, bodyString)
+                                addFailedLogRequest(bodyString)
                                 return@withContext null
                             } else {
                                 return@withContext null
@@ -197,7 +191,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     }
                 } catch (e: Exception) {
                     if (endpoint == LOGGING_ENDPOINT) {
-                        addFailedLogRequest(sharedPrefs, bodyString)
+                        addFailedLogRequest(bodyString)
                     }
                     return@withContext null
                 } finally {

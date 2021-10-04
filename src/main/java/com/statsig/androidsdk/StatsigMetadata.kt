@@ -25,7 +25,7 @@ private fun getStableID(): String {
     var stableID = Statsig.getSharedPrefs().getString(STABLE_ID_KEY, null)
     if (stableID == null) {
         stableID = UUID.randomUUID().toString()
-        Statsig.getSharedPrefs().edit { putString(STABLE_ID_KEY, stableID) }
+        Statsig.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
     }
     return stableID
 }
