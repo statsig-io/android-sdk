@@ -29,7 +29,7 @@ class StatsigOptions(
     private var environment: MutableMap<String, String>? = null
 
     fun setTier(tier : Tier) {
-        setEnvironmentParameter(TIER_KEY, tier.toString().toLowerCase())
+        setEnvironmentParameter(TIER_KEY, tier.toString().lowercase())
     }
 
     fun setEnvironmentParameter(key: String, value: String){
