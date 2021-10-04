@@ -45,7 +45,7 @@ class StatsigTest {
         every {
             StatsigUtil.getHashedString(any())
         } answers {
-            firstArg()
+            firstArg<String>() + "!"
         }
 
         val statsigNetwork = mockkClass(StatsigNetwork::class)
@@ -54,9 +54,9 @@ class StatsigTest {
         } returns
             InitializeResponse(
                 featureGates = mapOf(
-                    "always_on" to
+                    "always_on!" to
                             APIFeatureGate(
-                                "always_on",
+                                "always_on!",
                                 true,
                                 "always_on_rule_id",
                                 arrayOf(
@@ -64,20 +64,26 @@ class StatsigTest {
                                     mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2")
                                 )
                             ),
-                    "always_off" to
+                    "always_off!" to
                             APIFeatureGate(
-                                "always_off",
+                                "always_off!",
                                 false,
                                 "always_on_rule_id",
                                 arrayOf()
                             ),
                 ),
                 configs = mapOf(
-                    "test_config" to APIDynamicConfig(
-                        "test_config",
+                    "test_config!" to APIDynamicConfig(
+                        "test_config!",
                         mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                         "default",
                         arrayOf(mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"))
+                    ),
+                    "exp!" to APIDynamicConfig(
+                        "exp!",
+                        mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
+                        "exp_rule",
+                        arrayOf()
                     )
                 ),
                 hasUpdates = true,
@@ -120,23 +126,22 @@ class StatsigTest {
         assertFalse(Statsig.checkGate("always_off"))
         assertFalse(Statsig.checkGate("not_a_valid_gate_name"))
 
-        assertEquals(
-            "test",
-            Statsig.getConfig("test_config").getString("string", "fallback"),
-        )
-        assertEquals(
-            42,
-            Statsig.getConfig("test_config").getInt("number", 0)
-        )
-        assertEquals(
-            "default string instead",
-            Statsig.getConfig("test_config")
-                .getString("otherNumber", "default string instead"),
-        )
-        assertEquals("", Statsig.getConfig("not_a_valid_config").getRuleID())
-        assertEquals("default", Statsig.getConfig("test_config")!!.getRuleID())
+        val config = Statsig.getConfig("test_config")
+        assertEquals("test", config.getString("string", "fallback"))
+        assertEquals("test_config", config.getName())
+        assertEquals(42, config.getInt("number", 0))
+        assertEquals("default string instead", config.getString("otherNumber", "default string instead"))
+        assertEquals("default", Statsig.getConfig("test_config").getRuleID())
 
-        assertEquals(Statsig.logger.events.count(), 8)
+        val invalidConfig = Statsig.getConfig("not_a_valid_config")
+        assertEquals("", invalidConfig.getRuleID())
+        assertEquals("not_a_valid_config", invalidConfig.getName())
+
+        val exp = Statsig.getExperiment("exp")
+        assertEquals("exp", exp.getName())
+        assertEquals(42, exp.getInt("number", 0))
+
+        assertEquals(Statsig.logger.events.count(), 7)
 
         // validate gate exposure
         assertEquals(Statsig.logger.events[0].metadata!!["gate"], "always_on")
@@ -153,5 +158,10 @@ class StatsigTest {
         assertEquals(Statsig.logger.events[3].secondaryExposures, arrayOf(
             mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1")
         ))
+
+        // validate exp exposure
+        assertEquals(Statsig.logger.events[6].metadata!!["config"], "exp")
+        assertEquals(Statsig.logger.events[6].metadata!!["ruleID"], "exp_rule")
+        assertEquals(Statsig.logger.events[6].secondaryExposures, arrayOf())
     }
 }

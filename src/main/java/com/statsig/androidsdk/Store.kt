@@ -56,32 +56,35 @@ internal class Store (userID: String?) {
     }
 
     fun checkGate(gateName: String): APIFeatureGate {
+        val hashName = StatsigUtil.getHashedString(gateName)
         if (
             cache.featureGates == null ||
-            !cache.featureGates!!.containsKey(gateName)) {
+            !cache.featureGates!!.containsKey(hashName)) {
             return APIFeatureGate(gateName, false, "")
         }
-        return cache.featureGates!![gateName] ?: APIFeatureGate(gateName, false, "")
+        return cache.featureGates!![hashName] ?: APIFeatureGate(gateName, false, "")
     }
 
     fun getConfig(configName: String): DynamicConfig {
+        val hashName = StatsigUtil.getHashedString(configName)
         if (
             cache.configs == null ||
-            !cache.configs!!.containsKey(configName)) {
+            !cache.configs!!.containsKey(hashName)) {
             return DynamicConfig(configName)
         }
-        var config = cache.configs!![configName]
+        var config = cache.configs!![hashName]
         return DynamicConfig(configName, config?.value ?: mapOf(), config?.ruleID ?: "",
             config?.secondaryExposures ?: arrayOf())
     }
 
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
-        val stickyValue = stickyUserExperiments.experiments[experimentName] ?: stickyDeviceExperiments[experimentName]
-        val latestValue = cache.configs?.get(experimentName)
+        val hashName = StatsigUtil.getHashedString(experimentName)
+        val stickyValue = stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
+        val latestValue = cache.configs?.get(hashName)
 
         // If flag is false, or experiment is NOT active, simply remove the sticky experiment value, and return the latest value
         if (!keepDeviceValue || latestValue?.isExperimentActive == false) {
-            removeStickyValue(experimentName)
+            removeStickyValue(hashName)
             return getConfig(experimentName)
         }
 
@@ -94,9 +97,9 @@ internal class Store (userID: String?) {
         // If the user has NOT been exposed before, and is in this active experiment, then we save the value as sticky
         if (latestValue != null && latestValue.isExperimentActive && latestValue.isUserInExperiment) {
             if (latestValue?.isDeviceBased) {
-                stickyDeviceExperiments[experimentName] = latestValue
+                stickyDeviceExperiments[hashName] = latestValue
             } else {
-                stickyUserExperiments.experiments[experimentName] = latestValue
+                stickyUserExperiments.experiments[hashName] = latestValue
             }
             cacheStickyValues()
         }

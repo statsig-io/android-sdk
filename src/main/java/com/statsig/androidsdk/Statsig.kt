@@ -164,9 +164,9 @@ object Statsig {
     @JvmStatic
     fun checkGate(gateName: String): Boolean {
         enforceInitialized("checkGate")
-        val res = store.checkGate(StatsigUtil.getHashedString(gateName))
+        val res = store.checkGate(gateName)
         statsigScope.launch {
-            logger.logGateExposure(res, user)
+            logger.logGateExposure(gateName, res.value, res.ruleID, res.secondaryExposures, user)
         }
         return res.value
     }
@@ -181,9 +181,9 @@ object Statsig {
     @JvmStatic
     fun getConfig(configName: String): DynamicConfig {
         enforceInitialized("getConfig")
-        val res = store.getConfig(StatsigUtil.getHashedString(configName))
+        val res = store.getConfig(configName)
         statsigScope.launch {
-            logger.logConfigExposure(res, user)
+            logger.logConfigExposure(configName, res.getRuleID(), res.getSecondaryExposures(), user)
         }
         return res
     }
@@ -200,9 +200,9 @@ object Statsig {
     @JvmStatic
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         enforceInitialized("getExperiment")
-        val res = store.getExperiment(StatsigUtil.getHashedString(experimentName), keepDeviceValue)
+        val res = store.getExperiment(experimentName, keepDeviceValue)
         statsigScope.launch {
-            logger.logConfigExposure(res, user)
+            logger.logConfigExposure(experimentName, res.getRuleID(), res.getSecondaryExposures(), user)
         }
         return res
     }
