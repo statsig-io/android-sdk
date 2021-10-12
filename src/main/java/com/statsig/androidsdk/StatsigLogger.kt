@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import com.google.gson.Gson
 import android.content.SharedPreferences
+import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -12,8 +13,10 @@ internal const val FLUSH_TIMER_MS: Long = 60000
 internal const val CONFIG_EXPOSURE = "statsig::config_exposure"
 internal const val GATE_EXPOSURE = "statsig::gate_exposure"
 
-private const val EVENTS = "events"
-private const val STATSIG_METADATA = "statsigMetadata"
+internal data class LogEventData(
+    @SerializedName("events") val events: ArrayList<LogEvent>,
+    @SerializedName("statsigMetadata") val statsigMetadata: StatsigMetadata,
+)
 
 internal class StatsigLogger(
     private val sdkKey: String,
@@ -48,9 +51,7 @@ internal class StatsigLogger(
             }
             val flushEvents = events
             events = arrayListOf()
-
-            val body = mapOf(EVENTS to flushEvents, STATSIG_METADATA to statsigMetadata)
-            statsigNetwork.apiPostLogs(api, sdkKey, gson.toJson(body))
+            statsigNetwork.apiPostLogs(api, sdkKey, gson.toJson(LogEventData(flushEvents, statsigMetadata)))
         }
     }
 
