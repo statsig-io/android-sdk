@@ -23,5 +23,5 @@ internal data class LogEvent(@SerializedName("eventName") val eventName: String)
     var statsigMetadata: Map<String, String?>? = null
 
     @SerializedName("secondaryExposures")
-    var secondaryExposures: Array<Map<String, String>>? = arrayOf()
+    var secondaryExposures: Array<Map<String, String>>? = null
 }

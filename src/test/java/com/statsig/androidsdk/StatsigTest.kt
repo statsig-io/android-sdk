@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
@@ -14,14 +15,12 @@ import kotlinx.coroutines.test.setMain
 import org.junit.Test
 import org.junit.Before
 import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
+import org.junit.Assert.*
 
 class StatsigTest {
 
     private lateinit var app: Application
+    private var flushedlogs: String = ""
 
     @Before
     internal fun setup() {
@@ -93,6 +92,11 @@ class StatsigTest {
         coEvery {
             statsigNetwork.apiRetryFailedLogs(any(), any())
         } returns Unit
+        coEvery {
+            statsigNetwork.apiPostLogs(any(), any(), any())
+        } answers {
+            flushedlogs = thirdArg<String>()
+        }
 
         Statsig.statsigNetwork = statsigNetwork
     }
@@ -121,7 +125,7 @@ class StatsigTest {
         Statsig.initialize(
             app,
             "client-111aaa",
-            null,
+            StatsigUser("123"),
         )
         assertTrue(Statsig.checkGate("always_on"))
         assertFalse(Statsig.checkGate("always_off"))
@@ -142,27 +146,58 @@ class StatsigTest {
         assertEquals("exp", exp.getName())
         assertEquals(42, exp.getInt("number", 0))
 
-        assertEquals(Statsig.logger.events.count(), 7)
+        Statsig.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"));
+        Statsig.logEvent("test_event2", mapOf("key" to "value2"));
+        Statsig.logEvent("test_event3", "1");
+        Statsig.shutdown()
+
+        val parsedLogs = Gson().fromJson(flushedlogs, LogEventData::class.java)
+        assertEquals(parsedLogs.events.count(), 10)
 
         // validate gate exposure
-        assertEquals(Statsig.logger.events[0].metadata!!["gate"], "always_on")
-        assertEquals(Statsig.logger.events[0].metadata!!["gateValue"], "true")
-        assertEquals(Statsig.logger.events[0].metadata!!["ruleID"], "always_on_rule_id")
-        assertEquals(Statsig.logger.events[0].secondaryExposures, arrayOf(
+        assertEquals(parsedLogs.events[0].eventName, "statsig::gate_exposure")
+        assertEquals(parsedLogs.events[0].user!!.userID, "123")
+        assertEquals(parsedLogs.events[0].metadata!!["gate"], "always_on")
+        assertEquals(parsedLogs.events[0].metadata!!["gateValue"], "true")
+        assertEquals(parsedLogs.events[0].metadata!!["ruleID"], "always_on_rule_id")
+        assertEquals(Gson().toJson(parsedLogs.events[0].secondaryExposures), Gson().toJson(arrayOf(
             mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"),
             mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2")
-        ))
+        )))
 
         // validate config exposure
-        assertEquals(Statsig.logger.events[3].metadata!!["config"], "test_config")
-        assertEquals(Statsig.logger.events[3].metadata!!["ruleID"], "default")
-        assertEquals(Statsig.logger.events[3].secondaryExposures, arrayOf(
+        assertEquals(parsedLogs.events[3].eventName, "statsig::config_exposure")
+        assertEquals(parsedLogs.events[3].user!!.userID, "123")
+        assertEquals(parsedLogs.events[3].metadata!!["config"], "test_config")
+        assertEquals(parsedLogs.events[3].metadata!!["ruleID"], "default")
+        assertEquals(Gson().toJson(parsedLogs.events[3].secondaryExposures), Gson().toJson(arrayOf(
             mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1")
-        ))
+        )))
 
         // validate exp exposure
-        assertEquals(Statsig.logger.events[6].metadata!!["config"], "exp")
-        assertEquals(Statsig.logger.events[6].metadata!!["ruleID"], "exp_rule")
-        assertEquals(Statsig.logger.events[6].secondaryExposures, arrayOf())
+        assertEquals(parsedLogs.events[6].eventName, "statsig::config_exposure")
+        assertEquals(parsedLogs.events[6].user!!.userID, "123")
+        assertEquals(parsedLogs.events[6].metadata!!["config"], "exp")
+        assertEquals(parsedLogs.events[6].metadata!!["ruleID"], "exp_rule")
+        assertEquals(parsedLogs.events[6].secondaryExposures?.count() ?: 1, 0)
+
+        // Validate custom logs
+        assertEquals(parsedLogs.events[7].eventName, "test_event1")
+        assertEquals(parsedLogs.events[7].user!!.userID, "123")
+        assertEquals(parsedLogs.events[7].value, 1.0)
+        assertEquals(Gson().toJson(parsedLogs.events[7].metadata), Gson().toJson(mapOf("key" to "value")))
+        assertNull(parsedLogs.events[7].secondaryExposures)
+
+        assertEquals(parsedLogs.events[8].eventName, "test_event2")
+        assertEquals(parsedLogs.events[8].user!!.userID, "123")
+        assertEquals(parsedLogs.events[8].value, null)
+        assertEquals(Gson().toJson(parsedLogs.events[8].metadata), Gson().toJson(mapOf("key" to "value2")))
+        assertNull(parsedLogs.events[8].secondaryExposures)
+
+        assertEquals(parsedLogs.events[9].eventName, "test_event3")
+        assertEquals(parsedLogs.events[9].user!!.userID, "123")
+        assertEquals(parsedLogs.events[9].value, "1")
+        assertNull(parsedLogs.events[9].metadata)
+        assertNull(parsedLogs.events[9].secondaryExposures)
     }
 }
