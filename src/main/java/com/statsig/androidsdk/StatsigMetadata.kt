@@ -19,7 +19,14 @@ internal data class StatsigMetadata(
     @SerializedName("stableID") var stableID: String = getStableID(),
     @SerializedName("systemVersion") var systemVersion: String = Build.VERSION.SDK_INT.toString(),
     @SerializedName("systemName") var systemName: String? = Build.VERSION.RELEASE,
-)
+) {
+    internal fun overrideStableID(overrideStableID: String?) {
+        if (overrideStableID != null && overrideStableID != stableID) {
+            stableID = overrideStableID
+            Statsig.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
+        }
+    }
+}
 
 private fun getStableID(): String {
     var stableID = Statsig.getSharedPrefs().getString(STABLE_ID_KEY, null)

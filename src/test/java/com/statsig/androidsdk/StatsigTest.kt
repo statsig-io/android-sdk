@@ -126,6 +126,7 @@ class StatsigTest {
             app,
             "client-111aaa",
             StatsigUser("123"),
+            StatsigOptions(overrideStableID = "custom_stable_id")
         )
         assertTrue(Statsig.checkGate("always_on"))
         assertFalse(Statsig.checkGate("always_off"))
@@ -153,6 +154,8 @@ class StatsigTest {
 
         val parsedLogs = Gson().fromJson(flushedlogs, LogEventData::class.java)
         assertEquals(parsedLogs.events.count(), 10)
+        assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID);
+        assertEquals("custom_stable_id", Statsig.getStableID())
 
         // validate gate exposure
         assertEquals(parsedLogs.events[0].eventName, "statsig::gate_exposure")

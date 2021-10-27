@@ -330,6 +330,14 @@ object Statsig {
         }
     }
 
+    /**
+     * @return the current Statsig stableID
+     */
+    @JvmStatic
+    fun getStableID(): String {
+        return statsigMetadata.stableID
+    }
+
     private fun enforceInitialized(functionName: String) {
         if (!this::sdkKey.isInitialized) {
             throw IllegalStateException("The SDK must be initialized prior to invoking $functionName")
@@ -356,6 +364,8 @@ object Statsig {
     }
 
     private fun populateStatsigMetadata() {
+        statsigMetadata.overrideStableID(options.overrideStableID)
+
         val stringID: Int? = application.applicationInfo?.labelRes
         if (stringID != null) {
             if (stringID == 0) {

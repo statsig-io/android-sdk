@@ -24,6 +24,7 @@ class StatsigOptions(
     @SerializedName("disableCurrentActivityLogging") var disableCurrentActivityLogging: Boolean = false,
     @SerializedName("initTimeoutMs") var initTimeoutMs: Long = 3000L,
     @SerializedName("enableAutoValueUpdate") var enableAutoValueUpdate: Boolean = false,
+    @SerializedName("overrideStableID") var overrideStableID: String? = null,
 ) {
 
     private var environment: MutableMap<String, String>? = null
