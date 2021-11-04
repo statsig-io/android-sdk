@@ -46,6 +46,9 @@ data class StatsigUser(
     @SerializedName("privateAttributes")
     var privateAttributes: Map<String, Any>? = null
 
+    @SerializedName("customIDs")
+    var customIDs: Map<String, String>? = null
+
     @SerializedName("statsigEnvironment")
     internal var statsigEnvironment: Map<String, String>? = null
 
@@ -59,6 +62,7 @@ data class StatsigUser(
         userCopy.appVersion = appVersion
         userCopy.custom = custom
         userCopy.statsigEnvironment = statsigEnvironment
+        userCopy.customIDs = customIDs
         // DO NOT copy privateAttributes to the logging copy!
         userCopy.privateAttributes = null
 

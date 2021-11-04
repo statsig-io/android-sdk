@@ -21,6 +21,7 @@ class StatsigTest {
 
     private lateinit var app: Application
     private var flushedlogs: String = ""
+    private var initUser: StatsigUser? = null
 
     @Before
     internal fun setup() {
@@ -51,7 +52,8 @@ class StatsigTest {
         val statsigNetwork = mockkClass(StatsigNetwork::class)
         coEvery {
             statsigNetwork.initialize(any(), any(), any(), any(), any())
-        } returns
+        } answers {
+            initUser = thirdArg()
             InitializeResponse(
                 featureGates = mapOf(
                     "always_on!" to
@@ -89,6 +91,7 @@ class StatsigTest {
                 hasUpdates = true,
                 time = 1621637839,
             )
+        }
         coEvery {
             statsigNetwork.apiRetryFailedLogs(any(), any())
         } returns Unit
@@ -122,12 +125,15 @@ class StatsigTest {
 
     @Test
     fun testInitialize() = runBlocking {
+        val user = StatsigUser("123")
+        user.customIDs = mapOf("random_id" to "abcde")
         Statsig.initialize(
             app,
             "client-111aaa",
-            StatsigUser("123"),
+            user,
             StatsigOptions(overrideStableID = "custom_stable_id")
         )
+        assertEquals(Gson().toJson(initUser?.customIDs), Gson().toJson(mapOf("random_id" to "abcde")))
         assertTrue(Statsig.checkGate("always_on"))
         assertFalse(Statsig.checkGate("always_off"))
         assertFalse(Statsig.checkGate("not_a_valid_gate_name"))
