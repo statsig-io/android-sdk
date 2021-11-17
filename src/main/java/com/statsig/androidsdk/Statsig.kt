@@ -17,6 +17,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.*
 
@@ -158,6 +159,7 @@ object Statsig {
         lifecycleListener = StatsigActivityLifecycleListener()
         application.registerActivityLifecycleCallbacks(lifecycleListener)
         logger = StatsigLogger(
+            statsigScope,
             sdkKey,
             options.api,
             statsigMetadata,
@@ -331,16 +333,23 @@ object Statsig {
         pollForUpdates()
     }
 
+    @JvmSynthetic
+    suspend fun shutdownSuspend() {
+        enforceInitialized("shutdown")
+        pollingJob?.cancel()
+        logger.shutdown()
+    }
+
     /**
      * Informs the Statsig SDK that the client is shutting down to complete cleanup saving state
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
     fun shutdown() {
-        enforceInitialized("shutdown")
-        pollingJob?.cancel()
-        statsigScope.launch {
-            logger.flush()
+        runBlocking {
+            withContext(Dispatchers.Main.immediate) {
+                shutdownSuspend()
+            }
         }
     }
 
@@ -435,7 +444,9 @@ object Statsig {
 
         override fun onActivityStopped(activity: Activity) {
             currentActivity = null
-            shutdown()
+            statsigScope.launch {
+                logger.flush()
+            }
         }
 
         override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
