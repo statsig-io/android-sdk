@@ -40,7 +40,7 @@ class TestSharedPreferences : SharedPreferences {
         override fun apply() {
             tempValues.forEach { (k, v) -> values[k] = v }
             tempValues = mutableMapOf()
-            System.out.println("values: " + values)
+            System.out.println("TestSharedPreferences values: " + values)
         }
 
         fun getString(key: String): String? {

@@ -77,8 +77,9 @@ object Statsig {
         callback: IStatsigCallback? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
+        setup(application, sdkKey, user, options)
         statsigScope.launch {
-            initialize(application, sdkKey, user, options)
+            setupAsync()
             // The scope's dispatcher may change in the future. This "withContext" will ensure we keep true to the documentation above.
             withContext(Dispatchers.Main.immediate) {
                 callback?.onStatsigInitialize()
@@ -106,50 +107,63 @@ object Statsig {
         options: StatsigOptions = StatsigOptions(),
     ) {
         withContext(Dispatchers.Main.immediate) { // Run on main thread immediately if already in it, else post to the main looper
-            if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
-                throw IllegalArgumentException("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
-            }
-            if (this@Statsig::sdkKey.isInitialized) {
-                // initialize has already been called
-                return@withContext
-            }
-            this@Statsig.application = application
-            this@Statsig.sdkKey = sdkKey
-            this@Statsig.options = options
-            this@Statsig.user = normalizeUser(user)
+            setup(application, sdkKey, user, options)
+            setupAsync()
+        }
+    }
 
-            statsigMetadata = StatsigMetadata()
-            populateStatsigMetadata()
-
-            lifecycleListener = StatsigActivityLifecycleListener()
-            application.registerActivityLifecycleCallbacks(lifecycleListener)
-            logger = StatsigLogger(
-                sdkKey,
-                options.api,
-                statsigMetadata,
-                statsigNetwork
-            )
-            store = Store(user?.userID)
-
+    private suspend fun setupAsync() {
+        withContext(Dispatchers.Main.immediate) {
             val initResponse = statsigNetwork.initialize(
-                options.api,
-                sdkKey,
-                user,
-                statsigMetadata,
-                options.initTimeoutMs,
+                this@Statsig.options.api,
+                this@Statsig.sdkKey,
+                this@Statsig.user,
+                this@Statsig.statsigMetadata,
+                this@Statsig.options.initTimeoutMs,
             )
 
             if (initResponse != null) {
-                store.save(initResponse)
+                this@Statsig.store.save(initResponse)
             }
 
-            if (options.enableAutoValueUpdate) {
-                pollingJob?.cancel() // Cancel the previous job if it wasn't already
-                pollForUpdates()
+            if (Statsig.options.enableAutoValueUpdate) {
+                this@Statsig.pollingJob?.cancel() // Cancel the previous job if it wasn't already
+                this@Statsig.pollForUpdates()
             }
 
-            statsigNetwork.apiRetryFailedLogs(options.api, sdkKey)
+            this@Statsig.statsigNetwork.apiRetryFailedLogs(Statsig.options.api, Statsig.sdkKey)
         }
+    }
+
+    private fun setup(
+        application: Application,
+        sdkKey: String,
+        user: StatsigUser? = null,
+        options: StatsigOptions = StatsigOptions(),
+    ) {
+        if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
+            throw IllegalArgumentException("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
+        }
+        if (this::store.isInitialized) {
+            return
+        }
+        this.application = application
+        this.sdkKey = sdkKey
+        this.options = options
+        this.user = normalizeUser(user)
+
+        statsigMetadata = StatsigMetadata()
+        populateStatsigMetadata()
+
+        lifecycleListener = StatsigActivityLifecycleListener()
+        application.registerActivityLifecycleCallbacks(lifecycleListener)
+        logger = StatsigLogger(
+            sdkKey,
+            options.api,
+            statsigMetadata,
+            statsigNetwork
+        )
+        store = Store(user?.userID)
     }
 
     /**
@@ -339,7 +353,7 @@ object Statsig {
     }
 
     private fun enforceInitialized(functionName: String) {
-        if (!this::sdkKey.isInitialized) {
+        if (!this::store.isInitialized) {
             throw IllegalStateException("The SDK must be initialized prior to invoking $functionName")
         }
     }
