@@ -127,10 +127,7 @@ object Statsig {
                 this@Statsig.store.save(initResponse)
             }
 
-            if (Statsig.options.enableAutoValueUpdate) {
-                this@Statsig.pollingJob?.cancel() // Cancel the previous job if it wasn't already
-                this@Statsig.pollForUpdates()
-            }
+            this@Statsig.pollForUpdates()
 
             this@Statsig.statsigNetwork.apiRetryFailedLogs(Statsig.options.api, Statsig.sdkKey)
         }
@@ -374,6 +371,10 @@ object Statsig {
     }
 
     private fun pollForUpdates() {
+        if (!Statsig.options.enableAutoValueUpdate) {
+            return
+        }
+        pollingJob?.cancel()
         pollingJob = statsigNetwork.pollForChanges(
             options.api,
             sdkKey,
