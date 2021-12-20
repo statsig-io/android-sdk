@@ -11,11 +11,6 @@ import org.junit.Test
 class StoreTest {
     @Before
     internal fun setup() {
-        val sharedPrefs = TestSharedPreferences()
-        mockkObject(Statsig)
-        every {
-            Statsig.getSharedPrefs()
-        } returns sharedPrefs
 
         mockkObject(StatsigUtil)
         every {
@@ -71,7 +66,7 @@ class StoreTest {
 
     @Test
     fun testConfigNameNotHashed() {
-        val store = Store("jkw")
+        val store = Store("jkw", TestSharedPreferences())
         store.save(getInitValue("v0", inExperiment = true, active = true))
 
         var config = store.getExperiment("config", false)
@@ -82,7 +77,7 @@ class StoreTest {
 
     @Test
     fun testStickyBucketing() {
-        val store = Store("jkw")
+        val store = Store("jkw", TestSharedPreferences())
         store.save(getInitValue("v0", inExperiment = true, active = true))
 
         // getting values with keepDeviceValue = false first
@@ -146,7 +141,7 @@ class StoreTest {
 
     @Test
     fun testStickyBehaviorWhenResettingUser() {
-        val store = Store("jkw")
+        val store = Store("jkw", TestSharedPreferences())
         store.save(getInitValue("v0", inExperiment = true, active = true))
 
         // getting values with keepDeviceValue = false first
@@ -187,7 +182,8 @@ class StoreTest {
 
     @Test
     fun testStickyBehaviorAcrossSessions() {
-        var store = Store("jkw")
+        val sharedPrefs = TestSharedPreferences()
+        var store = Store("jkw", sharedPrefs)
         store.save(getInitValue("v0", inExperiment = true, active = true))
 
         var config = store.getExperiment("config", true)
@@ -200,7 +196,7 @@ class StoreTest {
         assertEquals("v0", nonStickExp.getString("key", ""))
 
         // Re-create store with a different user ID, update the values, user should still get sticky value for device and only device
-        store = Store("tore")
+        store = Store("tore", sharedPrefs)
         store.save(getInitValue("v1", inExperiment = true, active = true))
 
         config = store.getExperiment("config", true)

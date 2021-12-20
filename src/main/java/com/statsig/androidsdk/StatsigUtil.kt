@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import java.security.MessageDigest
+import android.content.SharedPreferences
 
 internal object StatsigUtil {
     fun getHashedString(input: String): String {
@@ -23,5 +24,21 @@ internal object StatsigUtil {
                         value is Double
             }
         }
+    }
+
+    internal fun saveStringToSharedPrefs(sharedPrefs: SharedPreferences, key: String, value: String) {
+        val editor = sharedPrefs.edit()
+        editor.putString(key, value)
+        editor.apply()
+    }
+
+    internal fun removeFromSharedPrefs(sharedPrefs: SharedPreferences, key: String) {
+        val editor = sharedPrefs.edit()
+        editor.remove(key)
+        editor.apply()
+    }
+
+    internal fun getFromSharedPrefs(sharedPrefs: SharedPreferences, key: String): String? {
+        return sharedPrefs.getString(key, null)
     }
 }

@@ -23,6 +23,7 @@ class StatsigTest : IStatsigCallback {
     private lateinit var app: Application
     private var flushedLogs: String = ""
     private var initUser: StatsigUser? = null
+    private var client: StatsigClient = StatsigClient()
 
     @Before
     internal fun setup() {
@@ -54,7 +55,7 @@ class StatsigTest : IStatsigCallback {
 
 
         coEvery {
-            statsigNetwork.initialize(any(), any<String>(), any(), any(), any())
+            statsigNetwork.initialize(any(), any<String>(), any(), any(), any(), any())
         } coAnswers {
             initUser = thirdArg()
             InitializeResponse(
@@ -106,7 +107,8 @@ class StatsigTest : IStatsigCallback {
             flushedLogs = thirdArg<String>()
         }
 
-        Statsig.statsigNetwork = statsigNetwork
+        client = StatsigClient()
+        client.statsigNetwork = statsigNetwork
     }
 
     @After
@@ -117,7 +119,7 @@ class StatsigTest : IStatsigCallback {
     @Test
     fun testInitializeBadInput() = runBlocking {
         try {
-            Statsig.initialize(
+            client.initialize(
                 app,
                 "secret-111aaa",
                 null,
@@ -132,7 +134,7 @@ class StatsigTest : IStatsigCallback {
     fun testInitialize() {
         val user = StatsigUser("123")
         user.customIDs = mapOf("random_id" to "abcde")
-        Statsig.initializeAsync(
+        client.initializeAsync(
             app,
             "client-dontresolve",
             user,
@@ -150,11 +152,11 @@ class StatsigTest : IStatsigCallback {
             Gson().toJson(initUser?.customIDs),
             Gson().toJson(mapOf("random_id" to "abcde"))
         )
-        assertTrue(Statsig.checkGate("always_on"))
-        assertFalse(Statsig.checkGate("always_off"))
-        assertFalse(Statsig.checkGate("not_a_valid_gate_name"))
+        assertTrue(client.checkGate("always_on"))
+        assertFalse(client.checkGate("always_off"))
+        assertFalse(client.checkGate("not_a_valid_gate_name"))
 
-        val config = Statsig.getConfig("test_config")
+        val config = client.getConfig("test_config")
         assertEquals("test", config.getString("string", "fallback"))
         assertEquals("test_config", config.getName())
         assertEquals(42, config.getInt("number", 0))
@@ -162,26 +164,26 @@ class StatsigTest : IStatsigCallback {
             "default string instead",
             config.getString("otherNumber", "default string instead")
         )
-        assertEquals("default", Statsig.getConfig("test_config").getRuleID())
+        assertEquals("default", client.getConfig("test_config").getRuleID())
 
-        val invalidConfig = Statsig.getConfig("not_a_valid_config")
+        val invalidConfig = client.getConfig("not_a_valid_config")
         assertEquals("", invalidConfig.getRuleID())
         assertEquals("not_a_valid_config", invalidConfig.getName())
 
-        val exp = Statsig.getExperiment("exp")
+        val exp = client.getExperiment("exp")
         assertEquals("exp", exp.getName())
         assertEquals(42, exp.getInt("number", 0))
 
-        Statsig.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"));
-        Statsig.logEvent("test_event2", mapOf("key" to "value2"));
-        Statsig.logEvent("test_event3", "1");
-        Statsig.shutdown()
+        client.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"));
+        client.logEvent("test_event2", mapOf("key" to "value2"));
+        client.logEvent("test_event3", "1");
+        client.shutdown()
 
         val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
         assertEquals(10, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID);
-        assertEquals("custom_stable_id", Statsig.getStableID())
+        assertEquals("custom_stable_id", client.getStableID())
 
         // validate gate exposure
         assertEquals(parsedLogs.events[0].eventName, "statsig::gate_exposure")

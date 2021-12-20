@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.content.SharedPreferences
 import com.google.gson.Gson
 import java.net.HttpURLConnection
 import java.net.URL
@@ -51,7 +52,7 @@ private const val ACCEPT_HEADER_VALUE = "application/json"
 
 internal interface StatsigNetwork {
 
-    suspend fun initialize(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata, initTimeoutMs: Long) : InitializeResponse?
+    suspend fun initialize(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata, initTimeoutMs: Long, sharedPrefs: SharedPreferences) : InitializeResponse?
 
     fun pollForChanges(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata): Flow<InitializeResponse?>
 
@@ -67,6 +68,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
     private val gson = Gson()
 
     private var lastSyncTimeForUser: Long = 0
+    private lateinit var sharedPrefs: SharedPreferences
 
     override suspend fun initialize(
         api: String,
@@ -74,7 +76,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
         user: StatsigUser?,
         metadata: StatsigMetadata,
         initTimeoutMs: Long,
+        sharedPrefs: SharedPreferences,
     ): InitializeResponse? {
+        this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
             return initializeImpl(api, sdkKey, user, metadata)
         }
@@ -128,19 +132,17 @@ private class StatsigNetworkImpl : StatsigNetwork {
         if (savedLogs.isEmpty()) {
             return
         }
-        Statsig.removeFromSharedPrefs(OFFLINE_LOGS_KEY)
+        StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
         savedLogs.map { apiPostLogs(api, sdkKey, it.requestBody) }
     }
 
     private fun addFailedLogRequest(requestBody: String) {
         val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
-
-        Statsig.saveStringToSharedPrefs(OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
     }
 
     private fun getSavedLogs(): List<StatsigOfflineRequest> {
-        if (this == null) return arrayListOf()
-        val json: String = Statsig.getSharedPrefs().getString(OFFLINE_LOGS_KEY, null) ?: return arrayListOf()
+        val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY) ?: return arrayListOf()
 
         val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
         if (pendingRequests?.requests == null) {

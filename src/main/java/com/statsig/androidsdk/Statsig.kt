@@ -36,25 +36,8 @@ interface IStatsigCallback {
  */
 object Statsig {
 
-    private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
-
-    private val statsigJob = SupervisorJob()
-    private val statsigScope = CoroutineScope(statsigJob + Dispatchers.Main)
-
-    private lateinit var store: Store
-    private lateinit var user: StatsigUser
-
-    private var pollingJob: Job? = null
-    private lateinit var application: Application
-    private lateinit var sdkKey: String
-    private lateinit var options: StatsigOptions
-    private lateinit var lifecycleListener: StatsigActivityLifecycleListener
-
-    internal lateinit var logger: StatsigLogger
-    internal lateinit var statsigMetadata: StatsigMetadata
-
     @VisibleForTesting
-    internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
+    internal val client: StatsigClient = StatsigClient()
 
     /**
      * Initializes the SDK for the given user.  Initialization is complete when the callback
@@ -78,14 +61,10 @@ object Statsig {
         callback: IStatsigCallback? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        setup(application, sdkKey, user, options)
-        statsigScope.launch {
-            setupAsync()
-            // The scope's dispatcher may change in the future. This "withContext" will ensure we keep true to the documentation above.
-            withContext(Dispatchers.Main.immediate) {
-                callback?.onStatsigInitialize()
-            }
+        if (client.isInitialized()) {
+            return
         }
+        client.initializeAsync(application, sdkKey, user, callback, options)
     }
 
     /**
@@ -107,62 +86,10 @@ object Statsig {
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        withContext(Dispatchers.Main.immediate) { // Run on main thread immediately if already in it, else post to the main looper
-            setup(application, sdkKey, user, options)
-            setupAsync()
-        }
-    }
-
-    private suspend fun setupAsync() {
-        withContext(Dispatchers.Main.immediate) {
-            val initResponse = statsigNetwork.initialize(
-                this@Statsig.options.api,
-                this@Statsig.sdkKey,
-                this@Statsig.user,
-                this@Statsig.statsigMetadata,
-                this@Statsig.options.initTimeoutMs,
-            )
-
-            if (initResponse != null) {
-                this@Statsig.store.save(initResponse)
-            }
-
-            this@Statsig.pollForUpdates()
-
-            this@Statsig.statsigNetwork.apiRetryFailedLogs(Statsig.options.api, Statsig.sdkKey)
-        }
-    }
-
-    private fun setup(
-        application: Application,
-        sdkKey: String,
-        user: StatsigUser? = null,
-        options: StatsigOptions = StatsigOptions(),
-    ) {
-        if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
-            throw IllegalArgumentException("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
-        }
-        if (this::store.isInitialized) {
+        if (client.isInitialized()) {
             return
         }
-        this.application = application
-        this.sdkKey = sdkKey
-        this.options = options
-        this.user = normalizeUser(user)
-
-        statsigMetadata = StatsigMetadata()
-        populateStatsigMetadata()
-
-        lifecycleListener = StatsigActivityLifecycleListener()
-        application.registerActivityLifecycleCallbacks(lifecycleListener)
-        logger = StatsigLogger(
-            statsigScope,
-            sdkKey,
-            options.api,
-            statsigMetadata,
-            statsigNetwork
-        )
-        store = Store(user?.userID)
+        client.initialize(application, sdkKey, user, options)
     }
 
     /**
@@ -175,11 +102,7 @@ object Statsig {
     @JvmStatic
     fun checkGate(gateName: String): Boolean {
         enforceInitialized("checkGate")
-        val res = store.checkGate(gateName)
-        statsigScope.launch {
-            logger.logGateExposure(gateName, res.value, res.ruleID, res.secondaryExposures, user)
-        }
-        return res.value
+        return client.checkGate(gateName)
     }
 
     /**
@@ -192,11 +115,7 @@ object Statsig {
     @JvmStatic
     fun getConfig(configName: String): DynamicConfig {
         enforceInitialized("getConfig")
-        val res = store.getConfig(configName)
-        statsigScope.launch {
-            logger.logConfigExposure(configName, res.getRuleID(), res.getSecondaryExposures(), user)
-        }
-        return res
+        return client.getConfig(configName)
     }
 
     /**
@@ -211,11 +130,7 @@ object Statsig {
     @JvmStatic
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         enforceInitialized("getExperiment")
-        val res = store.getExperiment(experimentName, keepDeviceValue)
-        statsigScope.launch {
-            logger.logConfigExposure(experimentName, res.getRuleID(), res.getSecondaryExposures(), user)
-        }
-        return res
+        return client.getExperiment(experimentName, keepDeviceValue)
     }
 
     /**
@@ -229,20 +144,7 @@ object Statsig {
     @JvmStatic
     fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
         enforceInitialized("logEvent")
-        val event = LogEvent(eventName)
-        event.value = value
-        event.metadata = metadata
-        event.user = user
-
-        if (!options.disableCurrentActivityLogging) {
-            val className = lifecycleListener.currentActivity?.javaClass?.simpleName
-            if (className != null) {
-                event.statsigMetadata = mapOf("currentPage" to className)
-            }
-        }
-        statsigScope.launch {
-            logger.log(event)
-        }
+        return client.logEvent(eventName, value, metadata)
     }
 
     /**
@@ -256,13 +158,7 @@ object Statsig {
     @JvmStatic
     fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
         enforceInitialized("logEvent")
-        val event = LogEvent(eventName)
-        event.value = value
-        event.metadata = metadata
-        event.user = user
-        statsigScope.launch {
-            logger.log(event)
-        }
+        return client.logEvent(eventName, value, metadata)
     }
 
     /**
@@ -274,13 +170,7 @@ object Statsig {
     @JvmStatic
     fun logEvent(eventName: String, metadata: Map<String, String>) {
         enforceInitialized("logEvent")
-        val event = LogEvent(eventName)
-        event.value = null
-        event.metadata = metadata
-        event.user = user
-        statsigScope.launch {
-            logger.log(event)
-        }
+        return client.logEvent(eventName, null, metadata)
     }
 
     /**
@@ -295,12 +185,8 @@ object Statsig {
      */
     @JvmStatic
     fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
-        statsigScope.launch {
-            updateUser(user)
-            withContext(Dispatchers.Main.immediate) {
-                callback?.onStatsigUpdateUser()
-            }
-        }
+        enforceInitialized("updateUserAsync")
+        client.updateUserAsync(user, callback)
     }
 
     /**
@@ -313,28 +199,13 @@ object Statsig {
     @JvmSynthetic // Hide this from Java files
     suspend fun updateUser(user: StatsigUser?) {
         enforceInitialized("updateUser")
-        pollingJob?.cancel()
-        this.user = normalizeUser(user)
-        store.loadAndResetStickyUserValues(user?.userID)
-
-        val initResponse = statsigNetwork.initialize(
-            options.api,
-            sdkKey,
-            user,
-            statsigMetadata,
-            options.initTimeoutMs,
-        )
-        if (initResponse != null) {
-            store.save(initResponse)
-        }
-        pollForUpdates()
+        client.updateUser(user)
     }
 
     @JvmSynthetic
     suspend fun shutdownSuspend() {
-        enforceInitialized("shutdown")
-        pollingJob?.cancel()
-        logger.shutdown()
+        enforceInitialized("shutdownSuspend")
+        client.shutdownSuspend()
     }
 
     /**
@@ -343,11 +214,8 @@ object Statsig {
      */
     @JvmStatic
     fun shutdown() {
-        runBlocking {
-            withContext(Dispatchers.Main.immediate) {
-                shutdownSuspend()
-            }
-        }
+        enforceInitialized("shutdown")
+        client.shutdown()
     }
 
     /**
@@ -355,106 +223,11 @@ object Statsig {
      */
     @JvmStatic
     fun getStableID(): String {
-        return statsigMetadata.stableID
+        enforceInitialized("getStableID")
+        return client.getStableID()
     }
 
     private fun enforceInitialized(functionName: String) {
-        if (!this::store.isInitialized) {
-            throw IllegalStateException("The SDK must be initialized prior to invoking $functionName")
-        }
-    }
-
-    private fun normalizeUser(user: StatsigUser?): StatsigUser {
-        var normalizedUser = user ?: StatsigUser("")
-        normalizedUser.statsigEnvironment = options.getEnvironment()
-        return normalizedUser
-    }
-
-    private fun pollForUpdates() {
-        if (!Statsig.options.enableAutoValueUpdate) {
-            return
-        }
-        pollingJob?.cancel()
-        pollingJob = statsigNetwork.pollForChanges(
-            options.api,
-            sdkKey,
-            user,
-            statsigMetadata
-        ).onEach {
-            if (it?.hasUpdates == true) {
-                store.save(it)
-            }
-        }.launchIn(statsigScope)
-    }
-
-    private fun populateStatsigMetadata() {
-        statsigMetadata.overrideStableID(options.overrideStableID)
-
-        val stringID: Int? = application.applicationInfo?.labelRes
-        if (stringID != null) {
-            if (stringID == 0) {
-                application.applicationInfo.nonLocalizedLabel.toString()
-            } else {
-                application.getString(stringID)
-            }
-        }
-
-        try {
-            if (application.packageManager != null) {
-                val pInfo: PackageInfo =
-                    application.packageManager.getPackageInfo(application.packageName, 0)
-                statsigMetadata.appVersion = pInfo.versionName
-            }
-        } catch (e: PackageManager.NameNotFoundException) {
-        }
-    }
-
-    internal fun getSharedPrefs(): SharedPreferences {
-        return application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
-    }
-
-    internal fun saveStringToSharedPrefs(key: String, value: String) {
-        val editor = getSharedPrefs().edit()
-        editor.putString(key, value)
-        editor.apply()
-    }
-
-    internal fun removeFromSharedPrefs(key: String) {
-        val editor = getSharedPrefs().edit()
-        editor.remove(key)
-        editor.apply()
-    }
-
-    private class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {
-        var currentActivity: Activity? = null
-
-        override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-            currentActivity = activity
-        }
-
-        override fun onActivityStarted(activity: Activity) {
-            currentActivity = activity
-        }
-
-        override fun onActivityResumed(activity: Activity) {
-            currentActivity = activity
-        }
-
-        override fun onActivityPaused(activity: Activity) {
-        }
-
-        override fun onActivityStopped(activity: Activity) {
-            currentActivity = null
-            statsigScope.launch {
-                logger.flush()
-            }
-        }
-
-        override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
-        }
-
-        override fun onActivityDestroyed(activity: Activity) {
-            currentActivity = null
-        }
+        client.enforceInitialized(functionName)
     }
 }

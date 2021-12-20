@@ -5,9 +5,8 @@ import androidx.core.content.edit
 import com.google.gson.annotations.SerializedName
 import java.util.*
 
-private const val STABLE_ID_KEY: String = "STABLE_ID"
-
 internal data class StatsigMetadata(
+    @SerializedName("stableID") var stableID: String,
     @SerializedName("appIdentifier") var appIdentifier: String? = null,
     @SerializedName("appVersion") var appVersion: String? = null,
     @SerializedName("deviceModel") var deviceModel: String? = Build.MODEL,
@@ -16,23 +15,13 @@ internal data class StatsigMetadata(
     @SerializedName("sdkType") var sdkType: String? = "android-client",
     @SerializedName("sdkVersion") var sdkVersion: String? = BuildConfig.VERSION_NAME,
     @SerializedName("sessionID") var sessionID: String = UUID.randomUUID().toString(),
-    @SerializedName("stableID") var stableID: String = getStableID(),
     @SerializedName("systemVersion") var systemVersion: String = Build.VERSION.SDK_INT.toString(),
     @SerializedName("systemName") var systemName: String? = Build.VERSION.RELEASE,
 ) {
     internal fun overrideStableID(overrideStableID: String?) {
         if (overrideStableID != null && overrideStableID != stableID) {
             stableID = overrideStableID
-            Statsig.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
         }
     }
 }
 
-private fun getStableID(): String {
-    var stableID = Statsig.getSharedPrefs().getString(STABLE_ID_KEY, null)
-    if (stableID == null) {
-        stableID = UUID.randomUUID().toString()
-        Statsig.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
-    }
-    return stableID
-}

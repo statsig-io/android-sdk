@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
@@ -14,15 +15,15 @@ private data class StickyUserExperiments(
     @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>,
 )
 
-internal class Store (userID: String?) {
+internal class Store (userID: String?, private val sharedPrefs: SharedPreferences) {
     private val gson = Gson()
     private var cache: InitializeResponse
     private var stickyDeviceExperiments: MutableMap<String, APIDynamicConfig>
     private lateinit var stickyUserExperiments: StickyUserExperiments
 
     init {
-        val cachedResponse = Statsig.getSharedPrefs().getString(INITIALIZE_RESPONSE_KEY, null)
-        val cachedDeviceValues = Statsig.getSharedPrefs().getString(STICKY_DEVICE_EXPERIMENTS_KEY, null)
+        val cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, INITIALIZE_RESPONSE_KEY)
+        val cachedDeviceValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
 
         cache = InitializeResponse(mapOf(), mapOf(), false, 0)
         if (cachedResponse != null) {
@@ -39,20 +40,20 @@ internal class Store (userID: String?) {
     }
 
     fun loadAndResetStickyUserValues(newUserID: String?) {
-        val cachedUserValues = Statsig.getSharedPrefs().getString(STICKY_USER_EXPERIMENTS_KEY, null)
+        val cachedUserValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_USER_EXPERIMENTS_KEY)
         stickyUserExperiments = StickyUserExperiments(newUserID, mutableMapOf())
         if (cachedUserValues != null) {
             stickyUserExperiments = gson.fromJson(cachedUserValues, StickyUserExperiments::class.java) ?: stickyUserExperiments
             if (stickyUserExperiments.userID != newUserID) {
                 stickyUserExperiments = StickyUserExperiments(newUserID, mutableMapOf())
-                Statsig.saveStringToSharedPrefs(STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperiments))
+                StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperiments))
             }
         }
     }
 
     fun save(data: InitializeResponse) {
         cache = data
-        Statsig.saveStringToSharedPrefs(INITIALIZE_RESPONSE_KEY, gson.toJson(cache))
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, INITIALIZE_RESPONSE_KEY, gson.toJson(cache))
     }
 
     fun checkGate(gateName: String): APIFeatureGate {
@@ -114,7 +115,7 @@ internal class Store (userID: String?) {
     }
 
     private fun cacheStickyValues() {
-        Statsig.saveStringToSharedPrefs(STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperiments))
-        Statsig.saveStringToSharedPrefs(STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments))
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperiments))
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments))
     }
 }
