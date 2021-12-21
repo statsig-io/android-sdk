@@ -56,8 +56,8 @@ task copyLibs(type: Copy) {
     into 'libs'
 }
 
-task newWrapper(type: Wrapper) {
-    gradleVersion = '6.5'
+wrapper {
+    gradleVersion = '7.3.2'
 }
 
 dependencies {
