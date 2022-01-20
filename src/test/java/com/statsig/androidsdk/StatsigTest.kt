@@ -184,6 +184,8 @@ class StatsigTest : IStatsigCallback {
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID);
         assertEquals("custom_stable_id", client.getStableID())
+        assertEquals("Android", parsedLogs.statsigMetadata.systemName);
+        assertEquals("Android", parsedLogs.statsigMetadata.deviceOS);
 
         // validate gate exposure
         assertEquals(parsedLogs.events[0].eventName, "statsig::gate_exposure")
