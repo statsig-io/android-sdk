@@ -16,7 +16,7 @@ internal data class StatsigMetadata(
     @SerializedName("sdkVersion") var sdkVersion: String? = BuildConfig.VERSION_NAME,
     @SerializedName("sessionID") var sessionID: String = UUID.randomUUID().toString(),
     @SerializedName("systemVersion") var systemVersion: String = Build.VERSION.SDK_INT.toString(),
-    @SerializedName("systemName") var systemName: String? = Build.VERSION.RELEASE,
+    @SerializedName("systemName") var systemName: String = "Android",
 ) {
     internal fun overrideStableID(overrideStableID: String?) {
         if (overrideStableID != null && overrideStableID != stableID) {
