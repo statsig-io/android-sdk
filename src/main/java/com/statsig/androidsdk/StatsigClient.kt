@@ -273,7 +273,7 @@ internal class StatsigClient() {
         enforceInitialized("updateUser")
         pollingJob?.cancel()
         this.user = normalizeUser(user)
-        store.loadAndResetStickyUserValues(user?.userID)
+        store.loadAndResetForUser(user?.userID)
 
         val initResponse = statsigNetwork.initialize(
             options.api,

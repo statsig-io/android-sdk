@@ -167,7 +167,7 @@ class StoreTest {
         assertEquals("v1", nonStickExp.getString("key", ""))
 
         // reset to a different user. Only device exp should stick
-        store.loadAndResetStickyUserValues("tore")
+        store.loadAndResetForUser("tore")
         store.save(getInitValue("v2", inExperiment = true, active = true))
 
         config = store.getExperiment("config", true)
