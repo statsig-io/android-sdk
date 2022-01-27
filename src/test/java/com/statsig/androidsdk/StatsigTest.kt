@@ -164,7 +164,7 @@ class StatsigTest : IStatsigCallback {
             "default string instead",
             config.getString("otherNumber", "default string instead")
         )
-        assertEquals("default", client.getConfig("test_config").getRuleID())
+        assertEquals("default",config.getRuleID())
 
         val invalidConfig = client.getConfig("not_a_valid_config")
         assertEquals("", invalidConfig.getRuleID())
@@ -177,10 +177,16 @@ class StatsigTest : IStatsigCallback {
         client.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"));
         client.logEvent("test_event2", mapOf("key" to "value2"));
         client.logEvent("test_event3", "1");
+
+        // check a few previously checked gate and config; they should not result in exposure logs due to deduping logic
+        client.checkGate("always_on")
+        client.getConfig("test_config")
+        client.getExperiment("exp")
+
         client.shutdown()
 
         val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
-        assertEquals(10, parsedLogs.events.count())
+        assertEquals(9, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID);
         assertEquals("custom_stable_id", client.getStableID())
@@ -228,36 +234,36 @@ class StatsigTest : IStatsigCallback {
         )
 
         // validate exp exposure
-        assertEquals(parsedLogs.events[6].eventName, "statsig::config_exposure")
-        assertEquals(parsedLogs.events[6].user!!.userID, "123")
-        assertEquals(parsedLogs.events[6].metadata!!["config"], "exp")
-        assertEquals(parsedLogs.events[6].metadata!!["ruleID"], "exp_rule")
-        assertEquals(parsedLogs.events[6].secondaryExposures?.count() ?: 1, 0)
+        assertEquals(parsedLogs.events[5].eventName, "statsig::config_exposure")
+        assertEquals(parsedLogs.events[5].user!!.userID, "123")
+        assertEquals(parsedLogs.events[5].metadata!!["config"], "exp")
+        assertEquals(parsedLogs.events[5].metadata!!["ruleID"], "exp_rule")
+        assertEquals(parsedLogs.events[5].secondaryExposures?.count() ?: 1, 0)
 
         // Validate custom logs
-        assertEquals(parsedLogs.events[7].eventName, "test_event1")
+        assertEquals(parsedLogs.events[6].eventName, "test_event1")
+        assertEquals(parsedLogs.events[6].user!!.userID, "123")
+        assertEquals(parsedLogs.events[6].value, 1.0)
+        assertEquals(
+            Gson().toJson(parsedLogs.events[6].metadata),
+            Gson().toJson(mapOf("key" to "value"))
+        )
+        assertNull(parsedLogs.events[6].secondaryExposures)
+
+        assertEquals(parsedLogs.events[7].eventName, "test_event2")
         assertEquals(parsedLogs.events[7].user!!.userID, "123")
-        assertEquals(parsedLogs.events[7].value, 1.0)
+        assertEquals(parsedLogs.events[7].value, null)
         assertEquals(
             Gson().toJson(parsedLogs.events[7].metadata),
-            Gson().toJson(mapOf("key" to "value"))
+            Gson().toJson(mapOf("key" to "value2"))
         )
         assertNull(parsedLogs.events[7].secondaryExposures)
 
-        assertEquals(parsedLogs.events[8].eventName, "test_event2")
+        assertEquals(parsedLogs.events[8].eventName, "test_event3")
         assertEquals(parsedLogs.events[8].user!!.userID, "123")
-        assertEquals(parsedLogs.events[8].value, null)
-        assertEquals(
-            Gson().toJson(parsedLogs.events[8].metadata),
-            Gson().toJson(mapOf("key" to "value2"))
-        )
+        assertEquals(parsedLogs.events[8].value, "1")
+        assertNull(parsedLogs.events[8].metadata)
         assertNull(parsedLogs.events[8].secondaryExposures)
-
-        assertEquals(parsedLogs.events[9].eventName, "test_event3")
-        assertEquals(parsedLogs.events[9].user!!.userID, "123")
-        assertEquals(parsedLogs.events[9].value, "1")
-        assertNull(parsedLogs.events[9].metadata)
-        assertNull(parsedLogs.events[9].secondaryExposures)
         return Unit
     }
 }

@@ -271,6 +271,7 @@ internal class StatsigClient() {
      */
     suspend fun updateUser(user: StatsigUser?) {
         enforceInitialized("updateUser")
+        logger.onUpdateUser()
         pollingJob?.cancel()
         this.user = normalizeUser(user)
         store.loadAndResetStickyUserValues(user?.userID)

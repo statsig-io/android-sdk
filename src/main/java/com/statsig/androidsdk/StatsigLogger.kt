@@ -6,7 +6,9 @@ import android.content.SharedPreferences
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 
-internal const val MAX_EVENTS: Int = 10
+private const val EXPOSURE_DEDUPE_INTERVAL: Long = 10 * 60 * 1000
+
+internal const val MAX_EVENTS: Int = 50
 internal const val FLUSH_TIMER_MS: Long = 60000
 
 internal const val CONFIG_EXPOSURE = "statsig::config_exposure"
@@ -37,6 +39,8 @@ internal class StatsigLogger(
     // Modify in a single thread only
     internal var events = arrayListOf<LogEvent>()
 
+    private var loggedExposures: MutableMap<String, Long> = HashMap()
+
     suspend fun log(event: LogEvent) {
         withContext(singleThreadDispatcher) {
             events.add(event)
@@ -45,6 +49,10 @@ internal class StatsigLogger(
                 flush()
             }
         }
+    }
+
+    fun onUpdateUser() {
+        this.loggedExposures = HashMap()
     }
 
     suspend fun flush() {
@@ -60,28 +68,34 @@ internal class StatsigLogger(
 
     suspend fun logGateExposure(gateName: String, gateValue: Boolean, ruleID: String,
                                 secondaryExposures: Array<Map<String, String>>, user: StatsigUser?) {
-        withContext(singleThreadDispatcher) {
-            var event = LogEvent(GATE_EXPOSURE)
-            event.user = user
-            event.metadata =
-                mapOf(
-                    "gate" to gateName,
-                    "gateValue" to gateValue.toString(),
-                    "ruleID" to ruleID
-                )
-            event.secondaryExposures = secondaryExposures
-            log(event)
+        val dedupeKey = gateName + gateValue + ruleID
+        if (shouldLogExposure(dedupeKey)) {
+            withContext(singleThreadDispatcher) {
+                var event = LogEvent(GATE_EXPOSURE)
+                event.user = user
+                event.metadata =
+                    mapOf(
+                        "gate" to gateName,
+                        "gateValue" to gateValue.toString(),
+                        "ruleID" to ruleID
+                    )
+                event.secondaryExposures = secondaryExposures
+                log(event)
+            }
         }
     }
 
     suspend fun logConfigExposure(configName: String, ruleID: String, secondaryExposures: Array<Map<String, String>>,
                                   user: StatsigUser?) {
-        withContext(singleThreadDispatcher) {
-            var event = LogEvent(CONFIG_EXPOSURE)
-            event.user = user
-            event.metadata = mapOf("config" to configName, "ruleID" to ruleID)
-            event.secondaryExposures = secondaryExposures
-            log(event)
+        val dedupeKey = configName + ruleID
+        if (shouldLogExposure(dedupeKey)) {
+            withContext(singleThreadDispatcher) {
+                var event = LogEvent(CONFIG_EXPOSURE)
+                event.user = user
+                event.metadata = mapOf("config" to configName, "ruleID" to ruleID)
+                event.secondaryExposures = secondaryExposures
+                log(event)
+            }
         }
     }
 
@@ -89,5 +103,15 @@ internal class StatsigLogger(
         timer.cancel()
         flush()
         executor.shutdown()
+    }
+
+    private fun shouldLogExposure(key: String): Boolean {
+        val now = System.currentTimeMillis()
+        val lastTime = loggedExposures[key] ?: 0
+        if (lastTime >= now - EXPOSURE_DEDUPE_INTERVAL) {
+            return false
+        }
+        loggedExposures[key] = now
+        return true
     }
 }
