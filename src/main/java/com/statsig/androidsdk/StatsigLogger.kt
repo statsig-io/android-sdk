@@ -6,7 +6,7 @@ import android.content.SharedPreferences
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 
-private const val EXPOSURE_DEDUPE_INTERVAL: Long = 1//0 * 60 * 1000
+private const val EXPOSURE_DEDUPE_INTERVAL: Long = 10 * 60 * 1000
 
 internal const val MAX_EVENTS: Int = 50
 internal const val FLUSH_TIMER_MS: Long = 60000
