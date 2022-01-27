@@ -177,6 +177,12 @@ class StatsigTest : IStatsigCallback {
         client.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"));
         client.logEvent("test_event2", mapOf("key" to "value2"));
         client.logEvent("test_event3", "1");
+
+        // check a few previously checked gate and config; they should not result in exposure logs due to deduping logic
+        client.checkGate("always_on")
+        client.getConfig("test_config")
+        client.getExperiment("exp")
+
         client.shutdown()
 
         val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
