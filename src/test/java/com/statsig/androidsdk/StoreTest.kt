@@ -23,7 +23,9 @@ class StoreTest {
 
     private fun getInitValue(value: String, inExperiment: Boolean = false, active: Boolean = false): InitializeResponse {
         return InitializeResponse(
-            featureGates = mapOf(),
+            featureGates = mapOf(
+                "gate!" to APIFeatureGate("gate", inExperiment, "id", arrayOf())
+            ),
             configs = mapOf(
                 "config!" to APIDynamicConfig(
                     "config!",
@@ -62,6 +64,20 @@ class StoreTest {
             hasUpdates = false,
             time = 1621637839,
         )
+    }
+
+    @Test
+    fun testCacheById() {
+        val store = Store("jkw", TestSharedPreferences())
+        store.save(getInitValue("v0", inExperiment = true, active = true))
+        store.loadAndResetForUser("dloomb")
+        store.save(getInitValue("v0", inExperiment = false, active = true))
+
+        store.loadAndResetForUser("jkw")
+        assertEquals(true, store.checkGate("gate").value)
+
+        store.loadAndResetForUser("dloomb")
+        assertEquals(false, store.checkGate("gate").value)
     }
 
     @Test
