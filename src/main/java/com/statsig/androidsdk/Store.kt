@@ -5,8 +5,8 @@ import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 
-private const val INITIALIZE_RESPONSE_KEY: String = "Statsig.INITIALIZE_RESPONSE_V2"
-private const val STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS_V2"
+private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
+private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
 private const val STICKY_DEVICE_EXPERIMENTS_KEY: String = "Statsig.STICKY_DEVICE_EXPERIMENTS"
 private const val STATSIG_NULL_USER: String = "Statsig.NULL_USER"
 
@@ -14,22 +14,31 @@ private data class StickyUserExperiments(
     @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>,
 )
 
+private data class DeprecatedStickyUserExperiments(
+    @SerializedName("user_id") val userID: String?,
+    @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>,
+)
+
+private data class Cache(
+    @SerializedName("gatesAndConfigs") var gatesAndConfigs: InitializeResponse,
+    @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments
+)
+
 internal class Store (private var userID: String?, private val sharedPrefs: SharedPreferences) {
     private val gson = Gson()
-    private val defaultCache = InitializeResponse(mapOf(), mapOf(), false, 0)
-    private val defaultStickyUserExperiments = StickyUserExperiments(mutableMapOf())
-    private var cacheById: MutableMap<String, InitializeResponse>
+    private var cacheById: MutableMap<String, Cache>
+    private var currentCache: Cache
     private var stickyDeviceExperiments: MutableMap<String, APIDynamicConfig>
-    private lateinit var stickyUserExperimentsById: MutableMap<String, StickyUserExperiments>
 
     init {
-        val cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, INITIALIZE_RESPONSE_KEY)
+        var cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
         val cachedDeviceValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
 
         cacheById = mutableMapOf()
+        currentCache = createEmptyCache()
 
         if (cachedResponse != null) {
-            val type = object : TypeToken<MutableMap<String, InitializeResponse>>() {}.type
+            val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
             cacheById = gson.fromJson(cachedResponse, type) ?: cacheById
         }
 
@@ -39,60 +48,59 @@ internal class Store (private var userID: String?, private val sharedPrefs: Shar
             stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
         }
 
-
-        loadAndResetStickyUserValues(userID)
+        attemptToMigrateDeprecatedStickyUserExperiments()
+        loadAndResetForUser(userID)
     }
 
     fun loadAndResetForUser(newUserID: String?) {
         userID = newUserID
-        loadAndResetStickyUserValues(newUserID)
-    }
-
-    private fun loadAndResetStickyUserValues(newUserID: String?) {
-        val cachedUserValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_USER_EXPERIMENTS_KEY)
-        stickyUserExperimentsById = mutableMapOf()
-
-        if (cachedUserValues != null) {
-            val type = object : TypeToken<MutableMap<String, StickyUserExperiments>>() {}.type
-            stickyUserExperimentsById = gson.fromJson(cachedUserValues, type) ?: stickyUserExperimentsById
-            if (newUserID != null && stickyUserExperimentsById[newUserID] == null) {
-                stickyUserExperimentsById[newUserID] = StickyUserExperiments(mutableMapOf())
-                StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperimentsById))
-            }
-        }
+        currentCache = cacheById[newUserID ?: STATSIG_NULL_USER] ?: createEmptyCache()
     }
 
     fun save(data: InitializeResponse) {
-        cacheById[userID ?: STATSIG_NULL_USER] = data;
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, INITIALIZE_RESPONSE_KEY, gson.toJson(cacheById))
+        currentCache.gatesAndConfigs = data;
+        cacheById[userID ?: STATSIG_NULL_USER] = currentCache
+
+        var cacheString = gson.toJson(cacheById)
+
+        // Drop out other users if the cache is getting too big
+        if ((cacheString.length / 1024) > 1024/*1 MB*/ && cacheById.size > 1) {
+            cacheById = mutableMapOf()
+            cacheById[userID ?: STATSIG_NULL_USER] = currentCache
+            cacheString = gson.toJson(cacheById)
+        }
+
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, cacheString)
     }
 
     fun checkGate(gateName: String): APIFeatureGate {
         val hashName = StatsigUtil.getHashedString(gateName)
+        val gatesAndConfigs = currentCache.gatesAndConfigs
         if (
-            cache()?.featureGates == null ||
-            !cache()?.featureGates!!.containsKey(hashName)) {
+            gatesAndConfigs.featureGates == null ||
+            !gatesAndConfigs.featureGates!!.containsKey(hashName)) {
             return APIFeatureGate(gateName, false, "")
         }
-        return cache()?.featureGates!![hashName] ?: APIFeatureGate(gateName, false, "")
+        return gatesAndConfigs.featureGates!![hashName] ?: APIFeatureGate(gateName, false, "")
     }
 
     fun getConfig(configName: String): DynamicConfig {
         val hashName = StatsigUtil.getHashedString(configName)
+        val gatesAndConfigs = currentCache.gatesAndConfigs
         if (
-            cache().configs == null ||
-            !cache().configs!!.containsKey(hashName)) {
+            gatesAndConfigs.configs == null ||
+            !gatesAndConfigs.configs!!.containsKey(hashName)) {
             return DynamicConfig(configName)
         }
-        var config = cache().configs!![hashName]
+        var config = gatesAndConfigs.configs!![hashName]
         return DynamicConfig(configName, config?.value ?: mapOf(), config?.ruleID ?: "",
             config?.secondaryExposures ?: arrayOf())
     }
 
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
         val hashName = StatsigUtil.getHashedString(experimentName)
-        val stickyValue = stickyUserExperiments().experiments[hashName] ?: stickyDeviceExperiments[hashName]
-        val latestValue = cache().configs?.get(hashName)
+        val stickyValue = currentCache.stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
+        val latestValue = currentCache.gatesAndConfigs.configs?.get(hashName)
 
         // If flag is false, or experiment is NOT active, simply remove the sticky experiment value, and return the latest value
         if (!keepDeviceValue || latestValue?.isExperimentActive == false) {
@@ -111,7 +119,7 @@ internal class Store (private var userID: String?, private val sharedPrefs: Shar
             if (latestValue?.isDeviceBased) {
                 stickyDeviceExperiments[hashName] = latestValue
             } else {
-                stickyUserExperiments().experiments[hashName] = latestValue
+                currentCache.stickyUserExperiments.experiments[hashName] = latestValue
             }
             cacheStickyValues()
         }
@@ -119,23 +127,32 @@ internal class Store (private var userID: String?, private val sharedPrefs: Shar
         return getConfig(experimentName)
     }
 
+    private fun createEmptyCache(): Cache {
+        val emptyGatesAndConfigs = InitializeResponse(mapOf(), mapOf(), false, 0)
+        val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
+        return Cache(emptyGatesAndConfigs, emptyStickyUserExperiments)
+    }
+
     private fun removeStickyValue(key: String) {
-        stickyUserExperiments().experiments.remove(key)
+        currentCache.stickyUserExperiments.experiments.remove(key)
         stickyDeviceExperiments.remove(key)
         cacheStickyValues()
     }
 
     private fun cacheStickyValues() {
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_USER_EXPERIMENTS_KEY, gson.toJson(stickyUserExperimentsById))
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, gson.toJson(cacheById))
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments))
     }
 
-    private fun cache(): InitializeResponse {
-        val cache = cacheById[userID ?: STATSIG_NULL_USER]
-        return cache ?: defaultCache
-    }
+    private fun attemptToMigrateDeprecatedStickyUserExperiments() {
+        val oldStickyUserExperimentValues =
+            StatsigUtil.getFromSharedPrefs(sharedPrefs, DEPRECATED_STICKY_USER_EXPERIMENTS_KEY)
+                ?: return
+        StatsigUtil.removeFromSharedPrefs(sharedPrefs, DEPRECATED_STICKY_USER_EXPERIMENTS_KEY)
 
-    private fun stickyUserExperiments(): StickyUserExperiments {
-        return stickyUserExperimentsById[userID] ?: defaultStickyUserExperiments
+        val stickyUserExperiments = gson.fromJson(oldStickyUserExperimentValues, DeprecatedStickyUserExperiments::class.java)
+        var cache = cacheById[stickyUserExperiments.userID] ?: createEmptyCache()
+        cache.stickyUserExperiments = StickyUserExperiments(stickyUserExperiments.experiments)
+        cacheById[stickyUserExperiments.userID ?: STATSIG_NULL_USER] = cache
     }
 }

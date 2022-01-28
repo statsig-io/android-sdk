@@ -7,6 +7,7 @@ class TestSharedPreferences : SharedPreferences {
     class TestEditor : SharedPreferences.Editor {
         var values: MutableMap<String, String> = mutableMapOf()
         private var tempValues: MutableMap<String, String> = mutableMapOf()
+        private var removedValues: MutableSet<String> = mutableSetOf()
         override fun putString(key: String?, value: String?): SharedPreferences.Editor {
             if (key != null && value != null) {
                 tempValues[key] = value
@@ -26,6 +27,9 @@ class TestSharedPreferences : SharedPreferences {
 
         override fun remove(key: String?): SharedPreferences.Editor {
             tempValues.remove(key)
+            if (key != null) {
+                removedValues.add(key)
+            }
             return this
         }
 
@@ -34,12 +38,14 @@ class TestSharedPreferences : SharedPreferences {
         override fun commit(): Boolean {
             tempValues.forEach { (k, v) -> values[k] = v }
             tempValues = mutableMapOf()
+
+            removedValues.forEach { k -> values.remove(k) }
+            removedValues = mutableSetOf()
             return true
         }
 
         override fun apply() {
-            tempValues.forEach { (k, v) -> values[k] = v }
-            tempValues = mutableMapOf()
+            this.commit()
             System.out.println("TestSharedPreferences values: " + values)
         }
 
