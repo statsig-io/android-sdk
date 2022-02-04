@@ -23,7 +23,9 @@ class StoreTest {
 
     private fun getInitValue(value: String, inExperiment: Boolean = false, active: Boolean = false): InitializeResponse {
         return InitializeResponse(
-            featureGates = mapOf(),
+            featureGates = mapOf(
+                "gate!" to APIFeatureGate("gate", inExperiment, "id", arrayOf())
+            ),
             configs = mapOf(
                 "config!" to APIDynamicConfig(
                     "config!",
@@ -65,8 +67,39 @@ class StoreTest {
     }
 
     @Test
+    fun testCacheById() {
+        val store = Store("jkw", null, TestSharedPreferences())
+        store.save(getInitValue("v0", inExperiment = true, active = true))
+        store.loadAndResetForUser("dloomb", null)
+        store.save(getInitValue("v0", inExperiment = false, active = true))
+
+        store.loadAndResetForUser("jkw", null)
+        assertEquals(true, store.checkGate("gate").value)
+
+        store.loadAndResetForUser("dloomb", null)
+        assertEquals(false, store.checkGate("gate").value)
+    }
+
+    @Test
+    fun testStickyUserExperimentMigration() {
+        val sharedPrefs = TestSharedPreferences()
+        StatsigUtil.saveStringToSharedPrefs(
+            sharedPrefs,
+            "Statsig.STICKY_USER_EXPERIMENTS",
+            "{user_id: \"dloomb\", values: {\"bar!\": {\"value\": {\"foo\": \"aValue\"}}}}"
+        )
+
+        val store = Store("dloomb", null, sharedPrefs)
+        val exp = store.getExperiment("bar", true)
+        assertEquals("aValue", exp.getValue()["foo"])
+
+        val savedVal = StatsigUtil.getFromSharedPrefs(sharedPrefs, "Statsig.STICKY_USER_EXPERIMENTS")
+        assertNull(savedVal)
+    }
+
+    @Test
     fun testConfigNameNotHashed() {
-        val store = Store("jkw", TestSharedPreferences())
+        val store = Store("jkw", null, TestSharedPreferences())
         store.save(getInitValue("v0", inExperiment = true, active = true))
 
         var config = store.getExperiment("config", false)
@@ -77,7 +110,7 @@ class StoreTest {
 
     @Test
     fun testStickyBucketing() {
-        val store = Store("jkw", TestSharedPreferences())
+        val store = Store("jkw",null,  TestSharedPreferences())
         store.save(getInitValue("v0", inExperiment = true, active = true))
 
         // getting values with keepDeviceValue = false first
@@ -141,7 +174,7 @@ class StoreTest {
 
     @Test
     fun testStickyBehaviorWhenResettingUser() {
-        val store = Store("jkw", TestSharedPreferences())
+        val store = Store("jkw",null, TestSharedPreferences())
         store.save(getInitValue("v0", inExperiment = true, active = true))
 
         // getting values with keepDeviceValue = false first
@@ -167,7 +200,7 @@ class StoreTest {
         assertEquals("v1", nonStickExp.getString("key", ""))
 
         // reset to a different user. Only device exp should stick
-        store.loadAndResetStickyUserValues("tore")
+        store.loadAndResetForUser("tore", null)
         store.save(getInitValue("v2", inExperiment = true, active = true))
 
         config = store.getExperiment("config", true)
@@ -183,7 +216,7 @@ class StoreTest {
     @Test
     fun testStickyBehaviorAcrossSessions() {
         val sharedPrefs = TestSharedPreferences()
-        var store = Store("jkw", sharedPrefs)
+        var store = Store("jkw", null, sharedPrefs)
         store.save(getInitValue("v0", inExperiment = true, active = true))
 
         var config = store.getExperiment("config", true)
@@ -196,7 +229,7 @@ class StoreTest {
         assertEquals("v0", nonStickExp.getString("key", ""))
 
         // Re-create store with a different user ID, update the values, user should still get sticky value for device and only device
-        store = Store("tore", sharedPrefs)
+        store = Store("tore", null, sharedPrefs)
         store.save(getInitValue("v1", inExperiment = true, active = true))
 
         config = store.getExperiment("config", true)
@@ -207,5 +240,19 @@ class StoreTest {
         assertEquals("v1", exp.getString("key", ""))
         assertEquals("v0", deviceExp.getString("key", ""))
         assertEquals("v1", nonStickExp.getString("key", ""))
+
+        // Re-create store with the original user ID, check that sticky values are persisted
+        store = Store("jkw", null, sharedPrefs)
+        store.save(getInitValue("v2", inExperiment = true, active = true))
+
+        config = store.getExperiment("config", true)
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        nonStickExp = store.getExperiment("exp_non_stick", false)
+        assertEquals("v2", config.getString("key", ""))
+        assertEquals("v0", exp.getString("key", ""))
+        assertEquals("v0", deviceExp.getString("key", ""))
+        assertEquals("v2", nonStickExp.getString("key", ""))
+
     }
 }
