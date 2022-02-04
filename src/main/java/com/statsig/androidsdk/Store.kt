@@ -20,7 +20,7 @@ private data class DeprecatedStickyUserExperiments(
 )
 
 private data class Cache(
-    @SerializedName("gatesAndConfigs") var gatesAndConfigs: InitializeResponse,
+    @SerializedName("values") var values: InitializeResponse,
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments
 )
 
@@ -59,7 +59,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
     fun save(data: InitializeResponse) {
         val storageID = getUserStorageID()
-        currentCache.gatesAndConfigs = data;
+        currentCache.values = data;
         cacheById[storageID] = currentCache
 
         var cacheString = gson.toJson(cacheById)
@@ -76,24 +76,24 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
     fun checkGate(gateName: String): APIFeatureGate {
         val hashName = StatsigUtil.getHashedString(gateName)
-        val gatesAndConfigs = currentCache.gatesAndConfigs
+        val values = currentCache.values
         if (
-            gatesAndConfigs.featureGates == null ||
-            !gatesAndConfigs.featureGates!!.containsKey(hashName)) {
+            values.featureGates == null ||
+            !values.featureGates!!.containsKey(hashName)) {
             return APIFeatureGate(gateName, false, "")
         }
-        return gatesAndConfigs.featureGates!![hashName] ?: APIFeatureGate(gateName, false, "")
+        return values.featureGates!![hashName] ?: APIFeatureGate(gateName, false, "")
     }
 
     fun getConfig(configName: String): DynamicConfig {
         val hashName = StatsigUtil.getHashedString(configName)
-        val gatesAndConfigs = currentCache.gatesAndConfigs
+        val values = currentCache.values
         if (
-            gatesAndConfigs.configs == null ||
-            !gatesAndConfigs.configs!!.containsKey(hashName)) {
+            values.configs == null ||
+            !values.configs!!.containsKey(hashName)) {
             return DynamicConfig(configName)
         }
-        var config = gatesAndConfigs.configs!![hashName]
+        var config = values.configs!![hashName]
         return DynamicConfig(configName, config?.value ?: mapOf(), config?.ruleID ?: "",
             config?.secondaryExposures ?: arrayOf())
     }
@@ -101,7 +101,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
         val hashName = StatsigUtil.getHashedString(experimentName)
         val stickyValue = currentCache.stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
-        val latestValue = currentCache.gatesAndConfigs.configs?.get(hashName)
+        val latestValue = currentCache.values.configs?.get(hashName)
 
         // If flag is false, or experiment is NOT active, simply remove the sticky experiment value, and return the latest value
         if (!keepDeviceValue || latestValue?.isExperimentActive == false) {
