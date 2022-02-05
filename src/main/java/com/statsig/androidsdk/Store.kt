@@ -161,7 +161,12 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
     private fun getUserStorageID(): String {
         var id = userID ?: STATSIG_NULL_USER
-        customIDs?.forEach { (k,v) -> id = "$id|$k:$v" }
+        var cids = customIDs ?: return id
+
+        for ((k, v) in cids) {
+            id = "$id$k:$v"
+        }
+
         return id
     }
 }
