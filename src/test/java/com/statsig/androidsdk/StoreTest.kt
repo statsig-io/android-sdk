@@ -68,6 +68,7 @@ class StoreTest {
 
     @Test
     fun testCacheById() {
+        assertTrue("Should Fail", false)
         val store = Store("jkw", null, TestSharedPreferences())
         store.save(getInitValue("v0", inExperiment = true, active = true))
         store.loadAndResetForUser("dloomb", null)
