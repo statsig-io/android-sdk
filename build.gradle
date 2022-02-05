@@ -119,3 +119,9 @@ afterEvaluate {
         }
     }
 }
+
+test {
+    testLogging {
+        exceptionFormat = 'full'
+    }
+}
