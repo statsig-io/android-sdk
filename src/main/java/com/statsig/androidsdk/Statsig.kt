@@ -227,6 +227,26 @@ object Statsig {
         return client.getStableID()
     }
 
+    fun overrideGate(gateName: String, value: Boolean) {
+        client.getStore().overrideGate(gateName, value)
+    }
+
+    fun overrideConfig(configName: String, value: DynamicConfig) {
+        client.getStore().overrideConfig(configName, value)
+    }
+
+    fun removeOverride(name: String) {
+        client.getStore().removeOverride(name)
+    }
+
+    fun removeAllOverrides() {
+        client.getStore().removeAllOverrides()
+    }
+
+    fun getAllOverrides(): StatsigOverrides {
+        return client.getStore().getAllOverrides()
+    }
+
     private fun enforceInitialized(functionName: String) {
         client.enforceInitialized(functionName)
     }

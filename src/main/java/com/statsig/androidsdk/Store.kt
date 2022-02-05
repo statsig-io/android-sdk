@@ -8,6 +8,7 @@ import com.google.gson.reflect.TypeToken
 private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
 private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
 private const val STICKY_DEVICE_EXPERIMENTS_KEY: String = "Statsig.STICKY_DEVICE_EXPERIMENTS"
+private const val LOCAL_OVERRIDES_KEY: String = "Statsig.LOCAL_OVERRIDES"
 private const val STATSIG_NULL_USER: String = "Statsig.NULL_USER"
 
 private data class StickyUserExperiments(
@@ -24,15 +25,22 @@ private data class Cache(
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments
 )
 
+private data class LocalOverrides(
+    @SerializedName("gates") var gates: MutableMap<String, Boolean>,
+    @SerializedName("configs") var configs: MutableMap<String, APIDynamicConfig>,
+)
+
 internal class Store (private var userID: String?, private var customIDs: Map<String, String>?, private val sharedPrefs: SharedPreferences) {
     private val gson = Gson()
     private var cacheById: MutableMap<String, Cache>
     private var currentCache: Cache
     private var stickyDeviceExperiments: MutableMap<String, APIDynamicConfig>
+    private var localOverrides: LocalOverrides
 
     init {
         var cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
         val cachedDeviceValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
+        val cachedLocalOverrides = StatsigUtil.getFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
 
         cacheById = mutableMapOf()
 
@@ -45,6 +53,11 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         if (cachedDeviceValues != null) {
             val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
             stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
+        }
+
+        localOverrides = LocalOverrides(mutableMapOf(), mutableMapOf())
+        if (cachedLocalOverrides != null) {
+            localOverrides = gson.fromJson(cachedLocalOverrides, LocalOverrides::class.java)
         }
 
         currentCache = cacheById[getUserStorageID()] ?: createEmptyCache()
@@ -75,6 +88,11 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     }
 
     fun checkGate(gateName: String): APIFeatureGate {
+        val overriddenValue = localOverrides.gates[gateName]
+        if (overriddenValue != null) {
+            return APIFeatureGate(gateName, overriddenValue, "override")
+        }
+
         val hashName = StatsigUtil.getHashedString(gateName)
         val values = currentCache.values
         if (
@@ -86,6 +104,10 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     }
 
     fun getConfig(configName: String): DynamicConfig {
+        if (localOverrides.configs[configName] != null) {
+            return hydrateDynamicConfig(configName, localOverrides.configs[configName])
+        }
+
         val hashName = StatsigUtil.getHashedString(configName)
         val values = currentCache.values
         if (
@@ -94,11 +116,14 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
             return DynamicConfig(configName)
         }
         var config = values.configs!![hashName]
-        return DynamicConfig(configName, config?.value ?: mapOf(), config?.ruleID ?: "",
-            config?.secondaryExposures ?: arrayOf())
+        return hydrateDynamicConfig(configName, config)
     }
 
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
+        if (localOverrides.configs[experimentName] != null) {
+            return hydrateDynamicConfig(experimentName, localOverrides.configs[experimentName])
+        }
+
         val hashName = StatsigUtil.getHashedString(experimentName)
         val stickyValue = currentCache.stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
         val latestValue = currentCache.values.configs?.get(hashName)
@@ -111,8 +136,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
         // If sticky value is already in cache, use it
         if (stickyValue != null) {
-            return DynamicConfig(experimentName, stickyValue?.value ?: mapOf(), stickyValue?.ruleID ?: "",
-                stickyValue?.secondaryExposures ?: arrayOf())
+            return hydrateDynamicConfig(experimentName, stickyValue)
         }
 
         // If the user has NOT been exposed before, and is in this active experiment, then we save the value as sticky
@@ -126,6 +150,46 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         }
 
         return getConfig(experimentName)
+    }
+
+    fun overrideGate(gateName: String, value: Boolean) {
+        localOverrides.gates[gateName] = value
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
+    }
+
+    fun overrideConfig(configName: String, value: DynamicConfig) {
+        localOverrides.configs[configName] = APIDynamicConfig(
+            configName,
+            value.getValue(),
+            value.getRuleID(),
+            value.getSecondaryExposures())
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
+    }
+
+    fun removeOverride(name: String) {
+        localOverrides.configs.remove(name)
+        localOverrides.gates.remove(name)
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
+    }
+
+    fun removeAllOverrides() {
+        localOverrides = LocalOverrides(mutableMapOf(), mutableMapOf())
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
+    }
+
+    fun getAllOverrides(): StatsigOverrides {
+        return StatsigOverrides(
+            localOverrides.gates,
+            localOverrides.configs
+                .mapValues { value -> hydrateDynamicConfig(value.key, value.value)  })
+    }
+
+    private fun hydrateDynamicConfig(name: String, config: APIDynamicConfig?): DynamicConfig {
+        return DynamicConfig(
+            name,
+            config?.value ?: mapOf(),
+            config?.ruleID ?: "",
+            config?.secondaryExposures ?: arrayOf())
     }
 
     private fun createEmptyCache(): Cache {
