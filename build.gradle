@@ -51,6 +51,12 @@ task sourceJar(type: Jar) {
     classifier "sources"
 }
 
+task testLogging(type: Test) {
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
 task copyLibs(type: Copy) {
     from configurations.compile
     into 'libs'
