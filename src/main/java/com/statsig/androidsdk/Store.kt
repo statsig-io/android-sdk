@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import kotlin.math.exp
 
 private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
 private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
@@ -25,17 +26,12 @@ private data class Cache(
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments
 )
 
-private data class LocalOverrides(
-    @SerializedName("gates") var gates: MutableMap<String, Boolean>,
-    @SerializedName("configs") var configs: MutableMap<String, APIDynamicConfig>,
-)
-
 internal class Store (private var userID: String?, private var customIDs: Map<String, String>?, private val sharedPrefs: SharedPreferences) {
     private val gson = Gson()
     private var cacheById: MutableMap<String, Cache>
     private var currentCache: Cache
     private var stickyDeviceExperiments: MutableMap<String, APIDynamicConfig>
-    private var localOverrides: LocalOverrides
+    private var localOverrides: StatsigOverrides
 
     init {
         var cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
@@ -55,9 +51,9 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
             stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
         }
 
-        localOverrides = LocalOverrides(mutableMapOf(), mutableMapOf())
+        localOverrides = StatsigOverrides(mutableMapOf(), mutableMapOf())
         if (cachedLocalOverrides != null) {
-            localOverrides = gson.fromJson(cachedLocalOverrides, LocalOverrides::class.java)
+            localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
         }
 
         currentCache = cacheById[getUserStorageID()] ?: createEmptyCache()
@@ -104,8 +100,9 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     }
 
     fun getConfig(configName: String): DynamicConfig {
-        if (localOverrides.configs[configName] != null) {
-            return hydrateDynamicConfig(configName, localOverrides.configs[configName])
+        val overrideValue = localOverrides.configs[configName]
+        if (overrideValue != null) {
+            return DynamicConfig(configName, overrideValue, "override")
         }
 
         val hashName = StatsigUtil.getHashedString(configName)
@@ -120,8 +117,9 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     }
 
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
-        if (localOverrides.configs[experimentName] != null) {
-            return hydrateDynamicConfig(experimentName, localOverrides.configs[experimentName])
+        val overrideValue = localOverrides.configs[experimentName]
+        if (overrideValue != null) {
+            return DynamicConfig(experimentName, overrideValue, "override")
         }
 
         val hashName = StatsigUtil.getHashedString(experimentName)
@@ -157,12 +155,8 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
-    fun overrideConfig(configName: String, value: DynamicConfig) {
-        localOverrides.configs[configName] = APIDynamicConfig(
-            configName,
-            value.getValue(),
-            value.getRuleID(),
-            value.getSecondaryExposures())
+    fun overrideConfig(configName: String, value: Map<String, Any>) {
+        localOverrides.configs[configName] = value
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
@@ -173,7 +167,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     }
 
     fun removeAllOverrides() {
-        localOverrides = LocalOverrides(mutableMapOf(), mutableMapOf())
+        localOverrides = StatsigOverrides(mutableMapOf(), mutableMapOf())
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
@@ -181,7 +175,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         return StatsigOverrides(
             localOverrides.gates,
             localOverrides.configs
-                .mapValues { value -> hydrateDynamicConfig(value.key, value.value)  })
+        )
     }
 
     private fun hydrateDynamicConfig(name: String, config: APIDynamicConfig?): DynamicConfig {
