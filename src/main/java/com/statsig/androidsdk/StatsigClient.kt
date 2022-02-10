@@ -315,6 +315,10 @@ internal class StatsigClient() {
         return statsigMetadata.stableID
     }
 
+    internal fun getStore(): Store {
+        return store;
+    }
+
     private fun getLocalStorageStableID(): String {
         var stableID = this@StatsigClient.getSharedPrefs().getString(STABLE_ID_KEY, null)
         if (stableID == null) {

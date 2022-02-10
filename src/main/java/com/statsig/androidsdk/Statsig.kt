@@ -227,6 +227,48 @@ object Statsig {
         return client.getStableID()
     }
 
+    /**
+     * @param gateName the name of the gate you want to override
+     * @param value the result to be returned when checkGate is called
+     */
+    @JvmStatic
+    fun overrideGate(gateName: String, value: Boolean) {
+        client.getStore().overrideGate(gateName, value)
+    }
+
+    /**
+     * @param configName the name of the config or experiment you want to override
+     * @param value the resulting values to be returned when getConfig or getExperiment is called
+     */
+    @JvmStatic
+    fun overrideConfig(configName: String, value: Map<String, Any>) {
+        client.getStore().overrideConfig(configName, value)
+    }
+
+    /**
+     * @param name the name of the overridden gate, config or experiment you want to clear an override from
+     */
+    @JvmStatic
+    fun removeOverride(name: String) {
+        client.getStore().removeOverride(name)
+    }
+
+    /**
+     * Throw away all overridden values
+     */
+    @JvmStatic
+    fun removeAllOverrides() {
+        client.getStore().removeAllOverrides()
+    }
+
+    /**
+     * @return the overrides that are currently applied
+     */
+    @JvmStatic
+    fun getAllOverrides(): StatsigOverrides {
+        return client.getStore().getAllOverrides()
+    }
+
     private fun enforceInitialized(functionName: String) {
         client.enforceInitialized(functionName)
     }
