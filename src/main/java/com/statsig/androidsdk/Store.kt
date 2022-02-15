@@ -183,7 +183,10 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
             name,
             config?.value ?: mapOf(),
             config?.ruleID ?: "",
-            config?.secondaryExposures ?: arrayOf())
+            config?.secondaryExposures ?: arrayOf(),
+            config?.isUserInExperiment ?: false,
+            config?.isExperimentActive ?: false,
+            config?.isDeviceBased ?: false)
     }
 
     private fun createEmptyCache(): Cache {
