@@ -7,7 +7,10 @@ class DynamicConfig(
     private val name: String,
     private val jsonValue: Map<String, Any> = mapOf(),
     private val rule: String = "",
-    private val secondaryExposures: Array<Map<String, String>> = arrayOf()) {
+    private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
+    private val isUserInExperiment: Boolean = false,
+    private val isExperimentActive: Boolean = false,
+    private val isDeviceBased: Boolean = false,) {
 
     /**
      * Gets a value from the config, falling back to the provided default value
@@ -153,6 +156,14 @@ class DynamicConfig(
 
     fun getName(): String {
         return this.name
+    }
+
+    fun getIsUserInExperiment(): Boolean {
+        return this.isUserInExperiment
+    }
+
+    fun getIsExperimentActive(): Boolean {
+        return this.isExperimentActive
     }
 
     internal fun getRuleID(): String {
