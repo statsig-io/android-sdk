@@ -52,6 +52,21 @@ data class StatsigUser(
     @SerializedName("statsigEnvironment")
     internal var statsigEnvironment: Map<String, String>? = null
 
+    internal fun getCopyForEvaluation(): StatsigUser {
+        val userCopy = StatsigUser(userID)
+        userCopy.email = email
+        userCopy.ip = ip
+        userCopy.userAgent = userAgent
+        userCopy.country = country
+        userCopy.locale = locale
+        userCopy.appVersion = appVersion
+        userCopy.custom = custom?.toMap()
+        userCopy.statsigEnvironment = statsigEnvironment?.toMap()
+        userCopy.customIDs = customIDs?.toMap()
+        userCopy.privateAttributes = privateAttributes?.toMap()
+        return userCopy
+    }
+
     internal fun getCopyForLogging(): StatsigUser {
         val userCopy = StatsigUser(userID)
         userCopy.email = email
