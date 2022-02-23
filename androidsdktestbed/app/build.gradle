@@ -12,6 +12,7 @@ android {
         targetSdk 32
         versionCode 1
         versionName "1.0"
+        buildConfigField("String", "STATSIG_CLIENT_KEY", '"' + System.getenv("STATSIG_CLIENT_KEY") + '"')
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

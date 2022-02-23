@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.statsig.android_sdk_testbed.databinding.ActivityMainBinding
 import com.statsig.androidsdk.Statsig
 import kotlinx.coroutines.*
+import java.lang.Exception
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -34,7 +35,11 @@ class MainActivity : AppCompatActivity() {
   }
 
   suspend fun statsigInit() {
-    Statsig.initialize(application, "client-vklyTVG7MNvuUw2hhGYPYu8ZdlzD1yGsnwGuafbGiuQ")
+    val key = BuildConfig.STATSIG_CLIENT_KEY
+    if (!key.startsWith("client-")) {
+      throw Exception("Invalid Client Key")
+    }
+    Statsig.initialize(application, BuildConfig.STATSIG_CLIENT_KEY)
   }
 
   private fun statsigCheckGate() {
