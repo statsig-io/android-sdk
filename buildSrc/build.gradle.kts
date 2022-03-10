@@ -27,7 +27,7 @@ gradlePlugin {
             implementationClass = "com.statsig.gradle.plugins.StatsigLibraryPlugin"
         }
         create("publishing") {
-            id = "statsig-publishing"
+            id = "statsig-publish"
             implementationClass = "com.statsig.gradle.plugins.StatsigPublishingPlugin"
         }
     }

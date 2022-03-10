@@ -1,5 +1,5 @@
 apply plugin: 'statsig-library'
-apply plugin: 'statsig-publishing'
+apply plugin: 'statsig-publish'
 
 // This is the entry point to help configure the POM file.
 // Each new publishing library should set up their POM configurations in their own build.gradle file.
