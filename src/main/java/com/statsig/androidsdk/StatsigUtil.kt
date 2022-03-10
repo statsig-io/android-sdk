@@ -39,6 +39,11 @@ internal object StatsigUtil {
     }
 
     internal fun getFromSharedPrefs(sharedPrefs: SharedPreferences, key: String): String? {
-        return sharedPrefs.getString(key, null)
+        return try {
+            sharedPrefs.getString(key, null)
+        } catch (e: ClassCastException) {
+            removeFromSharedPrefs(sharedPrefs, key)
+            null
+        }
     }
 }

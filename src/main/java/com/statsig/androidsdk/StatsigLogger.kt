@@ -2,14 +2,16 @@ package com.statsig.androidsdk
 
 import com.google.gson.Gson
 import java.util.concurrent.Executors
-import android.content.SharedPreferences
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
+import java.util.concurrent.TimeUnit
 
 private const val EXPOSURE_DEDUPE_INTERVAL: Long = 10 * 60 * 1000
 
 internal const val MAX_EVENTS: Int = 50
 internal const val FLUSH_TIMER_MS: Long = 60000
+
+internal const val SHUTDOWN_WAIT_S: Long = 3
 
 internal const val CONFIG_EXPOSURE = "statsig::config_exposure"
 internal const val GATE_EXPOSURE = "statsig::gate_exposure"
@@ -102,7 +104,7 @@ internal class StatsigLogger(
     suspend fun shutdown() {
         timer.cancel()
         flush()
-        executor.shutdown()
+        executor.awaitTermination(SHUTDOWN_WAIT_S, TimeUnit.SECONDS)
     }
 
     private fun shouldLogExposure(key: String): Boolean {

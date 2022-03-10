@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.os.Build
-import androidx.core.content.edit
 import com.google.gson.annotations.SerializedName
 import java.util.*
 

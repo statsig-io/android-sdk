@@ -118,7 +118,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     STATSIG_METADATA to metadata,
                     LAST_SYNC_TIME_FOR_USER to lastSyncTimeForUser
                 )
-                emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0))
+                try {
+                    emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0))
+                } catch (_: Exception) {}
             }
         }
     }
@@ -138,20 +140,29 @@ private class StatsigNetworkImpl : StatsigNetwork {
 
     private fun addFailedLogRequest(requestBody: String) {
         val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
+        try {
+            StatsigUtil.saveStringToSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
+        } catch (_: Exception) {
+            StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
+        }
     }
 
     private fun getSavedLogs(): List<StatsigOfflineRequest> {
         val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY) ?: return arrayListOf()
 
-        val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
-        if (pendingRequests?.requests == null) {
-            return arrayListOf()
+        return try {
+            val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
+            if (pendingRequests?.requests == null) {
+                return arrayListOf()
+            }
+            val currentTime = System.currentTimeMillis()
+            pendingRequests.requests.filter {
+                it.timestamp > currentTime - MAX_LOG_PERIOD
+            }
+        } catch (_: Exception) {
+            arrayListOf()
         }
-        val currentTime = System.currentTimeMillis()
-        return pendingRequests.requests.filter {
-            it.timestamp > currentTime - MAX_LOG_PERIOD
-        }
+
     }
 
     // Bug with Kotlin where any function that throws an IOException still triggers this lint warning

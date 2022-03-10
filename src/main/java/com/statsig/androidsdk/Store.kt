@@ -4,7 +4,6 @@ import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
-import kotlin.math.exp
 
 private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
 private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
@@ -42,18 +41,30 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
         if (cachedResponse != null) {
             val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
-            cacheById = gson.fromJson(cachedResponse, type) ?: cacheById
+            try {
+                cacheById = gson.fromJson(cachedResponse, type) ?: cacheById
+            } catch (_: Exception) {
+                StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
+            }
         }
 
         stickyDeviceExperiments = mutableMapOf()
         if (cachedDeviceValues != null) {
             val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
-            stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
+            try {
+                stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
+            } catch (_: Exception) {
+                StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
+            }
         }
 
         localOverrides = StatsigOverrides(mutableMapOf(), mutableMapOf())
         if (cachedLocalOverrides != null) {
-            localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
+            try {
+                localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
+            } catch (_: Exception) {
+                StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
+            }
         }
 
         currentCache = cacheById[getUserStorageID()] ?: createEmptyCache()
@@ -93,10 +104,10 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         val values = currentCache.values
         if (
             values.featureGates == null ||
-            !values.featureGates!!.containsKey(hashName)) {
+            !values.featureGates.containsKey(hashName)) {
             return APIFeatureGate(gateName, false, "")
         }
-        return values.featureGates!![hashName] ?: APIFeatureGate(gateName, false, "")
+        return values.featureGates[hashName] ?: APIFeatureGate(gateName, false, "")
     }
 
     fun getConfig(configName: String): DynamicConfig {
@@ -109,10 +120,10 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         val values = currentCache.values
         if (
             values.configs == null ||
-            !values.configs!!.containsKey(hashName)) {
+            !values.configs.containsKey(hashName)) {
             return DynamicConfig(configName)
         }
-        var config = values.configs!![hashName]
+        var config = values.configs[hashName]
         return hydrateDynamicConfig(configName, config)
     }
 
@@ -139,7 +150,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
         // If the user has NOT been exposed before, and is in this active experiment, then we save the value as sticky
         if (latestValue != null && latestValue.isExperimentActive && latestValue.isUserInExperiment) {
-            if (latestValue?.isDeviceBased) {
+            if (latestValue.isDeviceBased) {
                 stickyDeviceExperiments[hashName] = latestValue
             } else {
                 currentCache.stickyUserExperiments.experiments[hashName] = latestValue
@@ -212,12 +223,16 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
                 ?: return
         StatsigUtil.removeFromSharedPrefs(sharedPrefs, DEPRECATED_STICKY_USER_EXPERIMENTS_KEY)
 
-        val stickyUserExperiments = gson.fromJson(oldStickyUserExperimentValues, DeprecatedStickyUserExperiments::class.java)
-        if (stickyUserExperiments.userID != userID || currentCache.stickyUserExperiments.experiments.isNotEmpty()) {
-            return
-        }
+        try {
+            val stickyUserExperiments = gson.fromJson(oldStickyUserExperimentValues, DeprecatedStickyUserExperiments::class.java)
+            if (stickyUserExperiments.userID != userID || currentCache.stickyUserExperiments.experiments.isNotEmpty()) {
+                return
+            }
 
-        currentCache.stickyUserExperiments = StickyUserExperiments(stickyUserExperiments.experiments)
+            currentCache.stickyUserExperiments = StickyUserExperiments(stickyUserExperiments.experiments)
+        }
+        // no ops, since we've already removed the bad value
+        catch (_: Exception) {}
     }
 
     private fun getUserStorageID(): String {

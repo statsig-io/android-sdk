@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import com.google.gson.annotations.SerializedName
-import com.google.gson.reflect.TypeToken
 
 internal data class InitializeResponse(
     @SerializedName("feature_gates") val featureGates: Map<String, APIFeatureGate>?,
