@@ -8,8 +8,8 @@ import androidx.test.espresso.ViewInteraction
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.contrib.RecyclerViewActions.actionOnItemAtPosition
 import androidx.test.espresso.matcher.ViewMatchers.*
-import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.filters.LargeTest
+import androidx.test.rule.ActivityTestRule
 import org.hamcrest.Description
 import org.hamcrest.Matcher
 import org.hamcrest.Matchers.`is`
@@ -24,7 +24,7 @@ class ThreadTest {
 
   @Rule
   @JvmField
-  var mActivityTestRule = ActivityScenarioRule(MainActivity::class.java)
+  var mActivityTestRule = ActivityTestRule(MainActivity::class.java)
 
   private var recyclerView: ViewInteraction? = null
   private val sectionIndices = mapOf(
@@ -37,7 +37,6 @@ class ThreadTest {
 
   @Before
   fun setup() {
-    mActivityTestRule.scenario.recreate()
     recyclerView = onView(
       allOf(
         withId(R.id.recycler_view),
