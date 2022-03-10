@@ -65,6 +65,6 @@ jobs:
           force-avd-creation: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script:  cd androidsdktestbed && STATSIG_CLIENT_KEY=$STATSIG_CLIENT_KEY ./gradlew connectedCheck
+          script:  STATSIG_CLIENT_KEY=$STATSIG_CLIENT_KEY ./gradlew connectedCheck
         env:
           STATSIG_CLIENT_KEY: ${{ secrets.ANDROID_SDK_E2E_CLIENT_KEY }}
