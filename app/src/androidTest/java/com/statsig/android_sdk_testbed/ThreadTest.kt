@@ -37,6 +37,7 @@ class ThreadTest {
 
   @Before
   fun setup() {
+    mActivityTestRule.scenario.recreate()
     recyclerView = onView(
       allOf(
         withId(R.id.recycler_view),
