@@ -24,6 +24,7 @@ class StatsigAppPlugin : Plugin<Project> {
             compileSdk = Versions.Android.CompileSdkVersion
 
             defaultConfig {
+                multiDexEnabled = true // Needed for testing
                 minSdk = Versions.Android.MinSdkVersion
                 targetSdk = Versions.Android.TargetSdkVersion
                 versionCode = 1
