@@ -1,0 +1,43 @@
+apply plugin: 'statsig-library'
+apply plugin: 'statsig-publishing'
+
+// This is the entry point to help configure the POM file.
+// Each new publishing library should set up their POM configurations in their own build.gradle file.
+publishConfiguration {
+    setupPom { pom ->
+        pom.name = "Statsig Android SDK"
+        pom.description = "A SDK for integrating Statsig with Android Apps"
+        pom.url = "https://github.com/statsig-io/android-sdk"
+        pom.organization {org ->
+            org.name = "Statsig"
+            org.url = "https://www.statsig.com"
+        }
+        pom.licenses {licenses ->
+            licenses.license { license ->
+                license.name = "Apache License, Version 2.0"
+                license.url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                license.distribution = "repo"
+            }
+        }
+        pom.developers {
+            developer {
+                id = "tore"
+                name = "Tore Hanssen"
+                email = "tore@statsig.com"
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.6.10"
+    implementation 'androidx.core:core-ktx:1.7.0'
+    implementation 'androidx.appcompat:appcompat:1.4.1'
+
+    implementation 'com.google.code.gson:gson:2.8.8'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.0'
+    testImplementation "io.mockk:mockk:1.12.1"
+}
