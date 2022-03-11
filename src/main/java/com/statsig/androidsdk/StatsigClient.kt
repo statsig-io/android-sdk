@@ -181,6 +181,15 @@ internal class StatsigClient() {
         return res
     }
 
+    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
+        enforceInitialized("getLayer")
+        val res = store.getLayer(layerName, keepDeviceValue)
+        statsigScope.launch {
+            logger.logLayerExposure(layerName, res.getRuleID(), res.getSecondaryExposures(), user, res.getAllocatedExperimentName())
+        }
+        return res
+    }
+
     /**
      * Log an event to Statsig for the current user
      * @param eventName the name of the event to track

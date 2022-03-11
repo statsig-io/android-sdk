@@ -10,7 +10,8 @@ class DynamicConfig(
     private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
     private val isUserInExperiment: Boolean = false,
     private val isExperimentActive: Boolean = false,
-    private val isDeviceBased: Boolean = false,) {
+    private val isDeviceBased: Boolean = false,
+    private val allocatedExperimentName: String = "") {
 
     /**
      * Gets a value from the config, falling back to the provided default value
@@ -172,5 +173,9 @@ class DynamicConfig(
 
     internal fun getSecondaryExposures(): Array<Map<String, String>> {
         return this.secondaryExposures
+    }
+
+    internal fun getAllocatedExperimentName(): String? {
+        return this.allocatedExperimentName
     }
 }

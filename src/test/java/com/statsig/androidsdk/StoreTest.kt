@@ -62,6 +62,7 @@ class StoreTest {
                                                 isExperimentActive = active,
                                         ),
                         ),
+                layerConfigs = null,
                 hasUpdates = false,
                 time = 1621637839,
         )

@@ -14,6 +14,7 @@ internal const val FLUSH_TIMER_MS: Long = 60000
 internal const val SHUTDOWN_WAIT_S: Long = 3
 
 internal const val CONFIG_EXPOSURE = "statsig::config_exposure"
+internal const val LAYER_EXPOSURE = "statsig::layer_exposure"
 internal const val GATE_EXPOSURE = "statsig::gate_exposure"
 
 internal data class LogEventData(
@@ -90,11 +91,30 @@ internal class StatsigLogger(
     suspend fun logConfigExposure(configName: String, ruleID: String, secondaryExposures: Array<Map<String, String>>,
                                   user: StatsigUser?) {
         val dedupeKey = configName + ruleID
+
         if (shouldLogExposure(dedupeKey)) {
             withContext(singleThreadDispatcher) {
                 var event = LogEvent(CONFIG_EXPOSURE)
                 event.user = user
-                event.metadata = mapOf("config" to configName, "ruleID" to ruleID)
+                event.metadata = mutableMapOf("config" to configName, "ruleID" to ruleID)
+                event.secondaryExposures = secondaryExposures
+                log(event)
+            }
+        }
+    }
+
+    suspend fun logLayerExposure(configName: String, ruleID: String, secondaryExposures: Array<Map<String, String>>,
+                                  user: StatsigUser?, allocatedExperiment: String? = null) {
+        val dedupeKey = configName + ruleID
+        val metadata = mutableMapOf("config" to configName, "ruleID" to ruleID)
+        if (allocatedExperiment != null) {
+            metadata["allocatedExperiment"] = allocatedExperiment
+        }
+        if (shouldLogExposure(dedupeKey)) {
+            withContext(singleThreadDispatcher) {
+                var event = LogEvent(LAYER_EXPOSURE)
+                event.user = user
+                event.metadata = metadata
                 event.secondaryExposures = secondaryExposures
                 log(event)
             }

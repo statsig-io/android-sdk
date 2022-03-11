@@ -251,6 +251,11 @@ object Statsig {
         return client.getStore().getAllOverrides()
     }
 
+    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
+        enforceInitialized("getLayer")
+        return client.getLayer(layerName, keepDeviceValue)
+    }
+
     private fun enforceInitialized(functionName: String) {
         client.enforceInitialized(functionName)
     }
