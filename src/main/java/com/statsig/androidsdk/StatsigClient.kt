@@ -181,6 +181,14 @@ internal class StatsigClient() {
         return res
     }
 
+    /**
+     * Check the value of an Layer configured in the Statsig console for the initialized
+     * user
+     * @param layerName the name of the Layer to check
+     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of any active experiments
+     * @return the current layer values as a Layer object
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
         enforceInitialized("getLayer")
         val res = store.getLayer(layerName, keepDeviceValue)

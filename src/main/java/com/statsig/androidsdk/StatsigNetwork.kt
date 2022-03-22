@@ -2,6 +2,8 @@ package com.statsig.androidsdk
 
 import android.content.SharedPreferences
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.ToNumberPolicy
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.TimeUnit
@@ -65,7 +67,7 @@ internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()
 
 private class StatsigNetworkImpl : StatsigNetwork {
 
-    private val gson = Gson()
+    private val gson =  GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
 
     private var lastSyncTimeForUser: Long = 0
     private lateinit var sharedPrefs: SharedPreferences

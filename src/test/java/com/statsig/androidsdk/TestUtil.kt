@@ -1,6 +1,8 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.gson.GsonBuilder
+import com.google.gson.ToNumberPolicy
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockkClass
@@ -8,6 +10,42 @@ import io.mockk.mockkObject
 
 class TestUtil {
     companion object {
+        fun getConfigValueMap(): Map<String, Any> {
+            val string = """
+            {
+                "testString": "test",
+                "testBoolean": true,
+                "testInt": 12,
+                "testDouble": 42.3,
+                "testLong": 9223372036854775806,
+                "testArray": [
+                  "one",
+                  "two"
+                ],
+                "testIntArray": [
+                  3,
+                  2
+                ],
+                "testDoubleArray": [
+                  3.1,
+                  2.1
+                ],
+                "testBooleanArray": [
+                  true,
+                  false
+                ],
+                "testNested": {
+                  "nestedString": "nested",
+                  "nestedBoolean": true,
+                  "nestedDouble": 13.74,
+                  "nestedLong": 13
+                }
+            }
+        """.trimIndent()
+            val gson = GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
+            return gson.fromJson(string, Map::class.java) as Map<String, Any>
+        }
+
         private val dummyFeatureGates = mapOf(
             "always_on!" to
                 APIFeatureGate(
@@ -28,7 +66,7 @@ class TestUtil {
                 ),
         )
 
-        internal val dummyDynamicConfigs = mapOf(
+        private val dummyDynamicConfigs = mapOf(
             "test_config!" to APIDynamicConfig(
                 "test_config!",
                 mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),

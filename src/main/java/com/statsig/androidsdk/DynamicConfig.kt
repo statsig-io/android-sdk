@@ -20,11 +20,7 @@ class DynamicConfig(
      * @return the value at the given key, or the default value if not found
      */
     fun getString(key: String, default: String?): String? {
-        if (!this.jsonValue.containsKey(key)) {
-            return default;
-        }
         return when (this.jsonValue[key]) {
-            null -> default
             is String -> this.jsonValue[key] as String
             else -> default
         }
@@ -37,11 +33,7 @@ class DynamicConfig(
      * @return the value at the given key, or the default value if not found
      */
     fun getBoolean(key: String, default: Boolean): Boolean {
-        if (!this.jsonValue.containsKey(key)) {
-            return default;
-        }
         return when (this.jsonValue[key]) {
-            null -> default
             is Boolean -> this.jsonValue[key] as Boolean
             else -> default
         }
@@ -54,13 +46,8 @@ class DynamicConfig(
      * @return the value at the given key, or the default value if not found
      */
     fun getDouble(key: String, default: Double): Double {
-        if (!this.jsonValue.containsKey(key)) {
-            return default;
-        }
-        return when (this.jsonValue[key]) {
-            null -> default
-            is Double -> this.jsonValue[key] as Double
-            is Int -> this.jsonValue[key] as Double
+        return when (val value = this.jsonValue[key]) {
+            is Number -> value.toDouble()
             else -> default
         }
     }
@@ -72,22 +59,23 @@ class DynamicConfig(
      * @return the value at the given key, or the default value if not found
      */
     fun getInt(key: String, default: Int): Int {
-        if (!this.jsonValue.containsKey(key)) {
-            return default;
+        return when (val value = this.jsonValue[key]) {
+            is Number -> value.toInt()
+            else -> default
         }
-        if (this.jsonValue[key] == null) {
-            return default
+    }
+
+    /**
+     * Gets a value from the config, falling back to the provided default value
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @param default the default value to return if the expected key does not exist in the config
+     * @return the value at the given key, or the default value if not found
+     */
+    fun getLong(key: String, default: Long): Long {
+        return when (val value = this.jsonValue[key]) {
+            is Number -> value.toLong()
+            else -> default
         }
-        if (
-            this.jsonValue[key] is Double &&
-            this.jsonValue[key] as Double == Math.floor(this.jsonValue[key] as Double)
-        ) {
-            return this.jsonValue[key] as Int
-        }
-        if (this.jsonValue[key] is Int) {
-            return this.jsonValue[key] as Int
-        }
-        return default
     }
 
     /**
@@ -97,15 +85,9 @@ class DynamicConfig(
      * @return the value at the given key, or the default value if not found
      */
     fun getArray(key: String, default: Array<*>?): Array<*>? {
-        if (!this.jsonValue.containsKey(key)) {
-            return default;
-        }
-        return when (this.jsonValue[key]) {
-            null -> default
-            is Array<*> -> this.jsonValue[key] as Array<*>
-            is IntArray -> (this.jsonValue[key] as IntArray).toTypedArray()
-            is DoubleArray -> (this.jsonValue[key] as DoubleArray).toTypedArray()
-            is BooleanArray -> (this.jsonValue[key] as BooleanArray).toTypedArray()
+        return when (val value = this.jsonValue[key]) {
+            is Array<*> -> value
+            is ArrayList<*> -> value.toTypedArray()
             else -> default
         }
     }
@@ -117,12 +99,8 @@ class DynamicConfig(
      * @return the value at the given key, or the default value if not found
      */
     fun getDictionary(key: String, default: Map<String, Any>?): Map<String, Any>? {
-        if (!this.jsonValue.containsKey(key)) {
-            return default;
-        }
-        return when (this.jsonValue[key]) {
-            null -> default
-            is Map<*, *> -> this.jsonValue[key] as Map<String, Any>
+        return when (val value = this.jsonValue[key]) {
+            is Map<*, *> -> value as Map<String, Any>
             else -> default
         }
     }
@@ -133,19 +111,16 @@ class DynamicConfig(
      * @return the value at the given key as a DynamicConfig, or null
      */
     fun getConfig(key: String): DynamicConfig? {
-        if (!this.jsonValue.containsKey(key)) {
-            return null;
-        }
-        return when (this.jsonValue[key]) {
-            null -> null
+        return when (val value = this.jsonValue[key]) {
             is Map<*, *> -> DynamicConfig(
                 key,
-                this.jsonValue[key] as Map<String, Any>,
+                value as Map<String, Any>,
                 this.rule
             )
             else -> null
         }
     }
+
     /**
      * Returns a Map representing the JSON object backing this config
      * @param key the index within the DynamicConfig to fetch a value from

@@ -38,22 +38,7 @@ class LayerConfigTest {
 
     layer = Layer(
       "a_layer",
-      mapOf(
-        "testString" to "test",
-        "testBoolean" to true,
-        "testInt" to 12,
-        "testDouble" to 42.3,
-        "testArray" to arrayOf("one", "two"),
-        "testIntArray" to intArrayOf(3, 2),
-        "testDoubleArray" to doubleArrayOf(3.1, 2.1),
-        "testBooleanArray" to booleanArrayOf(true, false),
-        "testNested" to mapOf(
-          "nestedString" to "nested",
-          "nestedBoolean" to true,
-          "nestedDouble" to 13.74,
-          "nestedInt" to 13
-        ),
-      ),
+      TestUtil.getConfigValueMap(),
       "default",
     )
   }
@@ -105,12 +90,13 @@ class LayerConfigTest {
     assertTrue(layer.getBoolean("testBoolean", false))
     assertEquals(12, layer.getInt("testInt", 13))
     assertEquals(42.3, layer.getDouble("testDouble", 13.0), 0.0)
+    assertEquals(9223372036854775806, layer.getLong("testLong", 1))
   }
 
   @Test
   fun testArrays() {
     assertArrayEquals(arrayOf("one", "two"), layer.getArray("testArray", arrayOf(1, "one")))
-    assertArrayEquals(arrayOf(3, 2), layer.getArray("testIntArray", arrayOf(1, 2)))
+    assertArrayEquals(arrayOf(3L, 2L), layer.getArray("testIntArray", arrayOf(1, 2)))
     assertArrayEquals(arrayOf(3.1, 2.1), layer.getArray("testDoubleArray", arrayOf(1, "one")))
     assertArrayEquals(arrayOf(true, false), layer.getArray("testBooleanArray", arrayOf(1, "one")))
   }
@@ -128,7 +114,7 @@ class LayerConfigTest {
         "nestedString" to "nested",
         "nestedBoolean" to true,
         "nestedDouble" to 13.74,
-        "nestedInt" to 13
+        "nestedLong" to 13L
       ), layer.getDictionary("testNested", mapOf())
     )
   }
