@@ -2,6 +2,9 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import androidx.annotation.VisibleForTesting
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 
 /**
  * Callback interface for Statsig calls. All callbacks will be run on the main thread.
@@ -19,7 +22,7 @@ interface IStatsigCallback {
 object Statsig {
 
     @VisibleForTesting
-    internal val client: StatsigClient = StatsigClient()
+    internal var client: StatsigClient = StatsigClient()
 
     /**
      * Initializes the SDK for the given user.  Initialization is complete when the callback
@@ -203,6 +206,7 @@ object Statsig {
     suspend fun shutdownSuspend() {
         enforceInitialized("shutdownSuspend")
         client.shutdownSuspend()
+        client = StatsigClient()
     }
 
     /**
@@ -212,7 +216,11 @@ object Statsig {
     @JvmStatic
     fun shutdown() {
         enforceInitialized("shutdown")
-        client.shutdown()
+        runBlocking {
+            withContext(Dispatchers.Main.immediate) {
+                shutdownSuspend()
+            }
+        }
     }
 
     /**

@@ -5,7 +5,6 @@ import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.*;
@@ -20,20 +19,15 @@ class LayerConfigTest {
 
   @Before
   internal fun setup() = runBlocking {
-    app = mockk()
+    Dispatchers.setMain(Dispatchers.Default)
 
-    Dispatchers.setMain(TestCoroutineDispatcher())
+    app = mockk()
 
     sharedPrefs = TestUtil.mockApp(app)
 
     TestUtil.mockStatsigUtil()
 
-    val statsigNetwork = TestUtil.mockNetwork()
-
-    client = StatsigClient()
-    client.statsigNetwork = statsigNetwork
-    client.initialize(app, "test-key")
-
+    initClient()
     assertTrue(sharedPrefs.all.isEmpty())
 
     layer = Layer(
@@ -128,7 +122,7 @@ class LayerConfigTest {
   }
 
   @Test
-  fun testGettingStickyValues() = runBlocking {
+  fun testGettingStickyValuesWhenLayerChanges() = runBlocking {
     var config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals("test", config.getString("string", "ERR"))
 
@@ -151,6 +145,117 @@ class LayerConfigTest {
   }
 
   @Test
+  fun testGettingStickyValuesAcrossSessions() = runBlocking {
+    var config = client.getLayer("allocated_layer", keepDeviceValue = true)
+    assertEquals("test", config.getString("string", "ERR"))
+
+    client.getStore().save(
+      TestUtil.makeInitializeResponse(layerConfigs = mapOf(
+        "allocated_layer!" to APIDynamicConfig(
+          "allocated_layer!",
+          mapOf(
+            "string" to "default_string",
+          ),
+          "default",
+          isExperimentActive = true,
+          isUserInExperiment = true,
+        ),
+      )))
+
+    initClient()
+
+    config = client.getLayer("allocated_layer", keepDeviceValue = true)
+    assertEquals("test", config.getString("string", "ERR"))
+  }
+
+  @Test
+  fun testGettingStickyValuesWhenUserIsNoLongerInExperiment() = runBlocking {
+    var config = client.getLayer("allocated_layer", keepDeviceValue = true)
+    assertEquals("test", config.getString("string", "ERR"))
+
+    val updatedLayerResponse = TestUtil.makeInitializeResponse(layerConfigs = mapOf(
+      "allocated_layer!" to APIDynamicConfig(
+        "allocated_layer!",
+        mapOf(
+          "string" to "default_string",
+        ),
+        "default",
+        isExperimentActive = true,
+        isUserInExperiment = false,
+        allocatedExperimentName = "different_exp!"
+      ),
+    ))
+
+    client.getStore().save(updatedLayerResponse)
+
+    config = client.getLayer("allocated_layer", keepDeviceValue = true)
+    assertEquals(
+      "Layer allocation changed, but should still get original sticky value",
+      "test", config.getString("string", "ERR"))
+
+    client.getStore().save(
+      TestUtil.makeInitializeResponse(
+        dynamicConfigs = mapOf(
+          "layer_exp!" to APIDynamicConfig(
+            "layer_exp!",
+            mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
+            "exp_rule",
+            arrayOf(),
+            isExperimentActive = false,
+            isUserInExperiment = true,
+          ),
+        ),
+        layerConfigs = updatedLayerResponse.layerConfigs!!
+      )
+    )
+
+    config = client.getLayer("allocated_layer", keepDeviceValue = true)
+    assertEquals("The original sticky Experiment is no longer active, should return updated Layer value",
+      "default_string", config.getString("string", "ERR"))
+  }
+
+  @Test
+  fun testGettingStickyValuesWhenUserIsNowInDifferentExperiment() = runBlocking {
+    var config = client.getLayer("allocated_layer", keepDeviceValue = true)
+    assertEquals("test", config.getString("string", "ERR"))
+
+    val response = TestUtil.makeInitializeResponse(layerConfigs = mapOf(
+      "allocated_layer!" to APIDynamicConfig(
+        "allocated_layer!",
+        mapOf(
+          "string" to "default_string",
+        ),
+        "default",
+        isExperimentActive = true,
+        isUserInExperiment = true,
+        allocatedExperimentName = "completely_different_exp"
+      ),
+    ))
+
+    client.getStore().save(response)
+
+    config = client.getLayer("allocated_layer", keepDeviceValue = true)
+    assertEquals(
+      "Should still return the original sticky value because the original experiment is still active",
+      "test", config.getString("string", "ERR"))
+
+    (response.configs as MutableMap)["layer_exp!"] = APIDynamicConfig(
+      "layer_exp!",
+      mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
+      "exp_rule",
+      arrayOf(),
+      isExperimentActive = false,
+      isUserInExperiment = true,
+    )
+    client.getStore().save(response)
+
+    config = client.getLayer("allocated_layer", keepDeviceValue = true)
+    assertEquals(
+      "Should get updated value because the original experiment is no longer active",
+      "default_string", config.getString("string", "ERR"))
+  }
+
+  @Test
   fun testWipingStickyValues() = runBlocking {
     var config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals("test", config.getString("string", "ERR"))
@@ -168,8 +273,15 @@ class LayerConfigTest {
         ),
       )))
 
-
     config = client.getLayer("allocated_layer")
     assertEquals("default_string", config.getString("string", "ERR"))
+  }
+
+  private fun initClient() = runBlocking {
+    val statsigNetwork = TestUtil.mockNetwork()
+
+    client = StatsigClient()
+    client.statsigNetwork = statsigNetwork
+    client.initialize(app, "test-key")
   }
 }

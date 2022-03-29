@@ -1,9 +1,9 @@
 package com.statsig.androidsdk
 
 import com.google.gson.Gson
-import java.util.concurrent.Executors
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 private const val EXPOSURE_DEDUPE_INTERVAL: Long = 10 * 60 * 1000
@@ -124,7 +124,15 @@ internal class StatsigLogger(
     suspend fun shutdown() {
         timer.cancel()
         flush()
-        executor.awaitTermination(SHUTDOWN_WAIT_S, TimeUnit.SECONDS)
+
+        executor.shutdown()
+        runCatching {
+            if (!executor.awaitTermination(SHUTDOWN_WAIT_S, TimeUnit.SECONDS)) {
+                executor.shutdownNow()
+            }
+        }.onFailure {
+            executor.shutdownNow()
+        }
     }
 
     private fun shouldLogExposure(key: String): Boolean {

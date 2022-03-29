@@ -141,14 +141,14 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         val latestValue = currentCache.values.configs?.get(hashName)
         return hydrateDynamicConfig(
             experimentName,
-            getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue)
+            getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, false)
         )
     }
 
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
         val hashedLayerName = StatsigUtil.getHashedString(layerName)
         val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
-        val config = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue)
+        val config = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, true)
         return Layer(
             layerName,
             config?.value ?: mapOf(),
@@ -160,22 +160,44 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
             config?.allocatedExperimentName ?: "")
     }
 
-    private fun getPossiblyStickyValue(name: String, latestValue: APIDynamicConfig?, keepDeviceValue: Boolean): APIDynamicConfig? {
-        // If flag is false, or experiment is NOT active, simply remove the sticky experiment value, and return the latest value
-        if (!keepDeviceValue || latestValue?.isExperimentActive == false) {
+    // Sticky Logic: https://gist.github.com/daniel-statsig/3d8dfc9bdee531cffc96901c1a06a402
+    private fun getPossiblyStickyValue(
+      name: String,
+      latestValue: APIDynamicConfig?,
+      keepDeviceValue: Boolean,
+      isLayer: Boolean
+    ): APIDynamicConfig? {
+        // We don't want sticky behavior. Clear any sticky values and return latest.
+        if (!keepDeviceValue) {
             removeStickyValue(name)
             return latestValue
         }
 
-        // If sticky value is already in cache, use it
+        // If there is no sticky value, save latest as sticky and return latest.
         val stickyValue = getStickyValue(name)
-        if (stickyValue != null) {
+        if (stickyValue == null) {
+            attemptToSaveStickyValue(name, latestValue)
+            return latestValue
+        }
+
+        // Get the latest config value. Layers require a lookup by allocatedExperimentName.
+        var latestExperimentValue: APIDynamicConfig? = null
+        if (isLayer) {
+          stickyValue?.allocatedExperimentName?.let {
+            latestExperimentValue = currentCache.values.configs?.get(it)
+          }
+        } else {
+          latestExperimentValue = latestValue
+        }
+
+        if (latestExperimentValue?.isExperimentActive == true) {
             return stickyValue
         }
 
-        // If the user has NOT been exposed before, and is in this active experiment, then we save the value as sticky
-        if (latestValue != null) {
-            saveStickyValue(name, latestValue)
+        if (latestValue?.isExperimentActive == true) {
+            attemptToSaveStickyValue(name, latestValue)
+        } else {
+            removeStickyValue(name)
         }
 
         return latestValue
@@ -234,7 +256,11 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         cacheStickyValues()
     }
 
-    private fun saveStickyValue(expName: String, latestValue: APIDynamicConfig) {
+    private fun attemptToSaveStickyValue(expName: String, latestValue: APIDynamicConfig?) {
+        if (latestValue == null) {
+            return
+        }
+
         val expNameHash = StatsigUtil.getHashedString(expName)
         if (latestValue.isExperimentActive && latestValue.isUserInExperiment) {
             if (latestValue.isDeviceBased) {

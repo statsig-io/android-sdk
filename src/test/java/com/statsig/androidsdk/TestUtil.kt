@@ -3,10 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockkClass
-import io.mockk.mockkObject
+import io.mockk.*
 
 class TestUtil {
     companion object {
@@ -163,7 +160,7 @@ class TestUtil {
                                  dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
                                  layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
                                  captureUser: ((StatsigUser) -> Unit)? = null ): StatsigNetwork {
-            val statsigNetwork = mockkClass(StatsigNetwork::class)
+            val statsigNetwork = mockk<StatsigNetwork>()
 
             coEvery {
                 statsigNetwork.apiRetryFailedLogs(any(), any())

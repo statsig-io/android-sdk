@@ -2,6 +2,8 @@ package com.statsig.androidsdk
 
 import io.mockk.every
 import io.mockk.mockkObject
+import io.mockk.unmockkAll
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -9,9 +11,13 @@ import org.junit.Test
 class StoreTest {
     @Before
     internal fun setup() {
-
         mockkObject(StatsigUtil)
         every { StatsigUtil.getHashedString(any()) } answers { firstArg<String>() + "!" }
+    }
+
+    @After
+    internal fun tearDown() {
+      unmockkAll()
     }
 
     private fun getInitValue(
@@ -21,9 +27,9 @@ class StoreTest {
     ): InitializeResponse {
         return InitializeResponse(
                 featureGates =
-                        mapOf("gate!" to APIFeatureGate("gate", inExperiment, "id", arrayOf())),
+                mutableMapOf("gate!" to APIFeatureGate("gate", inExperiment, "id", arrayOf())),
                 configs =
-                        mapOf(
+                        mutableMapOf(
                                 "config!" to
                                         APIDynamicConfig(
                                                 "config!",
@@ -92,6 +98,14 @@ class StoreTest {
         )
 
         val store = Store("dloomb", null, sharedPrefs)
+        store.save(TestUtil.makeInitializeResponse(dynamicConfigs = mapOf("bar!" to APIDynamicConfig(
+          name = "bar!",
+          value = mapOf("foo" to "aNewValue"),
+          ruleID = "",
+          isExperimentActive = true,
+          isUserInExperiment = false
+        ))))
+
         val exp = store.getExperiment("bar", true)
         assertEquals("aValue", exp.getValue()["foo"])
 
@@ -177,6 +191,20 @@ class StoreTest {
     }
 
     @Test
+    fun testInactiveExperimentStickyBehavior() {
+      val store = Store("jkw", null, TestSharedPreferences())
+      store.save(getInitValue("v0", inExperiment = true, active = false))
+
+      var exp = store.getExperiment("exp", true)
+      assertEquals("v0", exp.getString("key", ""))
+
+      store.save(getInitValue("v1", inExperiment = true, active = false))
+
+      exp = store.getExperiment("exp", true)
+      assertEquals("v1", exp.getString("key", ""))
+    }
+
+    @Test
     fun testStickyBehaviorWhenResettingUser() {
         val store = Store("jkw", null, TestSharedPreferences())
         store.save(getInitValue("v0", inExperiment = true, active = true))
@@ -221,7 +249,8 @@ class StoreTest {
     fun testStickyBehaviorAcrossSessions() {
         val sharedPrefs = TestSharedPreferences()
         var store = Store("jkw", null, sharedPrefs)
-        store.save(getInitValue("v0", inExperiment = true, active = true))
+        val v0Values = getInitValue("v0", inExperiment = true, active = true)
+        store.save(v0Values)
 
         var config = store.getExperiment("config", true)
         var exp = store.getExperiment("exp", true)
@@ -231,6 +260,21 @@ class StoreTest {
         assertEquals("v0", exp.getString("key", ""))
         assertEquals("v0", deviceExp.getString("key", ""))
         assertEquals("v0", nonStickExp.getString("key", ""))
+
+        // Reinitialize, same user ID, should keep sticky values
+        store = Store("jkw", null, sharedPrefs)
+        val configs = v0Values.configs as MutableMap<String, APIDynamicConfig>
+
+        configs["exp!"] = newConfigUpdatingValue(configs["exp!"]!!, mapOf("key" to "v0_alt"))
+        configs["device_exp!"] = newConfigUpdatingValue(configs["device_exp!"]!!, mapOf("key" to "v0_alt"))
+        store.save(v0Values)
+
+        exp = store.getExperiment("exp", true)
+        deviceExp = store.getExperiment("device_exp", true)
+        assertTrue("Should still get original v0 not v0_alt",
+          exp.getString("key", "") == "v0"
+              && deviceExp.getString("key", "") == "v0"
+        )
 
         // Re-create store with a different user ID, update the values, user should still get sticky
         // value for device and only device
@@ -258,5 +302,21 @@ class StoreTest {
         assertEquals("v0", exp.getString("key", ""))
         assertEquals("v0", deviceExp.getString("key", ""))
         assertEquals("v2", nonStickExp.getString("key", ""))
+
+        // Reset sticky exp
+        exp = store.getExperiment("exp", false)
+        assertEquals("v2", exp.getString("key", ""))
+    }
+
+    private fun newConfigUpdatingValue(config: APIDynamicConfig, newValue: Map<String, Any>): APIDynamicConfig {
+      return APIDynamicConfig(
+        config.name,
+        newValue,
+        config.ruleID,
+        config.secondaryExposures,
+        isDeviceBased = config.isDeviceBased,
+        isUserInExperiment = config.isUserInExperiment,
+        isExperimentActive = config.isExperimentActive,
+      )
     }
 }

@@ -26,10 +26,10 @@ class StatsigTest {
 
     @Before
     internal fun setup() {
+        Dispatchers.setMain(TestCoroutineDispatcher())
+
         app = mockk()
         TestUtil.mockApp(app)
-
-        Dispatchers.setMain(TestCoroutineDispatcher())
 
         TestUtil.mockStatsigUtil()
 
@@ -235,5 +235,45 @@ class StatsigTest {
                 "allocatedExperiment" to "")),
             Gson().toJson(parsedLogs.events[10].metadata)
         )
+    }
+
+    @Test
+    fun testReinitialize() = runBlocking {
+        var countdown = CountDownLatch(1)
+        val callback = object : IStatsigCallback {
+            override fun onStatsigInitialize() {
+                countdown.countDown()
+            }
+
+            override fun onStatsigUpdateUser() {
+                fail("Statsig.onStatsigUpdateUser should not have been called")
+            }
+        }
+
+        var user: StatsigUser? = null
+        Statsig.client.statsigNetwork = TestUtil.mockNetwork() {
+            user = it
+        }
+        Statsig.initializeAsync(app, "client-sdkkey", StatsigUser("jkw"), callback)
+
+        countdown.await(1L, TimeUnit.SECONDS)
+        countdown = CountDownLatch(1)
+
+        assertTrue(Statsig.client.isInitialized())
+        assertEquals("jkw", user?.userID)
+
+        Statsig.shutdown()
+
+        assertFalse(Statsig.client.isInitialized())
+
+        Statsig.client.statsigNetwork = TestUtil.mockNetwork() {
+            user = it
+        }
+        Statsig.initializeAsync(app, "client-sdkkey", StatsigUser("dloomb"), callback)
+
+        countdown.await(1L, TimeUnit.SECONDS)
+
+        assertEquals("dloomb", user?.userID)
+        return@runBlocking
     }
 }
