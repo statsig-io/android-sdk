@@ -5,6 +5,7 @@ import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.*;
@@ -19,11 +20,11 @@ class LayerConfigTest {
 
   @Before
   internal fun setup() = runBlocking {
-    Dispatchers.setMain(Dispatchers.Default)
+    TestUtil.overrideMainDispatcher()
 
     app = mockk()
 
-    sharedPrefs = TestUtil.mockApp(app)
+    sharedPrefs = TestUtil.stubAppFunctions(app)
 
     TestUtil.mockStatsigUtil()
 
@@ -31,10 +32,15 @@ class LayerConfigTest {
     assertTrue(sharedPrefs.all.isEmpty())
 
     layer = Layer(
+      client,
       "a_layer",
       TestUtil.getConfigValueMap(),
       "default",
     )
+
+    TestUtil.startStatsigAndWait(app)
+
+    return@runBlocking
   }
 
   @After
@@ -44,7 +50,7 @@ class LayerConfigTest {
 
   @Test
   fun testDummy() {
-    val dummyConfig = Layer("")
+    val dummyConfig = Layer(client, "")
     assertEquals("provided default", dummyConfig.getString("test", "provided default"))
     assertEquals(true, dummyConfig.getBoolean("test", true))
     assertEquals(12, dummyConfig.getInt("test", 12))
@@ -60,6 +66,7 @@ class LayerConfigTest {
   @Test
   fun testEmpty() {
     val emptyConfig = Layer(
+      client,
       "test_config",
       mapOf(),
       "default",

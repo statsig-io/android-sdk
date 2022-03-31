@@ -22,7 +22,7 @@ import java.util.*
 private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
 
-internal class StatsigClient() {
+internal class StatsigClient()  {
 
     private lateinit var store: Store
     private lateinit var user: StatsigUser
@@ -191,11 +191,33 @@ internal class StatsigClient() {
      */
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
         enforceInitialized("getLayer")
-        val res = store.getLayer(layerName, keepDeviceValue)
-        statsigScope.launch {
-            logger.logLayerExposure(layerName, res.getRuleID(), res.getSecondaryExposures(), user, res.getAllocatedExperimentName())
+        return store.getLayer(this, layerName, keepDeviceValue)
+    }
+
+    internal fun logLayerParameterExposure(layer: Layer, parameterName: String) {
+        if (!isInitialized()) {
+            return;
         }
-        return res
+
+        statsigScope.launch {
+            var exposures = layer.getUndelegatedSecondaryExposures()
+            var allocatedExperiment = ""
+            val isExplicit = layer.getExplicitParameters()?.contains(parameterName) == true
+            if (isExplicit) {
+                exposures = layer.getSecondaryExposures()
+                allocatedExperiment = layer.getAllocatedExperimentName() ?: ""
+            }
+
+            logger.logLayerExposure(
+                layer.getName(),
+                layer.getRuleID(),
+                exposures,
+                user,
+                allocatedExperiment,
+                parameterName,
+                isExplicit
+            )
+        }
     }
 
     /**

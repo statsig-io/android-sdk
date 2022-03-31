@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import io.mockk.*
 import kotlinx.coroutines.*
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert
@@ -17,11 +18,11 @@ class StatsigStickyExperimentTest {
 
   @Before
   internal fun setup() {
-    Dispatchers.setMain(Dispatchers.Default)
+    TestUtil.overrideMainDispatcher()
 
     app = mockk()
 
-    TestUtil.mockApp(app)
+    TestUtil.stubAppFunctions(app)
     TestUtil.mockStatsigUtil()
 
     // Because we are going through the static Statsig interface,
@@ -223,23 +224,10 @@ class StatsigStickyExperimentTest {
     configs: Map<String, APIDynamicConfig>,
     layers: Map<String, APIDynamicConfig>
   ) = runBlocking {
-    val countdown = CountDownLatch(1)
-    val callback = object : IStatsigCallback {
-      override fun onStatsigInitialize() {
-        countdown.countDown()
-      }
-
-      override fun onStatsigUpdateUser() {
-        Assert.fail("Statsig.onStatsigUpdateUser should not have been called")
-      }
-    }
-
-    Statsig.client.statsigNetwork = TestUtil.mockNetwork(
+    TestUtil.startStatsigAndWait(app, network = TestUtil.mockNetwork(
       featureGates = mapOf(),
       dynamicConfigs = configs,
       layerConfigs = layers
-    )
-    Statsig.initializeAsync(app, "client-apikey", StatsigUser("jkw"), callback)
-    countdown.await(1L, TimeUnit.SECONDS)
+    ))
   }
 }

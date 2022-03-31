@@ -103,16 +103,26 @@ internal class StatsigLogger(
         }
     }
 
-    suspend fun logLayerExposure(configName: String, ruleID: String, secondaryExposures: Array<Map<String, String>>,
-                                  user: StatsigUser?, allocatedExperiment: String? = null) {
-        val dedupeKey = configName + ruleID
-        val metadata = mutableMapOf("config" to configName, "ruleID" to ruleID)
-        if (allocatedExperiment != null) {
-            metadata["allocatedExperiment"] = allocatedExperiment
-        }
+    suspend fun logLayerExposure(
+        configName: String,
+        ruleID: String,
+        secondaryExposures: Array<Map<String, String>>,
+        user: StatsigUser?,
+        allocatedExperiment: String,
+        parameterName: String,
+        isExplicitParameter: Boolean) {
+        val metadata = mutableMapOf(
+            "config" to configName,
+            "ruleID" to ruleID,
+            "allocatedExperiment" to allocatedExperiment,
+            "parameterName" to parameterName,
+            "isExplicitParameter" to isExplicitParameter.toString()
+        )
+
+        val dedupeKey = metadata.values.joinToString("|")
         if (shouldLogExposure(dedupeKey)) {
             withContext(singleThreadDispatcher) {
-                var event = LogEvent(LAYER_EXPOSURE)
+                val event = LogEvent(LAYER_EXPOSURE)
                 event.user = user
                 event.metadata = metadata
                 event.secondaryExposures = secondaryExposures

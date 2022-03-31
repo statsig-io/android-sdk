@@ -4,6 +4,7 @@ import android.app.Application
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
@@ -20,16 +21,17 @@ class StatsigOverridesTest {
 
     @Before
     internal fun setup() = runBlocking {
-        Dispatchers.setMain(Dispatchers.Default)
+        TestUtil.overrideMainDispatcher()
 
         app = mockk()
 
-        TestUtil.mockApp(app)
+        TestUtil.stubAppFunctions(app)
 
         TestUtil.mockStatsigUtil()
 
         val statsigNetwork = TestUtil.mockNetwork()
 
+        Statsig.client = StatsigClient()
         Statsig.client.statsigNetwork = statsigNetwork
 
         Statsig.initialize(app, "test-key")

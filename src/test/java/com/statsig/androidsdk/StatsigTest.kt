@@ -23,28 +23,26 @@ class StatsigTest {
     private var flushedLogs: String = ""
     private var initUser: StatsigUser? = null
     private var client: StatsigClient = StatsigClient()
+    private lateinit var network: StatsigNetwork
 
     @Before
     internal fun setup() {
-        Dispatchers.setMain(TestCoroutineDispatcher())
+        TestUtil.overrideMainDispatcher()
 
         app = mockk()
-        TestUtil.mockApp(app)
+        TestUtil.stubAppFunctions(app)
 
         TestUtil.mockStatsigUtil()
 
-        val statsigNetwork = TestUtil.mockNetwork() { user ->
+        network = TestUtil.mockNetwork() { user ->
             initUser = user
         }
 
         coEvery {
-            statsigNetwork.apiPostLogs(any(), any(), any())
+            network.apiPostLogs(any(), any(), any())
         } answers {
-            flushedLogs = thirdArg<String>()
+            flushedLogs = thirdArg()
         }
-
-        client = StatsigClient()
-        client.statsigNetwork = statsigNetwork
     }
 
     @After
@@ -54,6 +52,8 @@ class StatsigTest {
 
     @Test
     fun testInitializeBadInput() = runBlocking {
+        client = StatsigClient()
+
         try {
             client.initialize(
                 app,
@@ -68,33 +68,11 @@ class StatsigTest {
 
     @Test
     fun testInitialize() {
-        val countdown = CountDownLatch(1)
-        val callback = object: IStatsigCallback {
-            override fun onStatsigInitialize() {
-                countdown.countDown()
-            }
-
-            override fun onStatsigUpdateUser() {
-                fail("Statsig.onStatsigUpdateUser should not have been called")
-            }
-        }
-
         val user = StatsigUser("123")
         user.customIDs = mapOf("random_id" to "abcde")
 
-        client.initializeAsync(
-            app,
-            "client-dontresolve",
-            user,
-            callback,
-            StatsigOptions(overrideStableID = "custom_stable_id")
-        )
-
-        try {
-            countdown.await(1L, TimeUnit.SECONDS)
-        } catch (e: InterruptedException) {
-            fail("Initialize Timed Out")
-        }
+        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "custom_stable_id"), network = network)
+        client = Statsig.client
 
         assertEquals(
             Gson().toJson(initUser?.customIDs),
@@ -127,10 +105,6 @@ class StatsigTest {
         client.logEvent("test_event2", mapOf("key" to "value2"));
         client.logEvent("test_event3", "1");
 
-        client.getLayer("allocated_layer")
-        client.getLayer("unallocated_layer")
-
-
         // check a few previously checked gate and config; they should not result in exposure logs due to deduping logic
         client.checkGate("always_on")
         client.getConfig("test_config")
@@ -139,7 +113,7 @@ class StatsigTest {
         client.shutdown()
 
         val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
-        assertEquals(11, parsedLogs.events.count())
+        assertEquals(9, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID);
         assertEquals("custom_stable_id", client.getStableID())
@@ -217,24 +191,6 @@ class StatsigTest {
         assertEquals(parsedLogs.events[8].value, "1")
         assertNull(parsedLogs.events[8].metadata)
         assertNull(parsedLogs.events[8].secondaryExposures)
-
-        assertEquals(parsedLogs.events[9].eventName, "statsig::layer_exposure")
-        assertEquals(
-            Gson().toJson(mapOf(
-                "config" to "allocated_layer",
-                "ruleID" to "default",
-                "allocatedExperiment" to "layer_exp!")),
-            Gson().toJson(parsedLogs.events[9].metadata)
-        )
-
-        assertEquals(parsedLogs.events[10].eventName, "statsig::layer_exposure")
-        assertEquals(
-            Gson().toJson(mapOf(
-                "config" to "unallocated_layer",
-                "ruleID" to "default",
-                "allocatedExperiment" to "")),
-            Gson().toJson(parsedLogs.events[10].metadata)
-        )
     }
 
     @Test

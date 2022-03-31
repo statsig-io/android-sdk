@@ -145,19 +145,24 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         )
     }
 
-    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
+    fun getLayer(client: StatsigClient, layerName: String, keepDeviceValue: Boolean = false): Layer {
         val hashedLayerName = StatsigUtil.getHashedString(layerName)
         val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
         val config = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, true)
         return Layer(
+            client,
             layerName,
             config?.value ?: mapOf(),
             config?.ruleID ?: "",
             config?.secondaryExposures ?: arrayOf(),
+            config?.undelegatedSecondaryExposures ?: arrayOf(),
             config?.isUserInExperiment ?: false,
             config?.isExperimentActive ?: false,
             config?.isDeviceBased ?: false,
-            config?.allocatedExperimentName ?: "")
+            config?.allocatedExperimentName ?: "",
+            config?.explicitParameters?.toSet(),
+
+        )
     }
 
     // Sticky Logic: https://gist.github.com/daniel-statsig/3d8dfc9bdee531cffc96901c1a06a402

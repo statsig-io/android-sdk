@@ -22,8 +22,10 @@ internal data class APIDynamicConfig(
     @SerializedName("value") val value: Map<String, Any>,
     @SerializedName("rule_id") val ruleID: String?,
     @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf(),
+    @SerializedName("undelegated_secondary_exposures") val undelegatedSecondaryExposures: Array<Map<String, String>> = arrayOf(),
     @SerializedName("is_device_based") val isDeviceBased: Boolean = false,
     @SerializedName("is_user_in_experiment") val isUserInExperiment: Boolean = false,
     @SerializedName("is_experiment_active") val isExperimentActive: Boolean = false,
     @SerializedName("allocated_experiment_name") val allocatedExperimentName: String? = null,
+    @SerializedName("explicit_parameters") val explicitParameters: Array<String> = arrayOf()
 )

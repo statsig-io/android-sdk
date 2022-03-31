@@ -1,12 +1,26 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
 import io.mockk.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineDispatcher
+import kotlinx.coroutines.test.setMain
+import org.junit.Assert
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class TestUtil {
     companion object {
+        val dispatcher = TestCoroutineDispatcher()
+
+        fun overrideMainDispatcher() {
+          Dispatchers.setMain(dispatcher)
+        }
+
         fun getConfigValueMap(): Map<String, Any> {
             val string = """
             {
@@ -78,7 +92,7 @@ class TestUtil {
             ),
             "layer_exp!" to APIDynamicConfig(
                 "layer_exp!",
-                mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
+                mutableMapOf("string" to "test", "number" to 42),
                 "exp_rule",
                 arrayOf(),
                 isExperimentActive = true,
@@ -94,15 +108,39 @@ class TestUtil {
                 )
         )
 
+        val dummyHoldoutExposure = mapOf(
+          "gate" to "holdout!",
+          "gateValue" to "true",
+          "ruleID" to "assadfs"
+        )
+
+        val dummyTargetingGateExposure = mapOf(
+          "gate" to "targeting!",
+          "gateValue" to "true",
+          "ruleID" to "asdf57"
+        )
+
+        val dummySecondaryExposures = arrayOf(
+          dummyHoldoutExposure,
+          dummyHoldoutExposure,
+          dummyTargetingGateExposure
+        )
+
+        val dummyUndelegatedSecondaryExposures = arrayOf(
+          dummyHoldoutExposure
+        )
+
         private val dummyLayerConfigs = mapOf(
             "allocated_layer!" to APIDynamicConfig(
                 "allocated_layer!",
                 mapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                 "default",
-                arrayOf(),
+                secondaryExposures = dummySecondaryExposures,
+                undelegatedSecondaryExposures = dummyUndelegatedSecondaryExposures,
                 isExperimentActive = true,
                 isUserInExperiment = true,
-                allocatedExperimentName = "layer_exp!"
+                allocatedExperimentName = "layer_exp!",
+                explicitParameters = arrayOf("string", "number"),
             ),
             "unallocated_layer!" to APIDynamicConfig(
                 "unallocated_layer!",
@@ -111,7 +149,14 @@ class TestUtil {
                     "number" to 9942,
                     "otherNumber" to 9917)
                 ,
-                "default"
+                "default",
+                secondaryExposures = arrayOf(
+                  dummyHoldoutExposure,
+                ),
+                undelegatedSecondaryExposures = arrayOf(
+                  dummyHoldoutExposure
+                ),
+                allocatedExperimentName = ""
             )
         )
 
@@ -128,7 +173,41 @@ class TestUtil {
             )
         }
 
-        fun mockApp(app: Application): TestSharedPreferences {
+        @JvmName("startStatsigAndWait")
+        internal fun startStatsigAndWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
+          val countdown = CountDownLatch(1)
+          val callback = object : IStatsigCallback {
+            override fun onStatsigInitialize() {
+              countdown.countDown()
+            }
+
+            override fun onStatsigUpdateUser() {
+              Assert.fail("Statsig.onStatsigUpdateUser should not have been called")
+            }
+          }
+
+          Statsig.client = StatsigClient()
+          if (network != null) {
+            Statsig.client.statsigNetwork = network
+          }
+          Statsig.initializeAsync(app, "client-apikey", user, callback, options)
+          countdown.await(1L, TimeUnit.SECONDS)
+        }
+
+        fun getMockApp(): Application {
+          return mockk()
+        }
+
+        @JvmName("captureLogs")
+        internal fun captureLogs(network: StatsigNetwork, onLog: ((LogEventData) -> Unit)? = null) {
+          coEvery {
+            network.apiPostLogs(any(), any(), any())
+          } answers {
+              onLog?.invoke(Gson().fromJson(thirdArg<String>(), LogEventData::class.java))
+          }
+        }
+
+        fun stubAppFunctions(app: Application): TestSharedPreferences {
             val sharedPrefs = TestSharedPreferences()
 
             every {
@@ -156,6 +235,7 @@ class TestUtil {
             }
         }
 
+        @JvmName("mockNetwork")
         internal fun mockNetwork(featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
                                  dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
                                  layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
