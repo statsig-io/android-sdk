@@ -182,6 +182,23 @@ internal class StatsigClient() {
     }
 
     /**
+     * Check the value of an Layer configured in the Statsig console for the initialized
+     * user
+     * @param layerName the name of the Layer to check
+     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of any active experiments
+     * @return the current layer values as a Layer object
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
+        enforceInitialized("getLayer")
+        val res = store.getLayer(layerName, keepDeviceValue)
+        statsigScope.launch {
+            logger.logLayerExposure(layerName, res.getRuleID(), res.getSecondaryExposures(), user, res.getAllocatedExperimentName())
+        }
+        return res
+    }
+
+    /**
      * Log an event to Statsig for the current user
      * @param eventName the name of the event to track
      * @param value an optional value assocaited with the event, for aggregations/analysis

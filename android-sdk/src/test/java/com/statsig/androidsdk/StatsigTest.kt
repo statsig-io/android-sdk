@@ -9,12 +9,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
-import org.junit.Test
-import org.junit.Before
 import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
+import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
-class StatsigTest : IStatsigCallback {
+
+class StatsigTest {
 
     private lateinit var app: Application
     private var flushedLogs: String = ""
@@ -65,22 +68,34 @@ class StatsigTest : IStatsigCallback {
 
     @Test
     fun testInitialize() {
+        val countdown = CountDownLatch(1)
+        val callback = object: IStatsigCallback {
+            override fun onStatsigInitialize() {
+                countdown.countDown()
+            }
+
+            override fun onStatsigUpdateUser() {
+                fail("Statsig.onStatsigUpdateUser should not have been called")
+            }
+        }
+
         val user = StatsigUser("123")
         user.customIDs = mapOf("random_id" to "abcde")
+
         client.initializeAsync(
             app,
             "client-dontresolve",
             user,
-            this@StatsigTest,
+            callback,
             StatsigOptions(overrideStableID = "custom_stable_id")
         )
-    }
 
-    override fun onStatsigUpdateUser() {
-        // noop
-    }
+        try {
+            countdown.await(1L, TimeUnit.SECONDS)
+        } catch (e: InterruptedException) {
+            fail("Initialize Timed Out")
+        }
 
-    override fun onStatsigInitialize() {
         assertEquals(
             Gson().toJson(initUser?.customIDs),
             Gson().toJson(mapOf("random_id" to "abcde"))
@@ -107,9 +122,14 @@ class StatsigTest : IStatsigCallback {
         assertEquals("exp", exp.getName())
         assertEquals(42, exp.getInt("number", 0))
 
+
         client.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"));
         client.logEvent("test_event2", mapOf("key" to "value2"));
         client.logEvent("test_event3", "1");
+
+        client.getLayer("allocated_layer")
+        client.getLayer("unallocated_layer")
+
 
         // check a few previously checked gate and config; they should not result in exposure logs due to deduping logic
         client.checkGate("always_on")
@@ -119,7 +139,7 @@ class StatsigTest : IStatsigCallback {
         client.shutdown()
 
         val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
-        assertEquals(9, parsedLogs.events.count())
+        assertEquals(11, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID);
         assertEquals("custom_stable_id", client.getStableID())
@@ -197,6 +217,23 @@ class StatsigTest : IStatsigCallback {
         assertEquals(parsedLogs.events[8].value, "1")
         assertNull(parsedLogs.events[8].metadata)
         assertNull(parsedLogs.events[8].secondaryExposures)
-        return Unit
+
+        assertEquals(parsedLogs.events[9].eventName, "statsig::layer_exposure")
+        assertEquals(
+            Gson().toJson(mapOf(
+                "config" to "allocated_layer",
+                "ruleID" to "default",
+                "allocatedExperiment" to "layer_exp!")),
+            Gson().toJson(parsedLogs.events[9].metadata)
+        )
+
+        assertEquals(parsedLogs.events[10].eventName, "statsig::layer_exposure")
+        assertEquals(
+            Gson().toJson(mapOf(
+                "config" to "unallocated_layer",
+                "ruleID" to "default",
+                "allocatedExperiment" to "")),
+            Gson().toJson(parsedLogs.events[10].metadata)
+        )
     }
 }

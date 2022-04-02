@@ -33,7 +33,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     private var localOverrides: StatsigOverrides
 
     init {
-        var cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
+        val cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
         val cachedDeviceValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
         val cachedLocalOverrides = StatsigUtil.getFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
 
@@ -79,7 +79,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
     fun save(data: InitializeResponse) {
         val storageID = getUserStorageID()
-        currentCache.values = data;
+        currentCache.values = data
         cacheById[storageID] = currentCache
 
         var cacheString = gson.toJson(cacheById)
@@ -117,14 +117,18 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         }
 
         val hashName = StatsigUtil.getHashedString(configName)
+        val data = getConfigData(hashName)
+        return hydrateDynamicConfig(configName, data)
+    }
+
+    private fun getConfigData(hashedConfigName: String): APIDynamicConfig? {
         val values = currentCache.values
         if (
             values.configs == null ||
-            !values.configs.containsKey(hashName)) {
-            return DynamicConfig(configName)
+            !values.configs.containsKey(hashedConfigName)) {
+            return null
         }
-        var config = values.configs[hashName]
-        return hydrateDynamicConfig(configName, config)
+        return values.configs[hashedConfigName]
     }
 
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
@@ -134,31 +138,47 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         }
 
         val hashName = StatsigUtil.getHashedString(experimentName)
-        val stickyValue = currentCache.stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
         val latestValue = currentCache.values.configs?.get(hashName)
+        return hydrateDynamicConfig(
+            experimentName,
+            getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue)
+        )
+    }
 
+    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
+        val hashedLayerName = StatsigUtil.getHashedString(layerName)
+        val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
+        val config = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue)
+        return Layer(
+            layerName,
+            config?.value ?: mapOf(),
+            config?.ruleID ?: "",
+            config?.secondaryExposures ?: arrayOf(),
+            config?.isUserInExperiment ?: false,
+            config?.isExperimentActive ?: false,
+            config?.isDeviceBased ?: false,
+            config?.allocatedExperimentName ?: "")
+    }
+
+    private fun getPossiblyStickyValue(name: String, latestValue: APIDynamicConfig?, keepDeviceValue: Boolean): APIDynamicConfig? {
         // If flag is false, or experiment is NOT active, simply remove the sticky experiment value, and return the latest value
         if (!keepDeviceValue || latestValue?.isExperimentActive == false) {
-            removeStickyValue(hashName)
-            return getConfig(experimentName)
+            removeStickyValue(name)
+            return latestValue
         }
 
         // If sticky value is already in cache, use it
+        val stickyValue = getStickyValue(name)
         if (stickyValue != null) {
-            return hydrateDynamicConfig(experimentName, stickyValue)
+            return stickyValue
         }
 
         // If the user has NOT been exposed before, and is in this active experiment, then we save the value as sticky
-        if (latestValue != null && latestValue.isExperimentActive && latestValue.isUserInExperiment) {
-            if (latestValue.isDeviceBased) {
-                stickyDeviceExperiments[hashName] = latestValue
-            } else {
-                currentCache.stickyUserExperiments.experiments[hashName] = latestValue
-            }
-            cacheStickyValues()
+        if (latestValue != null) {
+            saveStickyValue(name, latestValue)
         }
 
-        return getConfig(experimentName)
+        return latestValue
     }
 
     fun overrideGate(gateName: String, value: Boolean) {
@@ -197,19 +217,38 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
             config?.secondaryExposures ?: arrayOf(),
             config?.isUserInExperiment ?: false,
             config?.isExperimentActive ?: false,
-            config?.isDeviceBased ?: false)
+            config?.isDeviceBased ?: false,
+            config?.allocatedExperimentName ?: "")
     }
 
     private fun createEmptyCache(): Cache {
-        val emptyGatesAndConfigs = InitializeResponse(mapOf(), mapOf(), false, 0)
+        val emptyInitResponse = InitializeResponse(mapOf(), mapOf(), mapOf(), false, 0)
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
-        return Cache(emptyGatesAndConfigs, emptyStickyUserExperiments)
+        return Cache(emptyInitResponse, emptyStickyUserExperiments)
     }
 
-    private fun removeStickyValue(key: String) {
-        currentCache.stickyUserExperiments.experiments.remove(key)
-        stickyDeviceExperiments.remove(key)
+    private fun removeStickyValue(expName: String) {
+        val expNameHash = StatsigUtil.getHashedString(expName)
+        currentCache.stickyUserExperiments.experiments.remove(expNameHash)
+        stickyDeviceExperiments.remove(expNameHash)
         cacheStickyValues()
+    }
+
+    private fun saveStickyValue(expName: String, latestValue: APIDynamicConfig) {
+        val expNameHash = StatsigUtil.getHashedString(expName)
+        if (latestValue.isExperimentActive && latestValue.isUserInExperiment) {
+            if (latestValue.isDeviceBased) {
+                stickyDeviceExperiments[expNameHash] = latestValue
+            } else {
+                currentCache.stickyUserExperiments.experiments[expNameHash] = latestValue
+            }
+            cacheStickyValues()
+        }
+    }
+
+    private fun getStickyValue(expName: String): APIDynamicConfig? {
+        val hashName = StatsigUtil.getHashedString(expName)
+        return currentCache.stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
     }
 
     private fun cacheStickyValues() {
@@ -237,9 +276,9 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
     private fun getUserStorageID(): String {
         var id = userID ?: STATSIG_NULL_USER
-        var cids = customIDs ?: return id
+        val customIds = customIDs ?: return id
 
-        for ((k, v) in cids) {
+        for ((k, v) in customIds) {
             id = "$id$k:$v"
         }
 
