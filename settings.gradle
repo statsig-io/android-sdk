@@ -10,8 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        mavenLocal()
     }
 }
-rootProject.name = "android-sdk-testbed"
-include ':app'
+
+rootProject.name = "Statsig"
+include ':app', ':android-sdk'
