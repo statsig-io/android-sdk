@@ -8,11 +8,11 @@ publishConfiguration {
         pom.name = "Statsig Android SDK"
         pom.description = "A SDK for integrating Statsig with Android Apps"
         pom.url = "https://github.com/statsig-io/android-sdk"
-        pom.organization {org ->
+        pom.organization { org ->
             org.name = "Statsig"
             org.url = "https://www.statsig.com"
         }
-        pom.licenses {licenses ->
+        pom.licenses { licenses ->
             licenses.license { license ->
                 license.name = "Apache License, Version 2.0"
                 license.url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
