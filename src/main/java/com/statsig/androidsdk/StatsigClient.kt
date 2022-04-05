@@ -22,7 +22,7 @@ import java.util.*
 private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
 
-internal class StatsigClient()  {
+internal class StatsigClient() {
 
     private lateinit var store: Store
     private lateinit var user: StatsigUser

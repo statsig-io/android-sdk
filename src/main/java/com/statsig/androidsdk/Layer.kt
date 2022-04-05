@@ -44,7 +44,7 @@ class Layer internal constructor(
    * @return the value at the given key, or the default value if not found
    */
   fun getDouble(key: String, default: Double): Double {
-    return get(key, default as Number, jsonValue).toDouble()
+    return get<Number>(key, default, jsonValue).toDouble()
   }
 
   /**
@@ -54,7 +54,7 @@ class Layer internal constructor(
    * @return the value at the given key, or the default value if not found
    */
   fun getInt(key: String, default: Int): Int {
-    return get(key, default as Number, jsonValue).toInt()
+    return get<Number>(key, default, jsonValue).toInt()
   }
 
   /**
@@ -64,7 +64,7 @@ class Layer internal constructor(
    * @return the value at the given key, or the default value if not found
    */
   fun getLong(key: String, default: Long): Long {
-    return get(key, default as Number, jsonValue).toLong()
+    return get<Number>(key, default, jsonValue).toLong()
   }
 
   /**
