@@ -129,7 +129,7 @@ internal class StatsigClient() {
             statsigMetadata,
             statsigNetwork
         )
-        store = Store(user?.userID, user?.customIDs, getSharedPrefs())
+        store = Store(this.user?.userID, this.user?.customIDs, getSharedPrefs())
     }
 
     /**
@@ -311,12 +311,12 @@ internal class StatsigClient() {
         logger.onUpdateUser()
         pollingJob?.cancel()
         this.user = normalizeUser(user)
-        store.loadAndResetForUser(user?.userID, user?.customIDs)
+        store.loadAndResetForUser(this.user?.userID, this.user?.customIDs)
 
         val initResponse = statsigNetwork.initialize(
             options.api,
             sdkKey,
-            user,
+            this.user,
             statsigMetadata,
             options.initTimeoutMs,
             getSharedPrefs(),
