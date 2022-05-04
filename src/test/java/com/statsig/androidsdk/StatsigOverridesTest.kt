@@ -60,6 +60,7 @@ class StatsigOverridesTest {
         assertEquals("string-val", config.getString("str", null))
         assertEquals(true, config.getBoolean("bool", false))
         assertEquals(123, config.getInt("num", 0))
+        assertEquals(EvaluationReason.LocalOverride, config.getEvaluationDetails().reason)
     }
 
     @Test
@@ -71,6 +72,7 @@ class StatsigOverridesTest {
         assertEquals("string-val", experiment.getString("str", null))
         assertEquals(true, experiment.getBoolean("bool", false))
         assertEquals(123, experiment.getInt("num", 0))
+        assertEquals(EvaluationReason.LocalOverride, experiment.getEvaluationDetails().reason)
     }
 
     @Test
@@ -88,6 +90,7 @@ class StatsigOverridesTest {
         assertEquals("string-val", config.getString("str", null))
         assertEquals(true, config.getBoolean("bool", false))
         assertEquals(123, config.getInt("num", 0))
+        assertEquals(EvaluationReason.LocalOverride, config.getEvaluationDetails().reason)
     }
 
     @Test
@@ -105,6 +108,8 @@ class StatsigOverridesTest {
         assertNull(config.getString("str", null))
         assertFalse( config.getBoolean("bool", false))
         assertEquals(0, config.getInt("num", 0))
+        // reason should be unrecognized because a_config does not exist
+        assertEquals(EvaluationReason.Unrecognized, config.getEvaluationDetails().reason)
     }
 
     @Test

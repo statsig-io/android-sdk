@@ -7,6 +7,7 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 
 class StoreTest {
     @Before
@@ -89,6 +90,42 @@ class StoreTest {
     }
 
     @Test
+    fun testEvaluationReasons() {
+        val sharedPrefs = TestSharedPreferences()
+        var store = Store("jkw", null, sharedPrefs)
+
+        // check before there is any value
+        var exp = store.getExperiment("exp", false)
+        var fakeConfig = store.getExperiment("config_fake", false)
+        assertEquals(EvaluationReason.Uninitialized, exp.getEvaluationDetails().reason)
+        assertEquals(EvaluationReason.Uninitialized, fakeConfig.getEvaluationDetails().reason)
+
+        // save some value from "network" and check again
+        store.save(getInitValue("v0", inExperiment = true, active = true))
+
+        exp = store.getExperiment("exp", false)
+        fakeConfig = store.getExperiment("config_fake", false)
+        var time = exp.getEvaluationDetails().time
+        assertEquals(EvaluationReason.Network, exp.getEvaluationDetails().reason)
+        assertEquals(EvaluationReason.Unrecognized, fakeConfig.getEvaluationDetails().reason)
+
+        // re-initialize store, and check before any "network" value is saved
+        Thread.sleep(1000) // wait 1 sec before reinitializing so that we can check the evaluation time in details has not advanced
+        store = Store("jkw", null, sharedPrefs)
+        exp = store.getExperiment("exp", true) // set keepDeviceValue to true so we can check for sticky value next
+        assertEquals(EvaluationReason.Cache, exp.getEvaluationDetails().reason)
+        assertEquals(EvaluationReason.Unrecognized, fakeConfig.getEvaluationDetails().reason)
+        assertEquals(time, exp.getEvaluationDetails().time)
+
+        // re-initialize and check the previously saved sticky value
+        store = Store("jkw", null, sharedPrefs)
+        store.save(getInitValue("v1", inExperiment = true, active = true))
+        exp = store.getExperiment("exp", true)
+        assertEquals("v0", exp.getString("key", "default"))
+        assertEquals(EvaluationReason.Sticky, exp.getEvaluationDetails().reason)
+    }
+
+    @Test
     fun testStickyUserExperimentMigration() {
         val sharedPrefs = TestSharedPreferences()
         StatsigUtil.saveStringToSharedPrefs(
@@ -108,6 +145,7 @@ class StoreTest {
 
         val exp = store.getExperiment("bar", true)
         assertEquals("aValue", exp.getValue()["foo"])
+        assertEquals(EvaluationReason.Sticky, exp.getEvaluationDetails().reason)
 
         val savedVal =
                 StatsigUtil.getFromSharedPrefs(sharedPrefs, "Statsig.STICKY_USER_EXPERIMENTS")

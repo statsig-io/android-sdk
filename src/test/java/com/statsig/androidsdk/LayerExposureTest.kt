@@ -11,6 +11,7 @@ import org.junit.Test
 class LayerExposureTest {
   lateinit var app: Application
   private var logs: LogEventData? = null
+  private var initTime = System.currentTimeMillis()
 
   @Before
   fun setup() {
@@ -91,13 +92,17 @@ class LayerExposureTest {
       Gson().toJson(TestUtil.dummyUndelegatedSecondaryExposures),
       Gson().toJson(logs.events[0].secondaryExposures)
     )
+    val time = logs.events[0].metadata?.get("time")!!.toLong()
+    assertTrue(time >= initTime && time < initTime + 2000)
     assertEquals(
       Gson().toJson(mapOf(
         "config" to "layer",
         "ruleID" to "default",
         "allocatedExperiment" to "",
         "parameterName" to "an_int",
-        "isExplicitParameter" to "false"
+        "isExplicitParameter" to "false",
+        "reason" to "Network",
+        "time" to time.toString(),
       )),
       Gson().toJson(logs.events[0].metadata)
     )
@@ -132,13 +137,17 @@ class LayerExposureTest {
       Gson().toJson(TestUtil.dummySecondaryExposures),
       Gson().toJson(logs.events[0].secondaryExposures)
     )
+    var time = logs.events[0].metadata?.get("time")!!.toLong()
+    assertTrue(time >= initTime && time < initTime + 2000)
     assertEquals(
       Gson().toJson(mapOf(
         "config" to "layer",
         "ruleID" to "default",
         "allocatedExperiment" to "the_allocated_exp!",
         "parameterName" to "an_int",
-        "isExplicitParameter" to "true"
+        "isExplicitParameter" to "true",
+        "reason" to "Network",
+        "time" to time.toString(),
       )),
       Gson().toJson(logs.events[0].metadata)
     )
@@ -148,13 +157,17 @@ class LayerExposureTest {
       Gson().toJson(TestUtil.dummyUndelegatedSecondaryExposures),
       Gson().toJson(logs.events[1].secondaryExposures)
     )
+    time = logs.events[1].metadata?.get("time")!!.toLong()
+    assertTrue(time >= initTime && time < initTime + 2000)
     assertEquals(
       Gson().toJson(mapOf(
         "config" to "layer",
         "ruleID" to "default",
         "allocatedExperiment" to "",
         "parameterName" to "a_string",
-        "isExplicitParameter" to "false"
+        "isExplicitParameter" to "false",
+        "reason" to "Network",
+        "time" to time.toString(),
       )),
       Gson().toJson(logs.events[1].metadata)
     )
@@ -244,7 +257,7 @@ class LayerExposureTest {
     TestUtil.captureLogs(network) {
       logs = it
     }
-
+    initTime = System.currentTimeMillis()
     TestUtil.startStatsigAndWait(app, user = user, network = network)
   }
 }

@@ -22,7 +22,8 @@ private data class DeprecatedStickyUserExperiments(
 
 private data class Cache(
     @SerializedName("values") var values: InitializeResponse,
-    @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments
+    @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments,
+    @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
 )
 
 internal class Store (private var userID: String?, private var customIDs: Map<String, String>?, private val sharedPrefs: SharedPreferences) {
@@ -31,6 +32,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     private var currentCache: Cache
     private var stickyDeviceExperiments: MutableMap<String, APIDynamicConfig>
     private var localOverrides: StatsigOverrides
+    private var reason: EvaluationReason
 
     init {
         val cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
@@ -66,21 +68,34 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
             }
         }
-
-        currentCache = cacheById[getUserStorageID()] ?: createEmptyCache()
+        reason = EvaluationReason.Uninitialized
+        currentCache = loadCacheForCurrentUser()
         attemptToMigrateDeprecatedStickyUserExperiments()
     }
 
     fun loadAndResetForUser(newUserID: String?, newCustomIDs: Map<String, String>?) {
+        reason = EvaluationReason.Uninitialized
         userID = newUserID
         customIDs = newCustomIDs
-        currentCache = cacheById[getUserStorageID()] ?: createEmptyCache()
+        currentCache = loadCacheForCurrentUser()
+    }
+
+    private fun loadCacheForCurrentUser(): Cache {
+        val cachedValues = cacheById[getUserStorageID()]
+        return if (cachedValues != null) {
+            reason = EvaluationReason.Cache
+            cachedValues
+        } else {
+            createEmptyCache()
+        }
     }
 
     fun save(data: InitializeResponse) {
         val storageID = getUserStorageID()
         currentCache.values = data
+        currentCache.evaluationTime = System.currentTimeMillis()
         cacheById[storageID] = currentCache
+        reason = EvaluationReason.Network
 
         var cacheString = gson.toJson(cacheById)
 
@@ -94,31 +109,29 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, cacheString)
     }
 
-    fun checkGate(gateName: String): APIFeatureGate {
+    fun checkGate(gateName: String): FeatureGate {
         val overriddenValue = localOverrides.gates[gateName]
         if (overriddenValue != null) {
-            return APIFeatureGate(gateName, overriddenValue, "override")
+            return FeatureGate(gateName, getEvaluationDetails(false, EvaluationReason.LocalOverride),
+                overriddenValue, "override")
         }
 
         val hashName = StatsigUtil.getHashedString(gateName)
-        val values = currentCache.values
-        if (
-            values.featureGates == null ||
-            !values.featureGates.containsKey(hashName)) {
-            return APIFeatureGate(gateName, false, "")
-        }
-        return values.featureGates[hashName] ?: APIFeatureGate(gateName, false, "")
+        val gate = currentCache.values.featureGates?.get(hashName) ?:
+            return FeatureGate(gateName, getEvaluationDetails(false), false, "")
+        return FeatureGate(gate.name, getEvaluationDetails(true), gate.value, gate.ruleID, gate.secondaryExposures)
     }
 
     fun getConfig(configName: String): DynamicConfig {
         val overrideValue = localOverrides.configs[configName]
         if (overrideValue != null) {
-            return DynamicConfig(configName, overrideValue, "override")
+            return DynamicConfig(configName, getEvaluationDetails(false, EvaluationReason.LocalOverride),
+                overrideValue, "override")
         }
 
         val hashName = StatsigUtil.getHashedString(configName)
         val data = getConfigData(hashName)
-        return hydrateDynamicConfig(configName, data)
+        return hydrateDynamicConfig(configName, getEvaluationDetails(data != null), data)
     }
 
     private fun getConfigData(hashedConfigName: String): APIDynamicConfig? {
@@ -134,35 +147,57 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
         val overrideValue = localOverrides.configs[experimentName]
         if (overrideValue != null) {
-            return DynamicConfig(experimentName, overrideValue, "override")
+            return DynamicConfig(
+                experimentName,
+                getEvaluationDetails(false, EvaluationReason.LocalOverride),
+                overrideValue,
+                "override"
+            )
         }
 
         val hashName = StatsigUtil.getHashedString(experimentName)
         val latestValue = currentCache.values.configs?.get(hashName)
+        val details = getEvaluationDetails(latestValue != null)
+        val finalValue = getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
         return hydrateDynamicConfig(
             experimentName,
-            getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, false)
+            details,
+            finalValue
         )
     }
 
     fun getLayer(client: StatsigClient, layerName: String, keepDeviceValue: Boolean = false): Layer {
         val hashedLayerName = StatsigUtil.getHashedString(layerName)
         val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
-        val config = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, true)
+        val details = getEvaluationDetails(latestValue != null)
+        val finalValue = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, details, true)
         return Layer(
             client,
             layerName,
-            config?.value ?: mapOf(),
-            config?.ruleID ?: "",
-            config?.secondaryExposures ?: arrayOf(),
-            config?.undelegatedSecondaryExposures ?: arrayOf(),
-            config?.isUserInExperiment ?: false,
-            config?.isExperimentActive ?: false,
-            config?.isDeviceBased ?: false,
-            config?.allocatedExperimentName ?: "",
-            config?.explicitParameters?.toSet(),
-
+            details,
+            finalValue?.value ?: mapOf(),
+            finalValue?.ruleID ?: "",
+            finalValue?.secondaryExposures ?: arrayOf(),
+            finalValue?.undelegatedSecondaryExposures ?: arrayOf(),
+            finalValue?.isUserInExperiment ?: false,
+            finalValue?.isExperimentActive ?: false,
+            finalValue?.isDeviceBased ?: false,
+            finalValue?.allocatedExperimentName ?: "",
+            finalValue?.explicitParameters?.toSet(),
         )
+    }
+
+    private fun getEvaluationDetails(valueExists: Boolean, reasonOverride: EvaluationReason? = null): EvaluationDetails {
+        return if (valueExists) {
+            EvaluationDetails(this.reason, currentCache.evaluationTime ?: System.currentTimeMillis())
+        } else {
+            val actualReason = reasonOverride ?: if (this.reason == EvaluationReason.Uninitialized) {
+                EvaluationReason.Uninitialized
+            } else {
+                EvaluationReason.Unrecognized
+            }
+            EvaluationDetails(actualReason, System.currentTimeMillis())
+        }
     }
 
     // Sticky Logic: https://gist.github.com/daniel-statsig/3d8dfc9bdee531cffc96901c1a06a402
@@ -170,6 +205,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
       name: String,
       latestValue: APIDynamicConfig?,
       keepDeviceValue: Boolean,
+      details: EvaluationDetails,
       isLayer: Boolean
     ): APIDynamicConfig? {
         // We don't want sticky behavior. Clear any sticky values and return latest.
@@ -188,7 +224,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         // Get the latest config value. Layers require a lookup by allocatedExperimentName.
         var latestExperimentValue: APIDynamicConfig? = null
         if (isLayer) {
-          stickyValue?.allocatedExperimentName?.let {
+          stickyValue.allocatedExperimentName?.let {
             latestExperimentValue = currentCache.values.configs?.get(it)
           }
         } else {
@@ -196,6 +232,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         }
 
         if (latestExperimentValue?.isExperimentActive == true) {
+            details.reason = EvaluationReason.Sticky
             return stickyValue
         }
 
@@ -236,9 +273,10 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         )
     }
 
-    private fun hydrateDynamicConfig(name: String, config: APIDynamicConfig?): DynamicConfig {
+    private fun hydrateDynamicConfig(name: String, details: EvaluationDetails, config: APIDynamicConfig?): DynamicConfig {
         return DynamicConfig(
             name,
+            details,
             config?.value ?: mapOf(),
             config?.ruleID ?: "",
             config?.secondaryExposures ?: arrayOf(),
@@ -251,7 +289,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     private fun createEmptyCache(): Cache {
         val emptyInitResponse = InitializeResponse(mapOf(), mapOf(), mapOf(), false, 0)
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
-        return Cache(emptyInitResponse, emptyStickyUserExperiments)
+        return Cache(emptyInitResponse, emptyStickyUserExperiments, System.currentTimeMillis())
     }
 
     private fun removeStickyValue(expName: String) {

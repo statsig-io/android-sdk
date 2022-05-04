@@ -5,6 +5,7 @@ package com.statsig.androidsdk
  */
 class DynamicConfig(
     private val name: String,
+    private val details: EvaluationDetails,
     private val jsonValue: Map<String, Any> = mapOf(),
     private val rule: String = "",
     private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
@@ -114,6 +115,7 @@ class DynamicConfig(
         return when (val value = this.jsonValue[key]) {
             is Map<*, *> -> DynamicConfig(
                 key,
+                this.details,
                 value as Map<String, Any>,
                 this.rule
             )
@@ -140,6 +142,10 @@ class DynamicConfig(
 
     fun getIsExperimentActive(): Boolean {
         return this.isExperimentActive
+    }
+
+    fun getEvaluationDetails(): EvaluationDetails {
+        return this.details
     }
 
     internal fun getRuleID(): String {

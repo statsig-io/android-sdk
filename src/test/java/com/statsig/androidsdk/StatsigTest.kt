@@ -69,6 +69,7 @@ class StatsigTest {
     @Test
     fun testInitialize() {
         val user = StatsigUser("123")
+        val now = System.currentTimeMillis()
         user.customIDs = mapOf("random_id" to "abcde")
 
         TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "custom_stable_id"), network = network)
@@ -115,10 +116,10 @@ class StatsigTest {
         val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
         assertEquals(9, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
-        assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID);
+        assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
         assertEquals("custom_stable_id", client.getStableID())
-        assertEquals("Android", parsedLogs.statsigMetadata.systemName);
-        assertEquals("Android", parsedLogs.statsigMetadata.deviceOS);
+        assertEquals("Android", parsedLogs.statsigMetadata.systemName)
+        assertEquals("Android", parsedLogs.statsigMetadata.deviceOS)
 
         // validate gate exposure
         assertEquals(parsedLogs.events[0].eventName, "statsig::gate_exposure")
@@ -126,6 +127,10 @@ class StatsigTest {
         assertEquals(parsedLogs.events[0].metadata!!["gate"], "always_on")
         assertEquals(parsedLogs.events[0].metadata!!["gateValue"], "true")
         assertEquals(parsedLogs.events[0].metadata!!["ruleID"], "always_on_rule_id")
+        assertEquals(parsedLogs.events[0].metadata!!["reason"], "Network")
+
+        var evalTime = parsedLogs.events[0].metadata!!["time"]!!.toLong()
+        assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(
             Gson().toJson(parsedLogs.events[0].secondaryExposures), Gson().toJson(
                 arrayOf(
@@ -143,11 +148,17 @@ class StatsigTest {
             )
         )
 
+        // validate non-existent gate's evaluation reason
+        assertEquals(parsedLogs.events[2].metadata!!["reason"], "Unrecognized")
+
         // validate config exposure
         assertEquals(parsedLogs.events[3].eventName, "statsig::config_exposure")
         assertEquals(parsedLogs.events[3].user!!.userID, "123")
         assertEquals(parsedLogs.events[3].metadata!!["config"], "test_config")
         assertEquals(parsedLogs.events[3].metadata!!["ruleID"], "default")
+        assertEquals(parsedLogs.events[3].metadata!!["reason"], "Network")
+        evalTime = parsedLogs.events[3].metadata!!["time"]!!.toLong()
+        assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(
             Gson().toJson(parsedLogs.events[3].secondaryExposures), Gson().toJson(
                 arrayOf(
@@ -165,6 +176,9 @@ class StatsigTest {
         assertEquals(parsedLogs.events[5].user!!.userID, "123")
         assertEquals(parsedLogs.events[5].metadata!!["config"], "exp")
         assertEquals(parsedLogs.events[5].metadata!!["ruleID"], "exp_rule")
+        assertEquals(parsedLogs.events[5].metadata!!["reason"], "Network")
+        evalTime = parsedLogs.events[5].metadata!!["time"]!!.toLong()
+        assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(parsedLogs.events[5].secondaryExposures?.count() ?: 1, 0)
 
         // Validate custom logs

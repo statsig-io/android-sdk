@@ -46,7 +46,6 @@ class TestSharedPreferences : SharedPreferences {
 
         override fun apply() {
             this.commit()
-            System.out.println("TestSharedPreferences values: " + values)
         }
 
         fun getString(key: String): String? {

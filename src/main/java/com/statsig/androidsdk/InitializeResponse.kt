@@ -14,7 +14,7 @@ internal data class APIFeatureGate(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Boolean = false,
     @SerializedName("rule_id") val ruleID: String = "",
-    @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf()
+    @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf(),
 )
 
 internal data class APIDynamicConfig(
@@ -28,4 +28,12 @@ internal data class APIDynamicConfig(
     @SerializedName("is_experiment_active") val isExperimentActive: Boolean = false,
     @SerializedName("allocated_experiment_name") val allocatedExperimentName: String? = null,
     @SerializedName("explicit_parameters") val explicitParameters: Array<String> = arrayOf()
+)
+
+internal data class FeatureGate(
+    val name: String,
+    val details: EvaluationDetails,
+    val value: Boolean = false,
+    val ruleID: String = "",
+    val secondaryExposures: Array<Map<String, String>> = arrayOf()
 )
