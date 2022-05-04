@@ -129,7 +129,7 @@ internal class StatsigClient() {
             statsigMetadata,
             statsigNetwork
         )
-        store = Store(this.user?.userID, this.user?.customIDs, getSharedPrefs())
+        store = Store(this.user.userID, this.user.customIDs, getSharedPrefs())
     }
 
     /**
@@ -143,7 +143,7 @@ internal class StatsigClient() {
         enforceInitialized("checkGate")
         val res = store.checkGate(gateName)
         statsigScope.launch {
-            logger.logGateExposure(gateName, res.value, res.ruleID, res.secondaryExposures, user)
+            logger.logGateExposure(gateName, res.value, res.ruleID, res.secondaryExposures, user, res.details)
         }
         return res.value
     }
@@ -159,7 +159,8 @@ internal class StatsigClient() {
         enforceInitialized("getConfig")
         val res = store.getConfig(configName)
         statsigScope.launch {
-            logger.logConfigExposure(configName, res.getRuleID(), res.getSecondaryExposures(), user)
+            logger.logConfigExposure(configName, res.getRuleID(), res.getSecondaryExposures(), user,
+                res.getEvaluationDetails())
         }
         return res
     }
@@ -176,7 +177,8 @@ internal class StatsigClient() {
         enforceInitialized("getExperiment")
         val res = store.getExperiment(experimentName, keepDeviceValue)
         statsigScope.launch {
-            logger.logConfigExposure(experimentName, res.getRuleID(), res.getSecondaryExposures(), user)
+            logger.logConfigExposure(experimentName, res.getRuleID(), res.getSecondaryExposures(), user,
+                res.getEvaluationDetails())
         }
         return res
     }
@@ -215,7 +217,8 @@ internal class StatsigClient() {
                 user,
                 allocatedExperiment,
                 parameterName,
-                isExplicit
+                isExplicit,
+                layer.getEvaluationDetails(),
             )
         }
     }
@@ -311,7 +314,7 @@ internal class StatsigClient() {
         logger.onUpdateUser()
         pollingJob?.cancel()
         this.user = normalizeUser(user)
-        store.loadAndResetForUser(this.user?.userID, this.user?.customIDs)
+        store.loadAndResetForUser(this.user.userID, this.user.customIDs)
 
         val initResponse = statsigNetwork.initialize(
             options.api,
