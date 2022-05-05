@@ -12,15 +12,15 @@ class DynamicConfigTest {
     internal fun setup() {
         dc = DynamicConfig(
             "test_config",
-            EvaluationDetails(EvaluationReason.Network),
             TestUtil.getConfigValueMap(),
             "default",
+            EvaluationDetails(EvaluationReason.Network),
         )
     }
 
     @Test
     fun testDummy() {
-        val dummyConfig = DynamicConfig("", EvaluationDetails(EvaluationReason.Unrecognized))
+        val dummyConfig = DynamicConfig("", mapOf(), "", EvaluationDetails(EvaluationReason.Unrecognized))
         assertEquals("provided default", dummyConfig.getString("test", "provided default"))
         assertEquals(true, dummyConfig.getBoolean("test", true))
         assertEquals(12, dummyConfig.getInt("test", 12))
@@ -39,9 +39,9 @@ class DynamicConfigTest {
     fun testEmpty() {
         val emptyConfig = DynamicConfig(
             "test_config",
-            EvaluationDetails(EvaluationReason.Uninitialized),
             mapOf(),
             "default",
+            EvaluationDetails(EvaluationReason.Uninitialized),
         )
 
         assertEquals("provided default", emptyConfig.getString("test", "provided default"))

@@ -125,8 +125,8 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     fun getConfig(configName: String): DynamicConfig {
         val overrideValue = localOverrides.configs[configName]
         if (overrideValue != null) {
-            return DynamicConfig(configName, getEvaluationDetails(false, EvaluationReason.LocalOverride),
-                overrideValue, "override")
+            return DynamicConfig(configName, overrideValue, "override",
+                getEvaluationDetails(false, EvaluationReason.LocalOverride))
         }
 
         val hashName = StatsigUtil.getHashedString(configName)
@@ -149,9 +149,9 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         if (overrideValue != null) {
             return DynamicConfig(
                 experimentName,
-                getEvaluationDetails(false, EvaluationReason.LocalOverride),
                 overrideValue,
-                "override"
+                "override",
+                getEvaluationDetails(false, EvaluationReason.LocalOverride),
             )
         }
 
@@ -174,9 +174,9 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         return Layer(
             client,
             layerName,
-            details,
             finalValue?.value ?: mapOf(),
             finalValue?.ruleID ?: "",
+            details,
             finalValue?.secondaryExposures ?: arrayOf(),
             finalValue?.undelegatedSecondaryExposures ?: arrayOf(),
             finalValue?.isUserInExperiment ?: false,
@@ -276,9 +276,9 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
     private fun hydrateDynamicConfig(name: String, details: EvaluationDetails, config: APIDynamicConfig?): DynamicConfig {
         return DynamicConfig(
             name,
-            details,
             config?.value ?: mapOf(),
             config?.ruleID ?: "",
+            details,
             config?.secondaryExposures ?: arrayOf(),
             config?.isUserInExperiment ?: false,
             config?.isExperimentActive ?: false,

@@ -6,9 +6,9 @@ package com.statsig.androidsdk
 class Layer internal constructor(
   private val client: StatsigClient,
   private val name: String,
+  private val jsonValue: Map<String, Any>,
+  private val rule: String,
   private val details: EvaluationDetails,
-  private val jsonValue: Map<String, Any> = mapOf(),
-  private val rule: String = "",
   private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
   private val undelegatedSecondaryExposures: Array<Map<String, String>> = arrayOf(),
   private val isUserInExperiment: Boolean = false,
@@ -106,9 +106,9 @@ class Layer internal constructor(
     return when (val value = get(key, null as Map<String, Any>?, jsonValue)) {
       is Map<String, Any> -> DynamicConfig(
         key,
-        this.details,
         value,
-        this.rule
+        this.rule,
+        this.details,
       )
       else -> null
     }
