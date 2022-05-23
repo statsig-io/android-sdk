@@ -4,7 +4,7 @@ package com.statsig.androidsdk
  * A helper class for interfacing with Layers defined in the Statsig console
  */
 class Layer internal constructor(
-  private val client: StatsigClient,
+  private val client: StatsigClient?,
   private val name: String,
   private val jsonValue: Map<String, Any>,
   private val rule: String,
@@ -17,6 +17,12 @@ class Layer internal constructor(
   private val allocatedExperimentName: String = "",
   private val explicitParameters: Set<String>? = null,
 ) {
+
+  companion object {
+    fun getUninitialized(name: String): Layer {
+      return Layer(null, name, mapOf(), "", EvaluationDetails(EvaluationReason.Uninitialized))
+    }
+  }
 
   /**
    * Gets a value from the Layer, falling back to the provided default value
@@ -151,7 +157,7 @@ class Layer internal constructor(
   }
 
   private fun logParameterExposure(key: String) {
-    this.client.logLayerParameterExposure(this, key)
+    this.client?.logLayerParameterExposure(this, key)
   }
 
   /**

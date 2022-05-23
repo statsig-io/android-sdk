@@ -118,6 +118,7 @@ internal class StatsigClient() {
 
         val stableID = getLocalStorageStableID()
         statsigMetadata = StatsigMetadata(stableID)
+        Statsig.errorBoundary.setMetadata(statsigMetadata)
         populateStatsigMetadata()
 
         lifecycleListener = StatsigActivityLifecycleListener()
@@ -424,6 +425,7 @@ internal class StatsigClient() {
             }
         } catch (e: PackageManager.NameNotFoundException) {
         }
+
     }
 
     internal fun getSharedPrefs(): SharedPreferences {

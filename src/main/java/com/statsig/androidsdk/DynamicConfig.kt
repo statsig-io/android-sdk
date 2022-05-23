@@ -14,6 +14,12 @@ class DynamicConfig(
     private val isDeviceBased: Boolean = false,
     private val allocatedExperimentName: String = "") {
 
+    internal companion object {
+        fun getUninitialized(name: String): DynamicConfig {
+            return DynamicConfig(name, mapOf(), "", EvaluationDetails(EvaluationReason.Uninitialized))
+        }
+    }
+
     /**
      * Gets a value from the config, falling back to the provided default value
      * @param key the index within the DynamicConfig to fetch a value from
