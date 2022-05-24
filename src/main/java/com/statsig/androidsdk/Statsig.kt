@@ -231,14 +231,18 @@ object Statsig {
   @JvmSynthetic // Hide this from Java files
   suspend fun updateUser(user: StatsigUser?) {
     enforceInitialized("updateUser")
-    client.updateUser(user)
+    errorBoundary.captureAsync({
+      client.updateUser(user)
+    })
   }
 
   @JvmSynthetic
   suspend fun shutdownSuspend() {
     enforceInitialized("shutdownSuspend")
-    client.shutdownSuspend()
-    client = StatsigClient()
+    errorBoundary.captureAsync({
+      client.shutdownSuspend()
+      client = StatsigClient()
+    })
   }
 
   /**
@@ -261,7 +265,11 @@ object Statsig {
   @JvmStatic
   fun getStableID(): String {
     enforceInitialized("getStableID")
-    return client.getStableID()
+    var result = ""
+    errorBoundary.capture({
+      result = client.getStableID()
+    })
+    return result
   }
 
   /**
@@ -270,7 +278,9 @@ object Statsig {
    */
   @JvmStatic
   fun overrideGate(gateName: String, value: Boolean) {
-    client.getStore().overrideGate(gateName, value)
+    errorBoundary.capture({
+      client.getStore().overrideGate(gateName, value)
+    })
   }
 
   /**
@@ -279,7 +289,9 @@ object Statsig {
    */
   @JvmStatic
   fun overrideConfig(configName: String, value: Map<String, Any>) {
-    client.getStore().overrideConfig(configName, value)
+    errorBoundary.capture({
+      client.getStore().overrideConfig(configName, value)
+    })
   }
 
   /**
@@ -287,7 +299,9 @@ object Statsig {
    */
   @JvmStatic
   fun removeOverride(name: String) {
-    client.getStore().removeOverride(name)
+    errorBoundary.capture({
+      client.getStore().removeOverride(name)
+    })
   }
 
   /**
@@ -295,7 +309,9 @@ object Statsig {
    */
   @JvmStatic
   fun removeAllOverrides() {
-    client.getStore().removeAllOverrides()
+    errorBoundary.capture({
+      client.getStore().removeAllOverrides()
+    })
   }
 
   /**
@@ -303,7 +319,11 @@ object Statsig {
    */
   @JvmStatic
   fun getAllOverrides(): StatsigOverrides {
-    return client.getStore().getAllOverrides()
+    var result: StatsigOverrides? = null
+    errorBoundary.capture({
+      result = client.getStore().getAllOverrides()
+    })
+    return result ?: StatsigOverrides(mutableMapOf(), mutableMapOf())
   }
 
   private fun enforceInitialized(functionName: String) {
