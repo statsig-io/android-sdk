@@ -75,8 +75,8 @@ internal class StatsigClient() {
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        withContext(Dispatchers.Main.immediate) { // Run on main thread immediately if already in it, else post to the main looper
-            setup(application, sdkKey, user, options)
+        setup(application, sdkKey, user, options)
+        statsigScope.launch {
             setupAsync()
         }
     }
