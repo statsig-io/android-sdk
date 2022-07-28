@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.content.SharedPreferences
-import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
 import java.net.HttpURLConnection
@@ -49,6 +48,8 @@ private const val CONTENT_TYPE_HEADER_KEY = "Content-Type"
 private const val CONTENT_TYPE_HEADER_VALUE = "application/json; charset=UTF-8"
 private const val STATSIG_API_HEADER_KEY = "STATSIG-API-KEY"
 private const val STATSIG_CLIENT_TIME_HEADER_KEY = "STATSIG-CLIENT-TIME"
+private const val STATSIG_SDK_TYPE_KEY = "STATSIG-SDK-TYPE"
+private const val STATSIG_SDK_VERSION_KEY = "STATSIG-SDK-VERSION"
 private const val ACCEPT_HEADER_KEY = "Accept"
 private const val ACCEPT_HEADER_VALUE = "application/json"
 
@@ -180,6 +181,8 @@ private class StatsigNetworkImpl : StatsigNetwork {
                 connection.requestMethod = POST
                 connection.setRequestProperty(CONTENT_TYPE_HEADER_KEY, CONTENT_TYPE_HEADER_VALUE)
                 connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
+                connection.setRequestProperty(STATSIG_SDK_TYPE_KEY, "android-client")
+                connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
                 connection.setRequestProperty(STATSIG_CLIENT_TIME_HEADER_KEY, System.currentTimeMillis().toString())
                 connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
 
