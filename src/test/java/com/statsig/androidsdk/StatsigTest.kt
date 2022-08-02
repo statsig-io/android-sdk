@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.unmockkAll
@@ -24,13 +25,15 @@ class StatsigTest {
     private var initUser: StatsigUser? = null
     private var client: StatsigClient = StatsigClient()
     private lateinit var network: StatsigNetwork
+    private lateinit var testSharedPrefs: TestSharedPreferences
+    private val gson = Gson()
 
     @Before
     internal fun setup() {
         TestUtil.overrideMainDispatcher()
 
         app = mockk()
-        TestUtil.stubAppFunctions(app)
+        testSharedPrefs = TestUtil.stubAppFunctions(app)
 
         TestUtil.mockStatsigUtil()
 

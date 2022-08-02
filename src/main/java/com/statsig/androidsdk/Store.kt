@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.content.SharedPreferences
+import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
@@ -20,6 +21,7 @@ private data class DeprecatedStickyUserExperiments(
     @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>,
 )
 
+@VisibleForTesting
 private data class Cache(
     @SerializedName("values") var values: InitializeResponse,
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments,

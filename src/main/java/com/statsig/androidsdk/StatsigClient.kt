@@ -76,9 +76,7 @@ internal class StatsigClient() {
         options: StatsigOptions = StatsigOptions(),
     ) {
         setup(application, sdkKey, user, options)
-        statsigScope.launch {
-            setupAsync()
-        }
+        setupAsync()
     }
 
     private suspend fun setupAsync() {

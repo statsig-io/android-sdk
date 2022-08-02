@@ -12,6 +12,8 @@ import kotlinx.coroutines.test.setMain
 import org.junit.Assert
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import android.content.Context
+import java.io.IOException
 
 class TestUtil {
     companion object {
@@ -194,6 +196,15 @@ class TestUtil {
           countdown.await(1L, TimeUnit.SECONDS)
         }
 
+        @JvmName("startStatsigAndDontWait")
+        internal fun startStatsigAndDontWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
+            Statsig.client = StatsigClient()
+            if (network != null) {
+                Statsig.client.statsigNetwork = network
+            }
+            Statsig.initialize(app, "client-apikey", user, options)
+        }
+
         fun getMockApp(): Application {
           return mockk()
         }
@@ -239,15 +250,12 @@ class TestUtil {
         internal fun mockNetwork(featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
                                  dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
                                  layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
-                                 captureUser: ((StatsigUser) -> Unit)? = null ): StatsigNetwork {
+                                 captureUser: ((StatsigUser) -> Unit)? = null): StatsigNetwork {
             val statsigNetwork = mockk<StatsigNetwork>()
 
             coEvery {
                 statsigNetwork.apiRetryFailedLogs(any(), any())
             } returns Unit
-            coEvery {
-                statsigNetwork.apiPostLogs(any(), any(), any())
-            }
 
             coEvery {
                 statsigNetwork.initialize(any(), any(), any(), any(), any(), any())
@@ -258,9 +266,7 @@ class TestUtil {
 
             coEvery {
                 statsigNetwork.apiPostLogs(any(), any(), any())
-            } answers {
-
-            }
+            } answers {}
 
             return statsigNetwork
         }
