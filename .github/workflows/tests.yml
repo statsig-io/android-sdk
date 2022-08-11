@@ -6,6 +6,7 @@ on:
     paths:
       - src/**
       - .github/workflows/tests.yml
+      - consumer-rules.pro
   pull_request:
     branches: [main]
     paths:
