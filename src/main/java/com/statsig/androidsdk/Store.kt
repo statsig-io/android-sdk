@@ -45,8 +45,8 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
         currentUserCacheKey = user.getCacheKey()
 
         if (cachedResponse != null) {
-            val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
             try {
+                val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
                 cacheById = gson.fromJson(cachedResponse, type) ?: cacheById
             } catch (_: Exception) {
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
@@ -55,8 +55,8 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
 
         stickyDeviceExperiments = mutableMapOf()
         if (cachedDeviceValues != null) {
-            val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
             try {
+                val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
                 stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
             } catch (_: Exception) {
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
