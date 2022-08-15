@@ -17,6 +17,8 @@ class LayerConfigTest {
   private lateinit var sharedPrefs: TestSharedPreferences
   private var client: StatsigClient = StatsigClient()
   private lateinit var layer: Layer
+  private val nullUserCacheKey = StatsigUser("")
+    .getCacheKey()
 
   @Before
   internal fun setup() = runBlocking {
@@ -51,7 +53,8 @@ class LayerConfigTest {
 
   @Test
   fun testDummy() {
-    val dummyConfig = Layer(client, "", mapOf(), "", EvaluationDetails(EvaluationReason.Unrecognized))
+    val dummyConfig =
+      Layer(client, "", mapOf(), "", EvaluationDetails(EvaluationReason.Unrecognized))
     assertEquals("provided default", dummyConfig.getString("test", "provided default"))
     assertEquals(true, dummyConfig.getBoolean("test", true))
     assertEquals(12, dummyConfig.getInt("test", 12))
@@ -139,17 +142,20 @@ class LayerConfigTest {
     assertEquals("test", config.getString("string", "ERR"))
 
     client.getStore().save(
-      TestUtil.makeInitializeResponse(layerConfigs = mapOf(
-        "allocated_layer!" to APIDynamicConfig(
-          "allocated_layer!",
-          mapOf(
-            "string" to "default_string",
+      TestUtil.makeInitializeResponse(
+        layerConfigs = mapOf(
+          "allocated_layer!" to APIDynamicConfig(
+            "allocated_layer!",
+            mapOf(
+              "string" to "default_string",
+            ),
+            "default",
+            isExperimentActive = true,
+            isUserInExperiment = true,
           ),
-          "default",
-          isExperimentActive = true,
-          isUserInExperiment = true,
-        ),
-      )))
+        )
+      ), nullUserCacheKey
+    )
 
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
@@ -162,17 +168,20 @@ class LayerConfigTest {
     assertEquals("test", config.getString("string", "ERR"))
 
     client.getStore().save(
-      TestUtil.makeInitializeResponse(layerConfigs = mapOf(
-        "allocated_layer!" to APIDynamicConfig(
-          "allocated_layer!",
-          mapOf(
-            "string" to "default_string",
+      TestUtil.makeInitializeResponse(
+        layerConfigs = mapOf(
+          "allocated_layer!" to APIDynamicConfig(
+            "allocated_layer!",
+            mapOf(
+              "string" to "default_string",
+            ),
+            "default",
+            isExperimentActive = true,
+            isUserInExperiment = true,
           ),
-          "default",
-          isExperimentActive = true,
-          isUserInExperiment = true,
-        ),
-      )))
+        )
+      ), nullUserCacheKey
+    )
 
     initClient()
 
@@ -185,25 +194,28 @@ class LayerConfigTest {
     var config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals("test", config.getString("string", "ERR"))
 
-    val updatedLayerResponse = TestUtil.makeInitializeResponse(layerConfigs = mapOf(
-      "allocated_layer!" to APIDynamicConfig(
-        "allocated_layer!",
-        mapOf(
-          "string" to "default_string",
+    val updatedLayerResponse = TestUtil.makeInitializeResponse(
+      layerConfigs = mapOf(
+        "allocated_layer!" to APIDynamicConfig(
+          "allocated_layer!",
+          mapOf(
+            "string" to "default_string",
+          ),
+          "default",
+          isExperimentActive = true,
+          isUserInExperiment = false,
+          allocatedExperimentName = "different_exp!"
         ),
-        "default",
-        isExperimentActive = true,
-        isUserInExperiment = false,
-        allocatedExperimentName = "different_exp!"
-      ),
-    ))
+      )
+    )
 
-    client.getStore().save(updatedLayerResponse)
+    client.getStore().save(updatedLayerResponse, nullUserCacheKey)
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals(
       "Layer allocation changed, but should still get original sticky value",
-      "test", config.getString("string", "ERR"))
+      "test", config.getString("string", "ERR")
+    )
 
     client.getStore().save(
       TestUtil.makeInitializeResponse(
@@ -218,12 +230,14 @@ class LayerConfigTest {
           ),
         ),
         layerConfigs = updatedLayerResponse.layerConfigs!!
-      )
+      ), nullUserCacheKey
     )
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
-    assertEquals("The original sticky Experiment is no longer active, should return updated Layer value",
-      "default_string", config.getString("string", "ERR"))
+    assertEquals(
+      "The original sticky Experiment is no longer active, should return updated Layer value",
+      "default_string", config.getString("string", "ERR")
+    )
   }
 
   @Test
@@ -231,25 +245,28 @@ class LayerConfigTest {
     var config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals("test", config.getString("string", "ERR"))
 
-    val response = TestUtil.makeInitializeResponse(layerConfigs = mapOf(
-      "allocated_layer!" to APIDynamicConfig(
-        "allocated_layer!",
-        mapOf(
-          "string" to "default_string",
+    val response = TestUtil.makeInitializeResponse(
+      layerConfigs = mapOf(
+        "allocated_layer!" to APIDynamicConfig(
+          "allocated_layer!",
+          mapOf(
+            "string" to "default_string",
+          ),
+          "default",
+          isExperimentActive = true,
+          isUserInExperiment = true,
+          allocatedExperimentName = "completely_different_exp"
         ),
-        "default",
-        isExperimentActive = true,
-        isUserInExperiment = true,
-        allocatedExperimentName = "completely_different_exp"
-      ),
-    ))
+      )
+    )
 
-    client.getStore().save(response)
+    client.getStore().save(response, nullUserCacheKey)
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals(
       "Should still return the original sticky value because the original experiment is still active",
-      "test", config.getString("string", "ERR"))
+      "test", config.getString("string", "ERR")
+    )
 
     (response.configs as MutableMap)["layer_exp!"] = APIDynamicConfig(
       "layer_exp!",
@@ -259,12 +276,13 @@ class LayerConfigTest {
       isExperimentActive = false,
       isUserInExperiment = true,
     )
-    client.getStore().save(response)
+    client.getStore().save(response, nullUserCacheKey)
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals(
       "Should get updated value because the original experiment is no longer active",
-      "default_string", config.getString("string", "ERR"))
+      "default_string", config.getString("string", "ERR")
+    )
   }
 
   @Test
@@ -273,17 +291,20 @@ class LayerConfigTest {
     assertEquals("test", config.getString("string", "ERR"))
 
     client.getStore().save(
-      TestUtil.makeInitializeResponse(layerConfigs = mapOf(
-        "allocated_layer!" to APIDynamicConfig(
-          "allocated_layer!",
-          mapOf(
-            "string" to "default_string"
+      TestUtil.makeInitializeResponse(
+        layerConfigs = mapOf(
+          "allocated_layer!" to APIDynamicConfig(
+            "allocated_layer!",
+            mapOf(
+              "string" to "default_string"
+            ),
+            "default",
+            isExperimentActive = true,
+            isUserInExperiment = true,
           ),
-          "default",
-          isExperimentActive = true,
-          isUserInExperiment = true,
-        ),
-      )))
+        )
+      ), nullUserCacheKey
+    )
 
     config = client.getLayer("allocated_layer")
     assertEquals("default_string", config.getString("string", "ERR"))

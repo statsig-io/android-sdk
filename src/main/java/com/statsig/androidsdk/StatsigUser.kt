@@ -2,6 +2,8 @@ package com.statsig.androidsdk
 
 import com.google.gson.annotations.SerializedName
 
+private const val STATSIG_NULL_USER: String = "Statsig.NULL_USER"
+
 /**
  * An object of properties relating to the current user
  * Provide as many as possible to take advantage of advanced conditions in the Statsig console
@@ -82,5 +84,16 @@ data class StatsigUser(
         userCopy.privateAttributes = null
 
         return userCopy
+    }
+
+    internal  fun getCacheKey(): String {
+        var id = userID ?: STATSIG_NULL_USER
+        val customIds = customIDs ?: return id
+
+        for ((k, v) in customIds) {
+            id = "$id$k:$v"
+        }
+
+        return id
     }
 }

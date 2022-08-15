@@ -12,8 +12,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.Assert
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import android.content.Context
-import java.io.IOException
 
 class TestUtil {
     companion object {

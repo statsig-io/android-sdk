@@ -10,7 +10,6 @@ private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
 private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
 private const val STICKY_DEVICE_EXPERIMENTS_KEY: String = "Statsig.STICKY_DEVICE_EXPERIMENTS"
 private const val LOCAL_OVERRIDES_KEY: String = "Statsig.LOCAL_OVERRIDES"
-private const val STATSIG_NULL_USER: String = "Statsig.NULL_USER"
 
 private data class StickyUserExperiments(
     @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>,
@@ -28,8 +27,9 @@ private data class Cache(
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
 )
 
-internal class Store (private var userID: String?, private var customIDs: Map<String, String>?, private val sharedPrefs: SharedPreferences) {
+internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigUser) {
     private val gson = Gson()
+    private var currentUserCacheKey: String
     private var cacheById: MutableMap<String, Cache>
     private var currentCache: Cache
     private var stickyDeviceExperiments: MutableMap<String, APIDynamicConfig>
@@ -42,6 +42,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         val cachedLocalOverrides = StatsigUtil.getFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
 
         cacheById = mutableMapOf()
+        currentUserCacheKey = user.getCacheKey()
 
         if (cachedResponse != null) {
             val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
@@ -72,18 +73,17 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         }
         reason = EvaluationReason.Uninitialized
         currentCache = loadCacheForCurrentUser()
-        attemptToMigrateDeprecatedStickyUserExperiments()
+        attemptToMigrateDeprecatedStickyUserExperiments(user)
     }
 
-    fun loadAndResetForUser(newUserID: String?, newCustomIDs: Map<String, String>?) {
+    fun loadAndResetForUser(user: StatsigUser) {
         reason = EvaluationReason.Uninitialized
-        userID = newUserID
-        customIDs = newCustomIDs
+        currentUserCacheKey = user.getCacheKey()
         currentCache = loadCacheForCurrentUser()
     }
 
     private fun loadCacheForCurrentUser(): Cache {
-        val cachedValues = cacheById[getUserStorageID()]
+        val cachedValues = cacheById[currentUserCacheKey]
         return if (cachedValues != null) {
             reason = EvaluationReason.Cache
             cachedValues
@@ -92,19 +92,23 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         }
     }
 
-    fun save(data: InitializeResponse) {
-        val storageID = getUserStorageID()
-        currentCache.values = data
-        currentCache.evaluationTime = System.currentTimeMillis()
-        cacheById[storageID] = currentCache
-        reason = EvaluationReason.Network
+    fun save(data: InitializeResponse, cacheKey: String) {
+        val cache = cacheById[cacheKey] ?: createEmptyCache()
+        cache.values = data
+        cache.evaluationTime = System.currentTimeMillis()
+        cacheById[cacheKey] = cache
+
+        if (cacheKey == currentUserCacheKey) {
+            currentCache = cache
+            reason = EvaluationReason.Network
+        }
 
         var cacheString = gson.toJson(cacheById)
 
         // Drop out other users if the cache is getting too big
         if ((cacheString.length / 1024) > 1024/*1 MB*/ && cacheById.size > 1) {
             cacheById = mutableMapOf()
-            cacheById[storageID] = currentCache
+            cacheById[currentUserCacheKey] = currentCache
             cacheString = gson.toJson(cacheById)
         }
 
@@ -327,7 +331,7 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments))
     }
 
-    private fun attemptToMigrateDeprecatedStickyUserExperiments() {
+    private fun attemptToMigrateDeprecatedStickyUserExperiments(user: StatsigUser) {
         val oldStickyUserExperimentValues =
             StatsigUtil.getFromSharedPrefs(sharedPrefs, DEPRECATED_STICKY_USER_EXPERIMENTS_KEY)
                 ?: return
@@ -335,24 +339,14 @@ internal class Store (private var userID: String?, private var customIDs: Map<St
 
         try {
             val stickyUserExperiments = gson.fromJson(oldStickyUserExperimentValues, DeprecatedStickyUserExperiments::class.java)
-            if (stickyUserExperiments.userID != userID || currentCache.stickyUserExperiments.experiments.isNotEmpty()) {
+            if (stickyUserExperiments.userID != user.userID || currentCache.stickyUserExperiments.experiments.isNotEmpty()) {
                 return
             }
 
             currentCache.stickyUserExperiments = StickyUserExperiments(stickyUserExperiments.experiments)
+            cacheById[currentUserCacheKey] = currentCache
         }
         // no ops, since we've already removed the bad value
         catch (_: Exception) {}
-    }
-
-    private fun getUserStorageID(): String {
-        var id = userID ?: STATSIG_NULL_USER
-        val customIds = customIDs ?: return id
-
-        for ((k, v) in customIds) {
-            id = "$id$k:$v"
-        }
-
-        return id
     }
 }

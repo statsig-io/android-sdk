@@ -81,6 +81,7 @@ internal class StatsigClient() {
 
     private suspend fun setupAsync() {
         withContext(Dispatchers.Main.immediate) {
+            val cacheKey = this@StatsigClient.user.getCacheKey()
             val initResponse = statsigNetwork.initialize(
                 this@StatsigClient.options.api,
                 this@StatsigClient.sdkKey,
@@ -91,7 +92,7 @@ internal class StatsigClient() {
             )
 
             if (initResponse != null) {
-                this@StatsigClient.store.save(initResponse)
+                this@StatsigClient.store.save(initResponse, cacheKey)
             }
 
             this@StatsigClient.pollForUpdates()
@@ -128,7 +129,7 @@ internal class StatsigClient() {
             statsigMetadata,
             statsigNetwork
         )
-        store = Store(this.user.userID, this.user.customIDs, getSharedPrefs())
+        store = Store(getSharedPrefs(), this.user)
     }
 
     /**
@@ -313,8 +314,9 @@ internal class StatsigClient() {
         logger.onUpdateUser()
         pollingJob?.cancel()
         this.user = normalizeUser(user)
-        store.loadAndResetForUser(this.user.userID, this.user.customIDs)
+        store.loadAndResetForUser(this.user)
 
+        val cacheKey = this.user.getCacheKey()
         val initResponse = statsigNetwork.initialize(
             options.api,
             sdkKey,
@@ -324,7 +326,7 @@ internal class StatsigClient() {
             getSharedPrefs(),
         )
         if (initResponse != null) {
-            store.save(initResponse)
+            store.save(initResponse, cacheKey)
         }
         pollForUpdates()
     }
@@ -391,6 +393,7 @@ internal class StatsigClient() {
             return
         }
         pollingJob?.cancel()
+        val cacheKey = user.getCacheKey()
         pollingJob = statsigNetwork.pollForChanges(
             options.api,
             sdkKey,
@@ -398,7 +401,7 @@ internal class StatsigClient() {
             statsigMetadata
         ).onEach {
             if (it?.hasUpdates == true) {
-                store.save(it)
+                store.save(it, cacheKey)
             }
         }.launchIn(statsigScope)
     }
