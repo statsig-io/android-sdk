@@ -38,7 +38,7 @@ jobs:
       - name: Setup Android Server
         run: |
           cd kong/bridges/android-server
-          ./pull-and-build-sdk.sh $GITHUB_REPOSITORY $GITHUB_BASE_REF
+          ./pull-and-build-sdk.sh $GITHUB_REPOSITORY $GITHUB_HEAD_REF
           ./build.sh
         env:
           repo_pat: ${{ secrets.KONG_REPO_PAT }}
