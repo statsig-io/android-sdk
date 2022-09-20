@@ -17,7 +17,7 @@ class LayerConfigTest {
   private lateinit var sharedPrefs: TestSharedPreferences
   private var client: StatsigClient = StatsigClient()
   private lateinit var layer: Layer
-  private val nullUserCacheKey = StatsigUser("")
+  private val nullUserCacheKey = StatsigUser(null)
     .getCacheKey()
 
   @Before

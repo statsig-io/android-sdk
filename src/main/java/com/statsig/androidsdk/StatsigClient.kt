@@ -380,7 +380,7 @@ internal class StatsigClient() {
     }
 
     private fun normalizeUser(user: StatsigUser?): StatsigUser {
-        var normalizedUser = StatsigUser("")
+        var normalizedUser = StatsigUser(null)
         if (user != null) {
             normalizedUser = user.getCopyForEvaluation()
         }
