@@ -79,10 +79,12 @@ class StatsigTest {
             Gson().toJson(mapOf("random_id" to "abcde"))
         )
         assertTrue(client.checkGate("always_on"))
+        assertTrue(client.checkGate("always_on", logImpression = false))
         assertFalse(client.checkGate("always_off"))
         assertFalse(client.checkGate("not_a_valid_gate_name"))
 
         val config = client.getConfig("test_config")
+        client.getConfig("test_config", logImpression = false)
         assertEquals("test", config.getString("string", "fallback"))
         assertEquals("test_config", config.getName())
         assertEquals(42, config.getInt("number", 0))
@@ -97,6 +99,7 @@ class StatsigTest {
         assertEquals("not_a_valid_config", invalidConfig.getName())
 
         val exp = client.getExperiment("exp")
+        client.getExperiment("exp", logImpression = false)
         assertEquals("exp", exp.getName())
         assertEquals(42, exp.getInt("number", 0))
 

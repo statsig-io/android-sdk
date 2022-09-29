@@ -139,11 +139,13 @@ internal class StatsigClient() {
      * @return the value of the gate for the initialized user, or false if not found
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun checkGate(gateName: String): Boolean {
+    fun checkGate(gateName: String, logImpression: Boolean = true): Boolean {
         enforceInitialized("checkGate")
         val res = store.checkGate(gateName)
-        statsigScope.launch {
-            logger.logGateExposure(gateName, res.value, res.ruleID, res.secondaryExposures, user, res.details)
+        if (logImpression) {
+            statsigScope.launch {
+                logger.logGateExposure(gateName, res.value, res.ruleID, res.secondaryExposures, user, res.details)
+            }
         }
         return res.value
     }
@@ -155,12 +157,14 @@ internal class StatsigClient() {
      * @return the Dynamic Config the initialized user
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun getConfig(configName: String): DynamicConfig {
+    fun getConfig(configName: String, logImpression: Boolean = true): DynamicConfig {
         enforceInitialized("getConfig")
         val res = store.getConfig(configName)
-        statsigScope.launch {
-            logger.logConfigExposure(configName, res.getRuleID(), res.getSecondaryExposures(), user,
-                res.getEvaluationDetails())
+        if (logImpression) {
+            statsigScope.launch {
+                logger.logConfigExposure(configName, res.getRuleID(), res.getSecondaryExposures(), user,
+                    res.getEvaluationDetails())
+            }
         }
         return res
     }
@@ -173,12 +177,14 @@ internal class StatsigClient() {
      * @return the Dynamic Config backing the experiment
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
+    fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false, logImpression: Boolean = true): DynamicConfig {
         enforceInitialized("getExperiment")
         val res = store.getExperiment(experimentName, keepDeviceValue)
-        statsigScope.launch {
-            logger.logConfigExposure(experimentName, res.getRuleID(), res.getSecondaryExposures(), user,
-                res.getEvaluationDetails())
+        if (logImpression) {
+            statsigScope.launch {
+                logger.logConfigExposure(experimentName, res.getRuleID(), res.getSecondaryExposures(), user,
+                    res.getEvaluationDetails())
+            }
         }
         return res
     }

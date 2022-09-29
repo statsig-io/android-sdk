@@ -93,11 +93,12 @@ object Statsig {
    * @throws IllegalStateException if the SDK has not been initialized
    */
   @JvmStatic
-  fun checkGate(gateName: String): Boolean {
+  @JvmOverloads
+  fun checkGate(gateName: String, logImpression: Boolean = true): Boolean {
     enforceInitialized("checkGate")
     var result = false
     errorBoundary.capture({
-      result = client.checkGate(gateName)
+      result = client.checkGate(gateName, logImpression)
     })
     return result
   }
@@ -110,11 +111,12 @@ object Statsig {
    * @throws IllegalStateException if the SDK has not been initialized
    */
   @JvmStatic
-  fun getConfig(configName: String): DynamicConfig {
+  @JvmOverloads
+  fun getConfig(configName: String, logImpression: Boolean = true): DynamicConfig {
     enforceInitialized("getConfig")
     var result: DynamicConfig? = null
     errorBoundary.capture({
-      result = client.getConfig(configName)
+      result = client.getConfig(configName, logImpression)
     })
     return result ?: DynamicConfig.getUninitialized(configName)
   }
@@ -129,11 +131,11 @@ object Statsig {
    */
   @JvmOverloads
   @JvmStatic
-  fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
+  fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false, logImpression: Boolean = true): DynamicConfig {
     enforceInitialized("getExperiment")
     var result: DynamicConfig? = null
     errorBoundary.capture({
-      result = client.getExperiment(experimentName, keepDeviceValue)
+      result = client.getExperiment(experimentName, keepDeviceValue, logImpression)
     })
     return result ?: DynamicConfig.getUninitialized(experimentName)
   }
