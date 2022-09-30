@@ -103,6 +103,23 @@ object Statsig {
   }
 
   /**
+   * Check the value of a Feature Gate configured in the Statsig console for the initialized
+   * user, but do not log an exposure
+   * @param gateName the name of the feature gate to check
+   * @return the value of the gate for the initialized user, or false if not found
+   * @throws IllegalStateException if the SDK has not been initialized
+   */
+  @JvmStatic
+  fun checkGateWithExposureLoggingDisabled(gateName: String): Boolean {
+    enforceInitialized("checkGateWithExposureLoggingDisabled")
+    var result = false
+    errorBoundary.capture({
+      result = client.checkGateWithExposureLoggingDisabled(gateName)
+    })
+    return result
+  }
+
+  /**
    * Check the value of a Dynamic Config configured in the Statsig console for the initialized
    * user
    * @param configName the name of the Dynamic Config to check
@@ -115,6 +132,23 @@ object Statsig {
     var result: DynamicConfig? = null
     errorBoundary.capture({
       result = client.getConfig(configName)
+    })
+    return result ?: DynamicConfig.getUninitialized(configName)
+  }
+
+  /**
+   * Check the value of a Dynamic Config configured in the Statsig console for the initialized
+   * user, but do not log an exposure
+   * @param configName the name of the Dynamic Config to check
+   * @return the Dynamic Config the initialized user
+   * @throws IllegalStateException if the SDK has not been initialized
+   */
+  @JvmStatic
+  fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig {
+    enforceInitialized("getConfigWithExposureLoggingDisabled")
+    var result: DynamicConfig? = null
+    errorBoundary.capture({
+      result = client.getConfigWithExposureLoggingDisabled(configName)
     })
     return result ?: DynamicConfig.getUninitialized(configName)
   }
@@ -139,6 +173,25 @@ object Statsig {
   }
 
   /**
+   * Check the value of an Experiment configured in the Statsig console for the initialized
+   * user, but do not log an exposure
+   * @param experimentName the name of the Experiment to check
+   * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of the experiment
+   * @return the Dynamic Config backing the experiment
+   * @throws IllegalStateException if the SDK has not been initialized
+   */
+  @JvmOverloads
+  @JvmStatic
+  fun getExperimentWithExposureLoggingDisabled(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
+    enforceInitialized("getExperimentWithExposureLoggingDisabled")
+    var result: DynamicConfig? = null
+    errorBoundary.capture({
+      result = client.getExperimentWithExposureLoggingDisabled(experimentName, keepDeviceValue)
+    })
+    return result ?: DynamicConfig.getUninitialized(experimentName)
+  }
+
+  /**
    * Check the value of a Layer configured in the Statsig console for the initialized
    * user
    * @param layerName the name of the Layer to check
@@ -153,6 +206,25 @@ object Statsig {
     var result: Layer? = null
     errorBoundary.capture({
       result = client.getLayer(layerName, keepDeviceValue)
+    })
+    return result ?: Layer.getUninitialized(layerName)
+  }
+
+   /**
+   * Check the value of a Layer configured in the Statsig console for the initialized
+   * user, but never log exposures from this Layer
+   * @param layerName the name of the Layer to check
+   * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of any active experiments
+   * @return the current layer values as a Layer object
+   * @throws IllegalStateException if the SDK has not been initialized
+   */
+  @JvmOverloads
+  @JvmStatic
+  fun getLayerWithExposureLoggingDisabled(layerName: String, keepDeviceValue: Boolean = false): Layer {
+    enforceInitialized("getLayerWithExposureLoggingDisabled")
+    var result: Layer? = null
+    errorBoundary.capture({
+      result = client.getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue)
     })
     return result ?: Layer.getUninitialized(layerName)
   }

@@ -75,6 +75,13 @@ class TestUtil {
                     "always_on_rule_id",
                     arrayOf()
                 ),
+            "always_on_v2!" to
+                    APIFeatureGate(
+                        "always_off!",
+                        true,
+                        "always_on_v2_rule_id",
+                        arrayOf()
+                    ),
         )
 
         private val dummyDynamicConfigs = mapOf(

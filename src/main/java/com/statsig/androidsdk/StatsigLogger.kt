@@ -69,45 +69,44 @@ internal class StatsigLogger(
         }
     }
 
-    suspend fun logGateExposure(gateName: String, gateValue: Boolean, ruleID: String,
-                                secondaryExposures: Array<Map<String, String>>, user: StatsigUser?, details: EvaluationDetails) {
-        val dedupeKey = gateName + gateValue + ruleID + details.reason.toString()
-        if (shouldLogExposure(dedupeKey)) {
-            withContext(singleThreadDispatcher) {
-                var event = LogEvent(GATE_EXPOSURE)
-                event.user = user
-                event.metadata =
-                    mapOf(
-                        "gate" to gateName,
-                        "gateValue" to gateValue.toString(),
-                        "ruleID" to ruleID,
-                        "reason" to details.reason.toString(),
-                        "time" to details.time.toString()
-                    )
-                event.secondaryExposures = secondaryExposures
-                log(event)
-            }
+    suspend fun logExposure(name: String, gate: FeatureGate, user: StatsigUser) {
+        val dedupeKey = name + gate.value + gate.ruleID + gate.details.reason.toString()
+        if (!shouldLogExposure(dedupeKey)) {
+            return
+        }
+        withContext(singleThreadDispatcher) {
+            var event = LogEvent(GATE_EXPOSURE)
+            event.user = user
+            event.metadata =
+                mapOf(
+                    "gate" to name,
+                    "gateValue" to gate.value.toString(),
+                    "ruleID" to gate.ruleID,
+                    "reason" to gate.details.reason.toString(),
+                    "time" to gate.details.time.toString()
+                )
+            event.secondaryExposures = gate.secondaryExposures
+            log(event)
         }
     }
 
-    suspend fun logConfigExposure(configName: String, ruleID: String, secondaryExposures: Array<Map<String, String>>,
-                                  user: StatsigUser?, details: EvaluationDetails) {
-        val dedupeKey = configName + ruleID + details.reason.toString()
-
-        if (shouldLogExposure(dedupeKey)) {
-            withContext(singleThreadDispatcher) {
-                var event = LogEvent(CONFIG_EXPOSURE)
-                event.user = user
-                event.metadata =
-                    mutableMapOf(
-                        "config" to configName,
-                        "ruleID" to ruleID,
-                        "reason" to details.reason.toString(),
-                        "time" to details.time.toString()
-                    )
-                event.secondaryExposures = secondaryExposures
-                log(event)
-            }
+    suspend fun logExposure(name: String, config: DynamicConfig, user: StatsigUser) {
+        val dedupeKey = name + config.getRuleID() + config.getEvaluationDetails().reason.toString()
+        if (!shouldLogExposure(dedupeKey)) {
+            return
+        }
+        withContext(singleThreadDispatcher) {
+            var event = LogEvent(CONFIG_EXPOSURE)
+            event.user = user
+            event.metadata =
+                mutableMapOf(
+                    "config" to name,
+                    "ruleID" to config.getRuleID(),
+                    "reason" to config.getEvaluationDetails().reason.toString(),
+                    "time" to config.getEvaluationDetails().time.toString()
+                )
+            event.secondaryExposures = config.getSecondaryExposures()
+            log(event)
         }
     }
 

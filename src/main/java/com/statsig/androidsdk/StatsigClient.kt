@@ -140,12 +140,14 @@ internal class StatsigClient() {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     fun checkGate(gateName: String): Boolean {
-        enforceInitialized("checkGate")
-        val res = store.checkGate(gateName)
-        statsigScope.launch {
-            logger.logGateExposure(gateName, res.value, res.ruleID, res.secondaryExposures, user, res.details)
-        }
-        return res.value
+        val gate = store.checkGate(gateName)
+        logExposure(gateName, gate)
+        return gate.value
+    }
+
+    fun checkGateWithExposureLoggingDisabled(gateName: String): Boolean {
+        enforceInitialized("checkGateWithExposureLoggingDisabled")
+        return store.checkGate(gateName).value
     }
 
     /**
@@ -158,11 +160,13 @@ internal class StatsigClient() {
     fun getConfig(configName: String): DynamicConfig {
         enforceInitialized("getConfig")
         val res = store.getConfig(configName)
-        statsigScope.launch {
-            logger.logConfigExposure(configName, res.getRuleID(), res.getSecondaryExposures(), user,
-                res.getEvaluationDetails())
-        }
+        logExposure(configName, res)
         return res
+    }
+
+    fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig {
+        enforceInitialized("getConfigWithExposureLoggingDisabled")
+        return store.getConfig(configName)
     }
 
     /**
@@ -176,11 +180,13 @@ internal class StatsigClient() {
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         enforceInitialized("getExperiment")
         val res = store.getExperiment(experimentName, keepDeviceValue)
-        statsigScope.launch {
-            logger.logConfigExposure(experimentName, res.getRuleID(), res.getSecondaryExposures(), user,
-                res.getEvaluationDetails())
-        }
+        logExposure(experimentName, res)
         return res
+    }
+
+    fun getExperimentWithExposureLoggingDisabled(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
+        enforceInitialized("getExperimentWithExposureLoggingDisabled")
+        return store.getExperiment(experimentName, keepDeviceValue)
     }
 
     /**
@@ -194,6 +200,11 @@ internal class StatsigClient() {
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
         enforceInitialized("getLayer")
         return store.getLayer(this, layerName, keepDeviceValue)
+    }
+
+    fun getLayerWithExposureLoggingDisabled(layerName: String, keepDeviceValue: Boolean = false): Layer {
+        enforceInitialized("getLayer")
+        return store.getLayer(null, layerName, keepDeviceValue)
     }
 
     internal fun logLayerParameterExposure(layer: Layer, parameterName: String) {
@@ -358,6 +369,18 @@ internal class StatsigClient() {
 
     internal fun getStore(): Store {
         return store;
+    }
+
+    private fun logExposure(name: String, config: DynamicConfig) {
+        statsigScope.launch {
+            logger.logExposure(name, config, user)
+        }
+    }
+
+    private fun logExposure(name: String, gate: FeatureGate) {
+        statsigScope.launch {
+            logger.logExposure(name, gate, user)
+        }
     }
 
     private fun getLocalStorageStableID(): String {

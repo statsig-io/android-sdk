@@ -79,6 +79,8 @@ class StatsigTest {
             Gson().toJson(mapOf("random_id" to "abcde"))
         )
         assertTrue(client.checkGate("always_on"))
+        assertTrue(client.checkGateWithExposureLoggingDisabled("always_on_v2"))
+        assertFalse(client.checkGateWithExposureLoggingDisabled("a_different_gate"))
         assertFalse(client.checkGate("always_off"))
         assertFalse(client.checkGate("not_a_valid_gate_name"))
 
@@ -92,6 +94,9 @@ class StatsigTest {
         )
         assertEquals("default",config.getRuleID())
 
+        val configNoExposure = client.getConfigWithExposureLoggingDisabled("a_different_config")
+        assertEquals("fallback", configNoExposure.getString("string", "fallback"))
+
         val invalidConfig = client.getConfig("not_a_valid_config")
         assertEquals("", invalidConfig.getRuleID())
         assertEquals("not_a_valid_config", invalidConfig.getName())
@@ -99,7 +104,9 @@ class StatsigTest {
         val exp = client.getExperiment("exp")
         assertEquals("exp", exp.getName())
         assertEquals(42, exp.getInt("number", 0))
-
+        val expNoExposure = client.getExperimentWithExposureLoggingDisabled("exp_other")
+        assertEquals("exp_other", expNoExposure.getName())
+        assertEquals(0, expNoExposure.getInt("number", 0))
 
         client.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"));
         client.logEvent("test_event2", mapOf("key" to "value2"));

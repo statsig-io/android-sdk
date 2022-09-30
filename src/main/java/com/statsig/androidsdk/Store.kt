@@ -172,7 +172,7 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
         )
     }
 
-    fun getLayer(client: StatsigClient, layerName: String, keepDeviceValue: Boolean = false): Layer {
+    fun getLayer(client: StatsigClient?, layerName: String, keepDeviceValue: Boolean = false): Layer {
         val hashedLayerName = StatsigUtil.getHashedString(layerName)
         val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
         val details = getEvaluationDetails(latestValue != null)

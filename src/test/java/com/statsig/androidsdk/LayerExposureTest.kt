@@ -249,6 +249,29 @@ class LayerExposureTest {
     assertEquals("statsig::layer_exposure", logs.events[0].eventName)
   }
 
+  @Test
+  fun testDoesNotLogWithExposureLoggingDisabled() {
+    val user = StatsigUser(userID = "dloomb")
+    user.email = "daniel@loomb.net"
+
+    start(
+      mapOf(
+        "layer!" to APIDynamicConfig(
+          "layer!",
+          mapOf("an_int" to 99),
+          "default",
+        )
+      ),
+      user,
+    )
+
+    val layer = Statsig.getLayerWithExposureLoggingDisabled("layer")
+    layer.getInt("an_int", 0)
+    Statsig.shutdown()
+
+    assertNull(logs)
+  }
+
   private fun start(layers: Map<String, APIDynamicConfig>, user: StatsigUser= StatsigUser(userID = "jkw")) {
     val network = TestUtil.mockNetwork(
       layerConfigs = layers
