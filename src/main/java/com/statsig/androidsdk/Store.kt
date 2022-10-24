@@ -45,31 +45,31 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
         currentUserCacheKey = user.getCacheKey()
 
         if (cachedResponse != null) {
-            val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
-            try {
+            Statsig.errorBoundary.capture({
+                val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
                 cacheById = gson.fromJson(cachedResponse, type) ?: cacheById
-            } catch (_: Exception) {
+            }, {
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
-            }
+            })
         }
 
         stickyDeviceExperiments = mutableMapOf()
         if (cachedDeviceValues != null) {
-            val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
-            try {
+            Statsig.errorBoundary.capture({
+                val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
                 stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
-            } catch (_: Exception) {
+            }, {
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
-            }
+            })
         }
 
         localOverrides = StatsigOverrides(mutableMapOf(), mutableMapOf())
         if (cachedLocalOverrides != null) {
-            try {
+            Statsig.errorBoundary.capture({
                 localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
-            } catch (_: Exception) {
+            }, {
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
-            }
+            })
         }
         reason = EvaluationReason.Uninitialized
         currentCache = loadCacheForCurrentUser()

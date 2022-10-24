@@ -55,7 +55,9 @@ class StatsigCacheTest {
 
         testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById))
 
+        assertFalse(Statsig.isInitialized())
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
+        assertTrue(Statsig.isInitialized())
         client = Statsig.client
         assertTrue(client.checkGate("always_on"))
 

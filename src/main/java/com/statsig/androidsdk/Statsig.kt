@@ -398,6 +398,16 @@ object Statsig {
     return result ?: StatsigOverrides(mutableMapOf(), mutableMapOf())
   }
 
+  /**
+   * @return true if the SDK is initialized (usable), though the most up
+   * to date values will not be fetched from the network until async initialization
+   * is complete
+   */
+  @JvmStatic
+  fun isInitialized(): Boolean {
+    return client.isInitialized()
+  }
+
   private fun enforceInitialized(functionName: String) {
     client.enforceInitialized(functionName)
   }
