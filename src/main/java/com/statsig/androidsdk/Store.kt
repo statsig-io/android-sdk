@@ -63,7 +63,7 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
             }
         }
 
-        localOverrides = StatsigOverrides(mutableMapOf(), mutableMapOf())
+        localOverrides = StatsigOverrides.empty()
         if (cachedLocalOverrides != null) {
             try {
                 localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
@@ -173,6 +173,18 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
     }
 
     fun getLayer(client: StatsigClient?, layerName: String, keepDeviceValue: Boolean = false): Layer {
+        val overrideValue = localOverrides.layers[layerName]
+        if (overrideValue != null) {
+            return Layer(
+                null,
+                layerName,
+                overrideValue,
+                "override",
+                getEvaluationDetails(false, EvaluationReason.LocalOverride),
+            )
+        }
+
+
         val hashedLayerName = StatsigUtil.getHashedString(layerName)
         val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
         val details = getEvaluationDetails(latestValue != null)
@@ -261,21 +273,29 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
+
+    fun overrideLayer(layerName: String, value: Map<String, Any>) {
+        localOverrides.layers[layerName] = value
+        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
+    }
+
     fun removeOverride(name: String) {
         localOverrides.configs.remove(name)
         localOverrides.gates.remove(name)
+        localOverrides.layers.remove(name)
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
     fun removeAllOverrides() {
-        localOverrides = StatsigOverrides(mutableMapOf(), mutableMapOf())
+        localOverrides = StatsigOverrides.empty()
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
     fun getAllOverrides(): StatsigOverrides {
         return StatsigOverrides(
             localOverrides.gates,
-            localOverrides.configs
+            localOverrides.configs,
+            localOverrides.layers
         )
     }
 

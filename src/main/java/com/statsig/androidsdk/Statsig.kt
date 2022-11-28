@@ -182,7 +182,10 @@ object Statsig {
    */
   @JvmOverloads
   @JvmStatic
-  fun getExperimentWithExposureLoggingDisabled(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
+  fun getExperimentWithExposureLoggingDisabled(
+    experimentName: String,
+    keepDeviceValue: Boolean = false
+  ): DynamicConfig {
     enforceInitialized("getExperimentWithExposureLoggingDisabled")
     var result: DynamicConfig? = null
     errorBoundary.capture({
@@ -210,7 +213,7 @@ object Statsig {
     return result ?: Layer.getUninitialized(layerName)
   }
 
-   /**
+  /**
    * Check the value of a Layer configured in the Statsig console for the initialized
    * user, but never log exposures from this Layer
    * @param layerName the name of the Layer to check
@@ -220,7 +223,10 @@ object Statsig {
    */
   @JvmOverloads
   @JvmStatic
-  fun getLayerWithExposureLoggingDisabled(layerName: String, keepDeviceValue: Boolean = false): Layer {
+  fun getLayerWithExposureLoggingDisabled(
+    layerName: String,
+    keepDeviceValue: Boolean = false
+  ): Layer {
     enforceInitialized("getLayerWithExposureLoggingDisabled")
     var result: Layer? = null
     errorBoundary.capture({
@@ -367,6 +373,17 @@ object Statsig {
   }
 
   /**
+   * @param layerName the name of the layer you want to override
+   * @param value the resulting values to be returned in a Layer object when getLayer is called
+   */
+  @JvmStatic
+  fun overrideLayer(layerName: String, value: Map<String, Any>) {
+    errorBoundary.capture({
+      client.getStore().overrideLayer(layerName, value)
+    })
+  }
+
+  /**
    * @param name the name of the overridden gate, config or experiment you want to clear an override from
    */
   @JvmStatic
@@ -395,7 +412,7 @@ object Statsig {
     errorBoundary.capture({
       result = client.getStore().getAllOverrides()
     })
-    return result ?: StatsigOverrides(mutableMapOf(), mutableMapOf())
+    return result ?: StatsigOverrides.empty()
   }
 
   private fun enforceInitialized(functionName: String) {
