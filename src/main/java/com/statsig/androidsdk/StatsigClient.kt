@@ -148,6 +148,7 @@ internal class StatsigClient() {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     fun checkGate(gateName: String): Boolean {
+        enforceInitialized("checkGate")
         val gate = store.checkGate(gateName)
         logExposure(gateName, gate)
         return gate.value
@@ -222,7 +223,7 @@ internal class StatsigClient() {
         return layer
     }
 
-    internal fun logLayerParameterExposure(layer: Layer, parameterName: String) {
+    fun logLayerParameterExposure(layer: Layer, parameterName: String, isManual: Boolean = false) {
         if (!isInitialized()) {
             return;
         }
@@ -245,6 +246,7 @@ internal class StatsigClient() {
                 parameterName,
                 isExplicit,
                 layer.getEvaluationDetails(),
+                isManual
             )
         }
     }
@@ -420,25 +422,50 @@ internal class StatsigClient() {
         return statsigMetadata.stableID ?: statsigMetadata.stableID!!
     }
 
+
+    fun logManualGateExposure(gateName: String) {
+        enforceInitialized("logManualGateExposure")
+        val gate = store.checkGate(gateName)
+        logExposure(gateName, gate, isManual = true)
+    }
+
+    fun logManualConfigExposure(configName: String) {
+        enforceInitialized("logManualConfigExposure")
+        val config = store.getConfig(configName)
+        logExposure(configName, config, isManual = true)
+    }
+
+    fun logManualExperimentExposure(configName: String, keepDeviceValue: Boolean) {
+        enforceInitialized("logManualExperimentExposure")
+        val exp = store.getExperiment(configName, keepDeviceValue)
+        logExposure(configName, exp, isManual = true)
+    }
+
+    fun logManualLayerExposure(layerName: String, parameterName: String, keepDeviceValue: Boolean) {
+        enforceInitialized("logManualLayerExposure")
+        val layer = store.getLayer(null, layerName, keepDeviceValue)
+        logLayerParameterExposure(layer, parameterName, isManual = true)
+    }
+
     internal fun getStore(): Store {
         return store;
     }
 
-    private fun logExposure(name: String, config: DynamicConfig) {
+    private fun logExposure(name: String, config: DynamicConfig, isManual: Boolean = false) {
         statsigScope.launch {
-            logger.logExposure(name, config, user)
+            logger.logExposure(name, config, user, isManual)
+        }
+    }
+
+    private fun logExposure(name: String, gate: FeatureGate, isManual: Boolean = false) {
+        statsigScope.launch {
+            logger.logExposure(name, gate, user, isManual)
         }
     }
 
     private fun updateStickyValues() {
         statsigScope.launch {
             store.persistStickyValues()
-        }
-    }
-
-    private fun logExposure(name: String, gate: FeatureGate) {
-        statsigScope.launch {
-            logger.logExposure(name, gate, user)
         }
     }
 

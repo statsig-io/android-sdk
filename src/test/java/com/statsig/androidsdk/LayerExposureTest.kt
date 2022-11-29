@@ -247,6 +247,7 @@ class LayerExposureTest {
       Gson().toJson(logs.events[0].user)
     )
     assertEquals("statsig::layer_exposure", logs.events[0].eventName)
+    assertEquals(null, logs.events[0].metadata!!["isManualExposure"])
   }
 
   @Test
@@ -270,6 +271,38 @@ class LayerExposureTest {
     Statsig.shutdown()
 
     assertNull(logs)
+  }
+
+  @Test
+  fun testManualExposureLogging() {
+    val user = StatsigUser(userID = "dloomb")
+    user.email = "daniel@loomb.net"
+
+    start(
+      mapOf(
+        "layer!" to APIDynamicConfig(
+          "layer!",
+          mapOf("an_int" to 99),
+          "default",
+        )
+      ),
+      user,
+    )
+
+    val layer = Statsig.getLayerWithExposureLoggingDisabled("layer")
+    layer.getInt("an_int", 0)
+    Statsig.manuallyLogLayerParameterExposure("layer", "an_int")
+    Statsig.shutdown()
+
+    val logs = logs!!
+    assertEquals(1, logs.events.count())
+
+    assertEquals(
+      Gson().toJson(mapOf("userID" to "dloomb", "email" to "daniel@loomb.net")),
+      Gson().toJson(logs.events[0].user)
+    )
+    assertEquals("statsig::layer_exposure", logs.events[0].eventName)
+    assertEquals("true", logs.events[0].metadata!!["isManualExposure"])
   }
 
   private fun start(layers: Map<String, APIDynamicConfig>, user: StatsigUser= StatsigUser(userID = "jkw")) {

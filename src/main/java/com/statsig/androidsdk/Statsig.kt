@@ -236,6 +236,59 @@ object Statsig {
   }
 
   /**
+   * Log an exposure for a given gate
+   * @param gateName the name of the gate to log an exposure for
+   * @throws IllegalStateException if the SDK has not been initialized
+   */
+  @JvmStatic
+  fun manuallyLogGateExposure(gateName: String) {
+    enforceInitialized("manuallyLogGateExposure")
+    errorBoundary.capture({
+      client.logManualGateExposure(gateName)
+    })
+  }
+
+  /**
+   * Log an exposure for a given config
+   * @param configName the name of the config to log an exposure for
+   * @throws IllegalStateException if the SDK has not been initialized
+   */
+  @JvmStatic
+  fun manuallyLogConfigExposure(configName: String) {
+    enforceInitialized("manuallyLogConfigExposure")
+    errorBoundary.capture({
+      client.logManualConfigExposure(configName)
+    })
+  }
+
+  /**
+   * Log an exposure for a given experiment
+   * @param experimentName the name of the experiment to log an exposure for
+   * @throws IllegalStateException if the SDK has not been initialized
+   */
+  @JvmStatic
+  fun manuallyLogExperimentExposure(experimentName: String, keepDeviceValue: Boolean = false) {
+    enforceInitialized("manuallyLogExperimentExposure")
+    errorBoundary.capture({
+      client.logManualExperimentExposure(experimentName, keepDeviceValue)
+    })
+  }
+
+  /**
+   * Log an exposure for a given parameter in a given layer
+   * @param layerName the relevant layer
+   * @param parameterName the specific parameter
+   * @throws IllegalStateException if the SDK has not been initialized
+   */
+  @JvmStatic
+  fun manuallyLogLayerParameterExposure(layerName: String, parameterName: String, keepDeviceValue: Boolean = false) {
+    enforceInitialized("manuallyLogLayerParameterExposure")
+    errorBoundary.capture({
+      client.logManualLayerExposure(layerName, parameterName, keepDeviceValue)
+    })
+  }
+
+  /**
    * Log an event to Statsig for the current user
    * @param eventName the name of the event to track
    * @param value an optional value assocaited with the event, for aggregations/analysis

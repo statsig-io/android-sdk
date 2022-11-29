@@ -117,10 +117,15 @@ class StatsigTest {
         client.getConfig("test_config")
         client.getExperiment("exp")
 
+        client.logManualGateExposure("nonexistent_gate")
+        client.logManualExperimentExposure("nonexistent_exp", false)
+        client.logManualConfigExposure("nonexistent_config")
+        client.logManualLayerExposure("nonexistent_layer", "param", false)
+
         client.shutdown()
 
         val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
-        assertEquals(9, parsedLogs.events.count())
+        assertEquals(13, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
         assertEquals("custom_stable_id", client.getStableID())
@@ -134,6 +139,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[0].metadata!!["gateValue"], "true")
         assertEquals(parsedLogs.events[0].metadata!!["ruleID"], "always_on_rule_id")
         assertEquals(parsedLogs.events[0].metadata!!["reason"], "Network")
+        assertEquals(parsedLogs.events[0].metadata!!["isManualExposure"], null)
 
         var evalTime = parsedLogs.events[0].metadata!!["time"]!!.toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
@@ -163,6 +169,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[3].metadata!!["config"], "test_config")
         assertEquals(parsedLogs.events[3].metadata!!["ruleID"], "default")
         assertEquals(parsedLogs.events[3].metadata!!["reason"], "Network")
+        assertEquals(parsedLogs.events[3].metadata!!["isManualExposure"], null)
         evalTime = parsedLogs.events[3].metadata!!["time"]!!.toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(
@@ -183,6 +190,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[5].metadata!!["config"], "exp")
         assertEquals(parsedLogs.events[5].metadata!!["ruleID"], "exp_rule")
         assertEquals(parsedLogs.events[5].metadata!!["reason"], "Network")
+        assertEquals(parsedLogs.events[5].metadata!!["isManualExposure"], null)
         evalTime = parsedLogs.events[5].metadata!!["time"]!!.toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(parsedLogs.events[5].secondaryExposures?.count() ?: 1, 0)
@@ -211,6 +219,15 @@ class StatsigTest {
         assertEquals(parsedLogs.events[8].value, "1")
         assertNull(parsedLogs.events[8].metadata)
         assertNull(parsedLogs.events[8].secondaryExposures)
+
+        assertEquals(parsedLogs.events[9].eventName, "statsig::gate_exposure")
+        assertEquals(parsedLogs.events[9].metadata!!["isManualExposure"], "true")
+        assertEquals(parsedLogs.events[10].eventName, "statsig::config_exposure")
+        assertEquals(parsedLogs.events[10].metadata!!["isManualExposure"], "true")
+        assertEquals(parsedLogs.events[11].eventName, "statsig::config_exposure")
+        assertEquals(parsedLogs.events[11].metadata!!["isManualExposure"], "true")
+        assertEquals(parsedLogs.events[12].eventName, "statsig::layer_exposure")
+        assertEquals(parsedLogs.events[12].metadata!!["isManualExposure"], "true")
     }
 
     @Test

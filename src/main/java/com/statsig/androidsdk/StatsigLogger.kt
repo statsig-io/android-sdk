@@ -69,7 +69,7 @@ internal class StatsigLogger(
         }
     }
 
-    suspend fun logExposure(name: String, gate: FeatureGate, user: StatsigUser) {
+    suspend fun logExposure(name: String, gate: FeatureGate, user: StatsigUser, isManual: Boolean) {
         val dedupeKey = name + gate.value + gate.ruleID + gate.details.reason.toString()
         if (!shouldLogExposure(dedupeKey)) {
             return
@@ -77,20 +77,23 @@ internal class StatsigLogger(
         withContext(singleThreadDispatcher) {
             var event = LogEvent(GATE_EXPOSURE)
             event.user = user
-            event.metadata =
-                mapOf(
-                    "gate" to name,
-                    "gateValue" to gate.value.toString(),
-                    "ruleID" to gate.ruleID,
-                    "reason" to gate.details.reason.toString(),
-                    "time" to gate.details.time.toString()
-                )
+
+            val metadata = mutableMapOf(
+                "gate" to name,
+                "gateValue" to gate.value.toString(),
+                "ruleID" to gate.ruleID,
+                "reason" to gate.details.reason.toString(),
+                "time" to gate.details.time.toString()
+            )
+            addManualFlag(metadata, isManual)
+
+            event.metadata = metadata
             event.secondaryExposures = gate.secondaryExposures
             log(event)
         }
     }
 
-    suspend fun logExposure(name: String, config: DynamicConfig, user: StatsigUser) {
+    suspend fun logExposure(name: String, config: DynamicConfig, user: StatsigUser, isManual: Boolean) {
         val dedupeKey = name + config.getRuleID() + config.getEvaluationDetails().reason.toString()
         if (!shouldLogExposure(dedupeKey)) {
             return
@@ -98,14 +101,17 @@ internal class StatsigLogger(
         withContext(singleThreadDispatcher) {
             var event = LogEvent(CONFIG_EXPOSURE)
             event.user = user
-            event.metadata =
-                mutableMapOf(
-                    "config" to name,
-                    "ruleID" to config.getRuleID(),
-                    "reason" to config.getEvaluationDetails().reason.toString(),
-                    "time" to config.getEvaluationDetails().time.toString()
-                )
+            val metadata = mutableMapOf(
+                "config" to name,
+                "ruleID" to config.getRuleID(),
+                "reason" to config.getEvaluationDetails().reason.toString(),
+                "time" to config.getEvaluationDetails().time.toString()
+            )
+            addManualFlag(metadata, isManual)
+
+            event.metadata = metadata
             event.secondaryExposures = config.getSecondaryExposures()
+
             log(event)
         }
     }
@@ -118,7 +124,9 @@ internal class StatsigLogger(
         allocatedExperiment: String,
         parameterName: String,
         isExplicitParameter: Boolean,
-        details: EvaluationDetails) {
+        details: EvaluationDetails,
+        isManual: Boolean
+    ) {
         val metadata = mutableMapOf(
             "config" to configName,
             "ruleID" to ruleID,
@@ -126,8 +134,9 @@ internal class StatsigLogger(
             "parameterName" to parameterName,
             "isExplicitParameter" to isExplicitParameter.toString(),
             "reason" to details.reason.toString(),
-            "time" to details.time.toString()
+            "time" to details.time.toString(),
         )
+        addManualFlag(metadata, isManual)
 
         val dedupeKey = arrayOf(configName, ruleID, allocatedExperiment, parameterName, isExplicitParameter.toString(),
             details.reason.toString()).joinToString("|")
@@ -154,6 +163,13 @@ internal class StatsigLogger(
         }.onFailure {
             executor.shutdownNow()
         }
+    }
+
+    private fun addManualFlag(metadata: MutableMap<String, String>, isManual: Boolean): MutableMap<String, String> {
+        if (isManual) {
+            metadata["isManualExposure"] = "true"
+        }
+        return metadata
     }
 
     private fun shouldLogExposure(key: String): Boolean {
