@@ -35,7 +35,8 @@ internal class StatsigClient() {
 
     private var pollingJob: Job? = null
     private val statsigJob = SupervisorJob()
-    private val statsigScope = CoroutineScope(statsigJob + Dispatchers.Main)
+    private val dispatcherProvider = CoroutineDispatcherProvider()
+    private val statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main)
 
     @VisibleForTesting
     internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
@@ -47,11 +48,11 @@ internal class StatsigClient() {
         callback: IStatsigCallback? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        setup(application, sdkKey, user, options)
+        val user = setup(application, sdkKey, user, options)
         statsigScope.launch {
-            setupAsync()
+            setupAsync(user)
             // The scope's dispatcher may change in the future. This "withContext" will ensure we keep true to the documentation above.
-            withContext(Dispatchers.Main.immediate) {
+            withContext(dispatcherProvider.main) {
                 callback?.onStatsigInitialize()
             }
         }
@@ -75,23 +76,29 @@ internal class StatsigClient() {
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        setup(application, sdkKey, user, options)
-        setupAsync()
+        val user = setup(application, sdkKey, user, options)
+        setupAsync(user)
     }
 
-    private suspend fun setupAsync() {
-        withContext(Dispatchers.Main.immediate) {
-            val cacheKey = this@StatsigClient.user.getCacheKey()
+    private suspend fun setupAsync(user: StatsigUser) {
+        withContext(dispatcherProvider.io) {
+            val stableID = getLocalStorageStableID()
+            if (this@StatsigClient.statsigMetadata.stableID == null) {
+                this@StatsigClient.statsigMetadata.overrideStableID(stableID)
+            }
+            this@StatsigClient.store.loadFromLocalStorage(user)
+
             val initResponse = statsigNetwork.initialize(
                 this@StatsigClient.options.api,
                 this@StatsigClient.sdkKey,
-                this@StatsigClient.user,
+                user,
                 this@StatsigClient.statsigMetadata,
                 this@StatsigClient.options.initTimeoutMs,
-                this@StatsigClient.getSharedPrefs()
+                this@StatsigClient.getSharedPrefs(),
             )
 
             if (initResponse != null) {
+                val cacheKey = user.getCacheKey()
                 this@StatsigClient.store.save(initResponse, cacheKey)
             }
 
@@ -106,17 +113,17 @@ internal class StatsigClient() {
         sdkKey: String,
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
-    ) {
+    ): StatsigUser {
         if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
             throw IllegalArgumentException("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
         }
         this.application = application
         this.sdkKey = sdkKey
         this.options = options
-        this.user = normalizeUser(user)
+        val normalizedUser = normalizeUser(user)
+        this.user = normalizedUser
 
-        val stableID = getLocalStorageStableID()
-        statsigMetadata = StatsigMetadata(stableID)
+        statsigMetadata = StatsigMetadata()
         Statsig.errorBoundary.setMetadata(statsigMetadata)
         populateStatsigMetadata()
 
@@ -129,7 +136,8 @@ internal class StatsigClient() {
             statsigMetadata,
             statsigNetwork
         )
-        store = Store(getSharedPrefs(), this.user)
+        store = Store(getSharedPrefs(), normalizedUser)
+        return normalizedUser
     }
 
     /**
@@ -180,13 +188,16 @@ internal class StatsigClient() {
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         enforceInitialized("getExperiment")
         val res = store.getExperiment(experimentName, keepDeviceValue)
+        updateStickyValues()
         logExposure(experimentName, res)
         return res
     }
 
     fun getExperimentWithExposureLoggingDisabled(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         enforceInitialized("getExperimentWithExposureLoggingDisabled")
-        return store.getExperiment(experimentName, keepDeviceValue)
+        val exp = store.getExperiment(experimentName, keepDeviceValue)
+        updateStickyValues()
+        return exp
     }
 
     /**
@@ -199,12 +210,16 @@ internal class StatsigClient() {
      */
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
         enforceInitialized("getLayer")
-        return store.getLayer(this, layerName, keepDeviceValue)
+        val layer = store.getLayer(this, layerName, keepDeviceValue)
+        updateStickyValues()
+        return layer
     }
 
     fun getLayerWithExposureLoggingDisabled(layerName: String, keepDeviceValue: Boolean = false): Layer {
         enforceInitialized("getLayer")
-        return store.getLayer(null, layerName, keepDeviceValue)
+        val layer = store.getLayer(null, layerName, keepDeviceValue)
+        updateStickyValues()
+        return layer
     }
 
     internal fun logLayerParameterExposure(layer: Layer, parameterName: String) {
@@ -307,7 +322,7 @@ internal class StatsigClient() {
     fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
         statsigScope.launch {
             updateUser(user)
-            withContext(Dispatchers.Main.immediate) {
+            withContext(dispatcherProvider.main) {
                 callback?.onStatsigUpdateUser()
             }
         }
@@ -321,25 +336,27 @@ internal class StatsigClient() {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     suspend fun updateUser(user: StatsigUser?) {
-        enforceInitialized("updateUser")
-        logger.onUpdateUser()
-        pollingJob?.cancel()
-        this.user = normalizeUser(user)
-        store.loadAndResetForUser(this.user)
+        withContext(dispatcherProvider.io) {
+            enforceInitialized("updateUser")
+            logger.onUpdateUser()
+            pollingJob?.cancel()
+            this@StatsigClient.user = normalizeUser(user)
+            store.loadAndResetForUser(this@StatsigClient.user)
 
-        val cacheKey = this.user.getCacheKey()
-        val initResponse = statsigNetwork.initialize(
-            options.api,
-            sdkKey,
-            this.user,
-            statsigMetadata,
-            options.initTimeoutMs,
-            getSharedPrefs(),
-        )
-        if (initResponse != null) {
-            store.save(initResponse, cacheKey)
+            val cacheKey = this@StatsigClient.user.getCacheKey()
+            val initResponse = statsigNetwork.initialize(
+                options.api,
+                sdkKey,
+                this@StatsigClient.user,
+                statsigMetadata,
+                options.initTimeoutMs,
+                getSharedPrefs(),
+            )
+            if (initResponse != null) {
+                store.save(initResponse, cacheKey)
+            }
+            pollForUpdates()
         }
-        pollForUpdates()
     }
 
     suspend fun shutdownSuspend() {
@@ -354,17 +371,53 @@ internal class StatsigClient() {
      */
     fun shutdown() {
         runBlocking {
-            withContext(Dispatchers.Main.immediate) {
+            withContext(dispatcherProvider.main) {
                 shutdownSuspend()
             }
         }
     }
 
+    fun overrideGate(gateName: String, value: Boolean) {
+        this.store.overrideGate(gateName, value)
+        statsigScope.launch {
+            this@StatsigClient.store.saveOverridesToLocalStorage()
+        }
+    }
+
+    fun overrideConfig(configName: String, value: Map<String, Any>) {
+        this.store.overrideConfig(configName, value)
+        statsigScope.launch {
+            this@StatsigClient.store.saveOverridesToLocalStorage()
+        }
+    }
+
+    fun overrideLayer(configName: String, value: Map<String, Any>) {
+        this.store.overrideLayer(configName, value)
+        statsigScope.launch {
+            this@StatsigClient.store.saveOverridesToLocalStorage()
+        }
+    }
+
+    fun removeOverride(name: String) {
+        this.store.removeOverride(name)
+        statsigScope.launch {
+            this@StatsigClient.store.saveOverridesToLocalStorage()
+        }
+    }
+
+    fun removeAllOverrides() {
+        this.store.removeAllOverrides()
+        statsigScope.launch {
+            this@StatsigClient.store.saveOverridesToLocalStorage()
+        }
+    }
+
     /**
      * @return the current Statsig stableID
+     * Null prior to completion of async initialization
      */
     fun getStableID(): String {
-        return statsigMetadata.stableID
+        return statsigMetadata.stableID ?: statsigMetadata.stableID!!
     }
 
     internal fun getStore(): Store {
@@ -377,13 +430,19 @@ internal class StatsigClient() {
         }
     }
 
+    private fun updateStickyValues() {
+        statsigScope.launch {
+            store.persistStickyValues()
+        }
+    }
+
     private fun logExposure(name: String, gate: FeatureGate) {
         statsigScope.launch {
             logger.logExposure(name, gate, user)
         }
     }
 
-    private fun getLocalStorageStableID(): String {
+    private suspend fun getLocalStorageStableID(): String {
         var stableID = this@StatsigClient.getSharedPrefs().getString(STABLE_ID_KEY, null)
         if (stableID == null) {
             stableID = UUID.randomUUID().toString()
@@ -456,11 +515,11 @@ internal class StatsigClient() {
         return application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
     }
 
-    internal fun saveStringToSharedPrefs(key: String, value: String) {
+    internal suspend fun saveStringToSharedPrefs(key: String, value: String) {
         StatsigUtil.saveStringToSharedPrefs(getSharedPrefs(), key, value)
     }
 
-    internal fun removeFromSharedPrefs(key: String) {
+    internal suspend fun removeFromSharedPrefs(key: String) {
         StatsigUtil.removeFromSharedPrefs(getSharedPrefs(), key)
     }
 

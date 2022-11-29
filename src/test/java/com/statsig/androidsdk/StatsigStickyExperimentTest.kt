@@ -18,7 +18,7 @@ class StatsigStickyExperimentTest {
 
   @Before
   internal fun setup() {
-    TestUtil.overrideMainDispatcher()
+    TestUtil.mockDispatchers()
 
     app = mockk()
 

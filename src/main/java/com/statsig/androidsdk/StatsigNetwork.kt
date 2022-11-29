@@ -69,7 +69,7 @@ internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()
 private class StatsigNetworkImpl : StatsigNetwork {
 
     private val gson =  GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
-
+    private val dispatcherProvider = CoroutineDispatcherProvider()
     private var lastSyncTimeForUser: Long = 0
     private lateinit var sharedPrefs: SharedPreferences
 
@@ -79,7 +79,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         user: StatsigUser?,
         metadata: StatsigMetadata,
         initTimeoutMs: Long,
-        sharedPrefs: SharedPreferences,
+        sharedPrefs: SharedPreferences
     ): InitializeResponse? {
         this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
@@ -141,38 +141,41 @@ private class StatsigNetworkImpl : StatsigNetwork {
         savedLogs.map { apiPostLogs(api, sdkKey, it.requestBody) }
     }
 
-    private fun addFailedLogRequest(requestBody: String) {
-        val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
-        try {
-            StatsigUtil.saveStringToSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
-        } catch (_: Exception) {
-            StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
+    private suspend fun addFailedLogRequest(requestBody: String) {
+        withContext(dispatcherProvider.io) {
+            val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
+            try {
+                StatsigUtil.saveStringToSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
+            } catch (_: Exception) {
+                StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
+            }
         }
     }
 
-    private fun getSavedLogs(): List<StatsigOfflineRequest> {
-        val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY) ?: return arrayListOf()
+    private suspend fun getSavedLogs(): List<StatsigOfflineRequest> {
+        return withContext(dispatcherProvider.io) {
+            val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY) ?: return@withContext arrayListOf()
 
-        return try {
-            val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
-            if (pendingRequests?.requests == null) {
-                return arrayListOf()
+            return@withContext try {
+                val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
+                if (pendingRequests?.requests == null) {
+                    return@withContext arrayListOf()
+                }
+                val currentTime = System.currentTimeMillis()
+                pendingRequests.requests.filter {
+                    it.timestamp > currentTime - MAX_LOG_PERIOD
+                }
+            } catch (_: Exception) {
+                return@withContext arrayListOf()
             }
-            val currentTime = System.currentTimeMillis()
-            pendingRequests.requests.filter {
-                it.timestamp > currentTime - MAX_LOG_PERIOD
-            }
-        } catch (_: Exception) {
-            arrayListOf()
         }
-
     }
 
     // Bug with Kotlin where any function that throws an IOException still triggers this lint warning
     // https://youtrack.jetbrains.com/issue/KTIJ-838
     @Suppress("BlockingMethodInNonBlockingContext")
     private suspend inline fun <reified T : Any> postRequest(api: String, endpoint: String, sdkKey: String, bodyString: String, retries: Int): T? {
-        return withContext(Dispatchers.IO) { // Perform network calls in IO thread
+        return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
             var retryAttempt = 0
             while (isActive) {
                 val url = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"

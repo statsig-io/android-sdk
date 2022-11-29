@@ -15,7 +15,7 @@ class LayerExposureTest {
 
   @Before
   fun setup() {
-    TestUtil.overrideMainDispatcher()
+    TestUtil.mockDispatchers()
     app = mockk()
     TestUtil.stubAppFunctions(app)
     TestUtil.mockStatsigUtil()

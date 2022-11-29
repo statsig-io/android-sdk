@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 import java.util.*
 
 internal data class StatsigMetadata(
-    @SerializedName("stableID") var stableID: String,
+    @SerializedName("stableID") var stableID: String? = null,
     @SerializedName("appIdentifier") var appIdentifier: String? = null,
     @SerializedName("appVersion") var appVersion: String? = null,
     @SerializedName("deviceModel") var deviceModel: String? = Build.MODEL,

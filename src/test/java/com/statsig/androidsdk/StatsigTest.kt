@@ -26,7 +26,7 @@ class StatsigTest {
 
     @Before
     internal fun setup() {
-        TestUtil.overrideMainDispatcher()
+        TestUtil.mockDispatchers()
 
         app = mockk()
         testSharedPrefs = TestUtil.stubAppFunctions(app)

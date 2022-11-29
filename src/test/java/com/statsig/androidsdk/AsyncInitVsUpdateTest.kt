@@ -34,7 +34,7 @@ class AsyncInitVsUpdateTest {
 
   @Before
   internal fun setup() {
-    TestUtil.overrideMainDispatcher()
+    TestUtil.mockDispatchers()
 
     app = mockk()
     TestUtil.stubAppFunctions(app)
@@ -52,7 +52,7 @@ class AsyncInitVsUpdateTest {
   }
 
   @Test
-  fun testDummy() = runBlocking {
+  fun testDummy() {
     val userA = StatsigUser("user-a")
     userA.customIDs = mapOf("workID" to "employee-a")
 

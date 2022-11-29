@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
@@ -22,13 +23,11 @@ class LayerConfigTest {
 
   @Before
   internal fun setup() = runBlocking {
-    TestUtil.overrideMainDispatcher()
-
     app = mockk()
-
     sharedPrefs = TestUtil.stubAppFunctions(app)
 
     TestUtil.mockStatsigUtil()
+    TestUtil.mockDispatchers()
 
     initClient()
     assertTrue(sharedPrefs.all.isEmpty())
@@ -156,7 +155,7 @@ class LayerConfigTest {
         )
       ), nullUserCacheKey
     )
-
+    client.getStore().persistStickyValues()
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals("test", config.getString("string", "ERR"))
@@ -166,6 +165,7 @@ class LayerConfigTest {
   fun testGettingStickyValuesAcrossSessions() = runBlocking {
     var config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals("test", config.getString("string", "ERR"))
+    client.getStore().persistStickyValues()
 
     client.getStore().save(
       TestUtil.makeInitializeResponse(
@@ -184,7 +184,6 @@ class LayerConfigTest {
     )
 
     initClient()
-
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals("test", config.getString("string", "ERR"))
   }
@@ -210,6 +209,7 @@ class LayerConfigTest {
     )
 
     client.getStore().save(updatedLayerResponse, nullUserCacheKey)
+    client.getStore().persistStickyValues()
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals(
@@ -232,6 +232,7 @@ class LayerConfigTest {
         layerConfigs = updatedLayerResponse.layerConfigs!!
       ), nullUserCacheKey
     )
+    client.getStore().persistStickyValues()
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals(
@@ -261,6 +262,7 @@ class LayerConfigTest {
     )
 
     client.getStore().save(response, nullUserCacheKey)
+    client.getStore().persistStickyValues()
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals(
@@ -277,6 +279,7 @@ class LayerConfigTest {
       isUserInExperiment = true,
     )
     client.getStore().save(response, nullUserCacheKey)
+    client.getStore().persistStickyValues()
 
     config = client.getLayer("allocated_layer", keepDeviceValue = true)
     assertEquals(
@@ -305,6 +308,7 @@ class LayerConfigTest {
         )
       ), nullUserCacheKey
     )
+    client.getStore().persistStickyValues()
 
     config = client.getLayer("allocated_layer")
     assertEquals("default_string", config.getString("string", "ERR"))
@@ -315,6 +319,7 @@ class LayerConfigTest {
 
     client = StatsigClient()
     client.statsigNetwork = statsigNetwork
+
     client.initialize(app, "test-key")
   }
 }

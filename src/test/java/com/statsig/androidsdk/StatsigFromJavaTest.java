@@ -40,7 +40,7 @@ public class StatsigFromJavaTest {
 
     @Before
     public void setup() {
-        TestUtil.Companion.overrideMainDispatcher();
+        TestUtil.Companion.mockDispatchers();
 
         app = TestUtil.Companion.getMockApp();
         TestUtil.Companion.stubAppFunctions(app);

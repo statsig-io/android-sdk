@@ -5,6 +5,8 @@ import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
 private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
@@ -29,6 +31,7 @@ private data class Cache(
 
 internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigUser) {
     private val gson = Gson()
+    private val dispatcherProvider = CoroutineDispatcherProvider()
     private var currentUserCacheKey: String
     private var cacheById: MutableMap<String, Cache>
     private var currentCache: Cache
@@ -37,43 +40,51 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
     private var reason: EvaluationReason
 
     init {
-        val cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
-        val cachedDeviceValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
-        val cachedLocalOverrides = StatsigUtil.getFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
-
-        cacheById = mutableMapOf()
         currentUserCacheKey = user.getCacheKey()
-
-        if (cachedResponse != null) {
-            val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
-            try {
-                cacheById = gson.fromJson(cachedResponse, type) ?: cacheById
-            } catch (_: Exception) {
-                StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
-            }
-        }
-
-        stickyDeviceExperiments = mutableMapOf()
-        if (cachedDeviceValues != null) {
-            val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
-            try {
-                stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
-            } catch (_: Exception) {
-                StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
-            }
-        }
-
+        cacheById = mutableMapOf()
+        currentCache = createEmptyCache()
+        stickyDeviceExperiments  = mutableMapOf()
         localOverrides = StatsigOverrides.empty()
-        if (cachedLocalOverrides != null) {
-            try {
-                localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
-            } catch (_: Exception) {
-                StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
-            }
-        }
         reason = EvaluationReason.Uninitialized
-        currentCache = loadCacheForCurrentUser()
-        attemptToMigrateDeprecatedStickyUserExperiments(user)
+    }
+
+    suspend fun loadFromLocalStorage(user: StatsigUser) {
+        withContext(dispatcherProvider.io) {
+            val cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
+            val cachedDeviceValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
+            val cachedLocalOverrides = StatsigUtil.getFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
+
+            if (cachedResponse != null) {
+                val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
+                try {
+                    cacheById = gson.fromJson(cachedResponse, type) ?: cacheById
+                } catch (_: Exception) {
+                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
+                }
+            }
+
+            stickyDeviceExperiments = mutableMapOf()
+            if (cachedDeviceValues != null) {
+                val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
+                try {
+                    stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
+                } catch (_: Exception) {
+                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
+                }
+            }
+
+            localOverrides = StatsigOverrides.empty()
+            if (cachedLocalOverrides != null) {
+                try {
+                    localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
+                } catch (_: Exception) {
+                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
+                }
+            }
+            currentCache = loadCacheForCurrentUser()
+            attemptToMigrateDeprecatedStickyUserExperiments(user)
+            reason = EvaluationReason.Cache
+        }
     }
 
     fun loadAndResetForUser(user: StatsigUser) {
@@ -92,7 +103,7 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
         }
     }
 
-    fun save(data: InitializeResponse, cacheKey: String) {
+    suspend fun save(data: InitializeResponse, cacheKey: String) {
         val cache = cacheById[cacheKey] ?: createEmptyCache()
         cache.values = data
         cache.evaluationTime = System.currentTimeMillis()
@@ -265,29 +276,28 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
 
     fun overrideGate(gateName: String, value: Boolean) {
         localOverrides.gates[gateName] = value
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
     fun overrideConfig(configName: String, value: Map<String, Any>) {
         localOverrides.configs[configName] = value
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
 
     fun overrideLayer(layerName: String, value: Map<String, Any>) {
         localOverrides.layers[layerName] = value
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
     fun removeOverride(name: String) {
         localOverrides.configs.remove(name)
         localOverrides.gates.remove(name)
         localOverrides.layers.remove(name)
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
     fun removeAllOverrides() {
         localOverrides = StatsigOverrides.empty()
+    }
+
+    suspend fun saveOverridesToLocalStorage() {
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
@@ -318,13 +328,16 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
         return Cache(emptyInitResponse, emptyStickyUserExperiments, System.currentTimeMillis())
     }
 
+    // save and remove sticky values in memory only
+    // a separate coroutine will persist them to storage
     private fun removeStickyValue(expName: String) {
         val expNameHash = StatsigUtil.getHashedString(expName)
         currentCache.stickyUserExperiments.experiments.remove(expNameHash)
         stickyDeviceExperiments.remove(expNameHash)
-        cacheStickyValues()
     }
 
+    // save and remove sticky values in memory only
+    // a separate coroutine will persist them to storage
     private fun attemptToSaveStickyValue(expName: String, latestValue: APIDynamicConfig?) {
         if (latestValue == null) {
             return
@@ -337,7 +350,6 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
             } else {
                 currentCache.stickyUserExperiments.experiments[expNameHash] = latestValue
             }
-            cacheStickyValues()
         }
     }
 
@@ -346,12 +358,12 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
         return currentCache.stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
     }
 
-    private fun cacheStickyValues() {
+    suspend fun persistStickyValues() {
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, gson.toJson(cacheById))
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments))
     }
 
-    private fun attemptToMigrateDeprecatedStickyUserExperiments(user: StatsigUser) {
+    private suspend fun attemptToMigrateDeprecatedStickyUserExperiments(user: StatsigUser) {
         val oldStickyUserExperimentValues =
             StatsigUtil.getFromSharedPrefs(sharedPrefs, DEPRECATED_STICKY_USER_EXPERIMENTS_KEY)
                 ?: return

@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
@@ -15,10 +16,20 @@ import java.util.concurrent.TimeUnit
 
 class TestUtil {
     companion object {
-        val dispatcher = TestCoroutineDispatcher()
+        private val dispatcher = TestCoroutineDispatcher()
 
-        fun overrideMainDispatcher() {
-          Dispatchers.setMain(dispatcher)
+        fun mockDispatchers() {
+            Dispatchers.setMain(dispatcher)
+            mockkConstructor(CoroutineDispatcherProvider::class)
+            every {
+                anyConstructed<CoroutineDispatcherProvider>().io
+            } returns dispatcher
+            every {
+                anyConstructed<CoroutineDispatcherProvider>().main
+            } returns dispatcher
+            every {
+                anyConstructed<CoroutineDispatcherProvider>().default
+            } returns dispatcher
         }
 
         fun getConfigValueMap(): Map<String, Any> {
@@ -248,6 +259,24 @@ class TestUtil {
                 StatsigUtil.getHashedString(any())
             } answers {
                 firstArg<String>() + "!"
+            }
+
+            coEvery {
+                StatsigUtil.getFromSharedPrefs(any(), any())
+            } coAnswers {
+                firstArg<SharedPreferences>().getString(secondArg<String>(), null)
+            }
+
+            coEvery {
+                StatsigUtil.saveStringToSharedPrefs(any(), any(), any())
+            } coAnswers {
+                firstArg<SharedPreferences>().edit().putString(secondArg<String>(), thirdArg<String>()).apply()
+            }
+
+            coEvery {
+                StatsigUtil.removeFromSharedPrefs(any(), any())
+            } coAnswers {
+                firstArg<SharedPreferences>().edit().remove(secondArg<String>())
             }
         }
 

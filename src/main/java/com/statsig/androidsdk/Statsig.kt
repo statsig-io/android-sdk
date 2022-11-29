@@ -343,7 +343,7 @@ object Statsig {
   @JvmStatic
   fun getStableID(): String {
     enforceInitialized("getStableID")
-    var result = ""
+    var result: String = ""
     errorBoundary.capture({
       result = client.getStableID()
     })
@@ -357,7 +357,7 @@ object Statsig {
   @JvmStatic
   fun overrideGate(gateName: String, value: Boolean) {
     errorBoundary.capture({
-      client.getStore().overrideGate(gateName, value)
+      client.overrideGate(gateName, value)
     })
   }
 
@@ -368,7 +368,7 @@ object Statsig {
   @JvmStatic
   fun overrideConfig(configName: String, value: Map<String, Any>) {
     errorBoundary.capture({
-      client.getStore().overrideConfig(configName, value)
+      client.overrideConfig(configName, value)
     })
   }
 
@@ -379,7 +379,7 @@ object Statsig {
   @JvmStatic
   fun overrideLayer(layerName: String, value: Map<String, Any>) {
     errorBoundary.capture({
-      client.getStore().overrideLayer(layerName, value)
+      client.overrideLayer(layerName, value)
     })
   }
 
@@ -389,7 +389,7 @@ object Statsig {
   @JvmStatic
   fun removeOverride(name: String) {
     errorBoundary.capture({
-      client.getStore().removeOverride(name)
+      client.removeOverride(name)
     })
   }
 
@@ -399,7 +399,7 @@ object Statsig {
   @JvmStatic
   fun removeAllOverrides() {
     errorBoundary.capture({
-      client.getStore().removeAllOverrides()
+      client.removeAllOverrides()
     })
   }
 

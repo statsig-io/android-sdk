@@ -2,8 +2,11 @@ package com.statsig.androidsdk
 
 import java.security.MessageDigest
 import android.content.SharedPreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal object StatsigUtil {
+    private val dispatcherProvider = CoroutineDispatcherProvider()
     fun getHashedString(input: String): String {
         val md = MessageDigest.getInstance("SHA-256")
         val inputBytes = input.toByteArray()
@@ -26,24 +29,30 @@ internal object StatsigUtil {
         }
     }
 
-    internal fun saveStringToSharedPrefs(sharedPrefs: SharedPreferences, key: String, value: String) {
-        val editor = sharedPrefs.edit()
-        editor.putString(key, value)
-        editor.apply()
+    internal suspend fun saveStringToSharedPrefs(sharedPrefs: SharedPreferences, key: String, value: String) {
+        withContext(dispatcherProvider.io) {
+            val editor = sharedPrefs.edit()
+            editor.putString(key, value)
+            editor.apply()
+        }
     }
 
-    internal fun removeFromSharedPrefs(sharedPrefs: SharedPreferences, key: String) {
-        val editor = sharedPrefs.edit()
-        editor.remove(key)
-        editor.apply()
+    internal suspend fun removeFromSharedPrefs(sharedPrefs: SharedPreferences, key: String) {
+        withContext(dispatcherProvider.io) {
+            val editor = sharedPrefs.edit()
+            editor.remove(key)
+            editor.apply()
+        }
     }
 
-    internal fun getFromSharedPrefs(sharedPrefs: SharedPreferences, key: String): String? {
-        return try {
-            sharedPrefs.getString(key, null)
-        } catch (e: ClassCastException) {
-            removeFromSharedPrefs(sharedPrefs, key)
-            null
+    internal suspend fun getFromSharedPrefs(sharedPrefs: SharedPreferences, key: String): String? {
+        return withContext(dispatcherProvider.io) {
+            return@withContext try {
+                sharedPrefs.getString(key, null)
+            } catch (e: ClassCastException) {
+                removeFromSharedPrefs(sharedPrefs, key)
+                null
+            }
         }
     }
 }
