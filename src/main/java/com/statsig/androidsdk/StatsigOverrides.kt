@@ -1,20 +1,21 @@
 package com.statsig.androidsdk
 
 import com.google.gson.annotations.SerializedName
+import java.util.concurrent.ConcurrentHashMap
 
 data class StatsigOverrides(
   @SerializedName("gates")
-  val gates: MutableMap<String, Boolean>,
+  val gates: ConcurrentHashMap<String, Boolean>,
 
   @SerializedName("configs")
-  val configs: MutableMap<String, Map<String, Any>>,
+  val configs: ConcurrentHashMap<String, Map<String, Any>>,
 
   @SerializedName("layers")
-  val layers: MutableMap<String, Map<String, Any>>
+  val layers: ConcurrentHashMap<String, Map<String, Any>>
 ) {
   companion object {
     fun empty(): StatsigOverrides {
-      return StatsigOverrides(mutableMapOf(), mutableMapOf(), mutableMapOf())
+      return StatsigOverrides(ConcurrentHashMap(), ConcurrentHashMap(), ConcurrentHashMap())
     }
   }
 }

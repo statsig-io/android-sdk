@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
@@ -39,9 +40,8 @@ internal class StatsigLogger(
             flush()
         }
     }
-    // Modify in a single thread only
-    internal var events = arrayListOf<LogEvent>()
 
+    private var events = ConcurrentLinkedQueue<LogEvent>()
     private var loggedExposures: MutableMap<String, Long> = HashMap()
 
     suspend fun log(event: LogEvent) {
@@ -63,8 +63,8 @@ internal class StatsigLogger(
             if (events.size == 0) {
                 return@withContext
             }
-            val flushEvents = events
-            events = arrayListOf()
+            val flushEvents = ArrayList(events)
+            events = ConcurrentLinkedQueue()
             statsigNetwork.apiPostLogs(api, sdkKey, gson.toJson(LogEventData(flushEvents, statsigMetadata)))
         }
     }

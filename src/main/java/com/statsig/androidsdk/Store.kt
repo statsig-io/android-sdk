@@ -7,6 +7,7 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.concurrent.ConcurrentHashMap
 
 private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
 private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
@@ -33,17 +34,17 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
     private val gson = Gson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var currentUserCacheKey: String
-    private var cacheById: MutableMap<String, Cache>
+    private var cacheById: ConcurrentHashMap<String, Cache>
     private var currentCache: Cache
-    private var stickyDeviceExperiments: MutableMap<String, APIDynamicConfig>
+    private var stickyDeviceExperiments: ConcurrentHashMap<String, APIDynamicConfig>
     private var localOverrides: StatsigOverrides
     private var reason: EvaluationReason
 
     init {
         currentUserCacheKey = user.getCacheKey()
-        cacheById = mutableMapOf()
+        cacheById = ConcurrentHashMap()
         currentCache = createEmptyCache()
-        stickyDeviceExperiments  = mutableMapOf()
+        stickyDeviceExperiments  = ConcurrentHashMap()
         localOverrides = StatsigOverrides.empty()
         reason = EvaluationReason.Uninitialized
     }
@@ -57,17 +58,19 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
             if (cachedResponse != null) {
                 val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
                 try {
-                    cacheById = gson.fromJson(cachedResponse, type) ?: cacheById
+                    val localCache : Map<String, Cache> = gson.fromJson(cachedResponse, type)
+                    cacheById = ConcurrentHashMap(localCache)
                 } catch (_: Exception) {
                     StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
                 }
             }
 
-            stickyDeviceExperiments = mutableMapOf()
+            stickyDeviceExperiments = ConcurrentHashMap()
             if (cachedDeviceValues != null) {
                 val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
                 try {
-                    stickyDeviceExperiments = gson.fromJson(cachedDeviceValues, type) ?: stickyDeviceExperiments
+                    val localSticky : Map<String, APIDynamicConfig> = gson.fromJson(cachedDeviceValues, type)
+                    stickyDeviceExperiments = ConcurrentHashMap(localSticky)
                 } catch (_: Exception) {
                     StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
                 }
@@ -118,7 +121,7 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
 
         // Drop out other users if the cache is getting too big
         if ((cacheString.length / 1024) > 1024/*1 MB*/ && cacheById.size > 1) {
-            cacheById = mutableMapOf()
+            cacheById = ConcurrentHashMap()
             cacheById[currentUserCacheKey] = currentCache
             cacheString = gson.toJson(cacheById)
         }

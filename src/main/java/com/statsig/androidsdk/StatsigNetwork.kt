@@ -97,7 +97,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
         metadata: StatsigMetadata,
     ): InitializeResponse? {
         return try {
-            val body = mapOf(USER to user, STATSIG_METADATA to metadata)
+            val userCopy = user?.getCopyForEvaluation()
+            val metadataCopy = metadata.copy()
+            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy)
             val response = postRequest<InitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0)
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
             response
@@ -114,11 +116,13 @@ private class StatsigNetworkImpl : StatsigNetwork {
     ): Flow<InitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
         return flow<InitializeResponse?> {
+            val userCopy = user?.getCopyForEvaluation()
+            val metadataCopy = metadata.copy()
             while (true) {
                 delay(POLLING_INTERVAL_MS) // If coroutine is cancelled, this delay will exit the while loop
                 val body = mapOf(
-                    USER to user,
-                    STATSIG_METADATA to metadata,
+                    USER to userCopy,
+                    STATSIG_METADATA to metadataCopy,
                     LAST_SYNC_TIME_FOR_USER to lastSyncTimeForUser
                 )
                 try {
@@ -145,6 +149,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         withContext(dispatcherProvider.io) {
             val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
             try {
+                // savedLogs wont be concurrently modified as it is read from storage and only used here
                 StatsigUtil.saveStringToSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
             } catch (_: Exception) {
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
