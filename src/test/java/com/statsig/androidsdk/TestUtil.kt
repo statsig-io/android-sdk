@@ -213,12 +213,25 @@ class TestUtil {
         }
 
         @JvmName("startStatsigAndDontWait")
-        internal fun startStatsigAndDontWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
+        internal fun startStatsigAndDontWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions()) {
             Statsig.client = StatsigClient()
-            if (network != null) {
-                Statsig.client.statsigNetwork = network
-            }
-            Statsig.initialize(app, "client-apikey", user, options)
+
+            val setupMethod = Statsig.client.javaClass.getDeclaredMethod(
+                "setup",
+                Application::class.java,
+                String::class.java,
+                StatsigUser::class.java,
+                StatsigOptions::class.java
+            )
+            setupMethod.isAccessible = true
+            val parameters = arrayOfNulls<Any>(4)
+            parameters[0] = app
+            parameters[1] = "client-test"
+            parameters[2] = user
+            parameters[3] = options
+            println(setupMethod.parameterCount)
+            println(parameters.size)
+            setupMethod.invoke(Statsig.client, app, "client-test", user, options)
         }
 
         fun getMockApp(): Application {

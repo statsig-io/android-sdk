@@ -37,6 +37,7 @@ internal class StatsigClient() {
     private val statsigJob = SupervisorJob()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private val statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main)
+    private var initialized = false
 
     @VisibleForTesting
     internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
@@ -82,12 +83,6 @@ internal class StatsigClient() {
 
     private suspend fun setupAsync(user: StatsigUser) {
         withContext(dispatcherProvider.io) {
-            val stableID = getLocalStorageStableID()
-            if (this@StatsigClient.statsigMetadata.stableID == null) {
-                this@StatsigClient.statsigMetadata.overrideStableID(stableID)
-            }
-            this@StatsigClient.store.loadFromLocalStorage(user)
-
             val initResponse = statsigNetwork.initialize(
                 this@StatsigClient.options.api,
                 this@StatsigClient.sdkKey,
@@ -137,6 +132,16 @@ internal class StatsigClient() {
             statsigNetwork
         )
         store = Store(getSharedPrefs(), normalizedUser)
+
+        runBlocking {
+            val stableID = getLocalStorageStableID()
+            if (this@StatsigClient.statsigMetadata.stableID == null) {
+                this@StatsigClient.statsigMetadata.overrideStableID(stableID)
+            }
+            this@StatsigClient.store.loadFromLocalStorage(normalizedUser)
+        }
+        this.initialized = true
+
         return normalizedUser
     }
 
@@ -422,7 +427,6 @@ internal class StatsigClient() {
         return statsigMetadata.stableID ?: statsigMetadata.stableID!!
     }
 
-
     fun logManualGateExposure(gateName: String) {
         enforceInitialized("logManualGateExposure")
         val gate = store.checkGate(gateName)
@@ -479,11 +483,11 @@ internal class StatsigClient() {
     }
 
     internal fun isInitialized(): Boolean {
-        return this::store.isInitialized
+        return this.initialized
     }
 
     internal fun enforceInitialized(functionName: String) {
-        if (!this::store.isInitialized) {
+        if (!this.initialized) {
             throw IllegalStateException("The SDK must be initialized prior to invoking $functionName")
         }
     }

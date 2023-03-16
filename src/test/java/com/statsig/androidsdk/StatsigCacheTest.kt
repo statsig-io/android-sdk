@@ -3,9 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
-import io.mockk.coEvery
-import io.mockk.mockk
-import io.mockk.unmockkAll
+import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
@@ -32,8 +30,12 @@ class StatsigCacheTest {
         app = mockk()
         testSharedPrefs = TestUtil.stubAppFunctions(app)
 
-        TestUtil.mockStatsigUtil()
-
+        mockkObject(StatsigUtil)
+        every {
+            StatsigUtil.getHashedString(any())
+        } answers {
+            firstArg<String>() + "!"
+        }
     }
 
     @After
@@ -57,11 +59,14 @@ class StatsigCacheTest {
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
-        assertTrue(client.checkGate("always_on"))
 
+        assertTrue(client.checkGate("always_on"))
+        runBlocking {
+            client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1", "client-test")
+            client.statsigNetwork.addFailedLogRequest("{}")
+        }
         val config = client.getConfig("test_config")
         assertEquals("test", config.getString("string", "fallback"))
         assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
     }
-
 }

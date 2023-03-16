@@ -62,6 +62,8 @@ internal interface StatsigNetwork {
     suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String)
 
     suspend fun apiRetryFailedLogs(api: String, sdkKey: String)
+
+    suspend fun addFailedLogRequest(body: String)
 }
 
 internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()
@@ -71,7 +73,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
     private val gson =  GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var lastSyncTimeForUser: Long = 0
-    private lateinit var sharedPrefs: SharedPreferences
+    private var sharedPrefs: SharedPreferences? = null
 
     override suspend fun initialize(
         api: String,
@@ -145,7 +147,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         savedLogs.map { apiPostLogs(api, sdkKey, it.requestBody) }
     }
 
-    private suspend fun addFailedLogRequest(requestBody: String) {
+    override suspend fun addFailedLogRequest(requestBody: String) {
         withContext(dispatcherProvider.io) {
             val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
             try {
