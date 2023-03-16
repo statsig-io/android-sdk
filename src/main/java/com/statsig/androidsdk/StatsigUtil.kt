@@ -29,6 +29,17 @@ internal object StatsigUtil {
         }
     }
 
+    internal fun syncGetFromSharedPrefs(sharedPrefs: SharedPreferences?, key: String): String? {
+        if (sharedPrefs == null) {
+            return null
+        }
+        return try {
+            sharedPrefs.getString(key, null)
+        } catch (e: ClassCastException) {
+            null
+        }
+    }
+
     internal suspend fun saveStringToSharedPrefs(sharedPrefs: SharedPreferences?, key: String, value: String) {
         if (sharedPrefs == null) {
             return

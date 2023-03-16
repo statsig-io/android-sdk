@@ -69,4 +69,31 @@ class StatsigCacheTest {
         assertEquals("test", config.getString("string", "fallback"))
         assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
     }
+
+    @Test
+    fun testSetupDoesntLoadFromCacheWhenSetToAsync() {
+        val user = StatsigUser("123")
+
+        var cacheById: MutableMap<String, Any> = HashMap()
+        var values: MutableMap<String, Any> = HashMap()
+        val sticky: MutableMap<String, Any> = HashMap()
+        var initialize = TestUtil.makeInitializeResponse()
+        values.put("values", initialize)
+        values.put("stickyUserExperiments", sticky)
+        cacheById.put("123", values)
+
+        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById))
+
+        TestUtil.startStatsigAndDontWait(app, user, StatsigOptions(loadCacheAsync = true))
+        client = Statsig.client
+
+        assertFalse(client.checkGate("always_on"))
+        runBlocking {
+            client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1", "client-test")
+            client.statsigNetwork.addFailedLogRequest("{}")
+        }
+        val config = client.getConfig("test_config")
+        assertEquals("fallback", config.getString("string", "fallback"))
+        assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
+    }
 }

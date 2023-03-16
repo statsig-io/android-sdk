@@ -9,7 +9,6 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
@@ -83,6 +82,9 @@ internal class StatsigClient() {
 
     private suspend fun setupAsync(user: StatsigUser) {
         withContext(dispatcherProvider.io) {
+            if (this@StatsigClient.options.loadCacheAsync) {
+                this@StatsigClient.store.syncLoadFromLocalStorage(user)
+            }
             val initResponse = statsigNetwork.initialize(
                 this@StatsigClient.options.api,
                 this@StatsigClient.sdkKey,
@@ -131,17 +133,17 @@ internal class StatsigClient() {
             statsigMetadata,
             statsigNetwork
         )
-        store = Store(getSharedPrefs(), normalizedUser)
+        store = Store(statsigScope, getSharedPrefs(), normalizedUser)
 
-        runBlocking {
+        if (options.overrideStableID == null) {
             val stableID = getLocalStorageStableID()
-            if (this@StatsigClient.statsigMetadata.stableID == null) {
-                this@StatsigClient.statsigMetadata.overrideStableID(stableID)
-            }
-            this@StatsigClient.store.loadFromLocalStorage(normalizedUser)
+            this@StatsigClient.statsigMetadata.overrideStableID(stableID)
         }
-        this.initialized = true
+        if (!this@StatsigClient.options.loadCacheAsync) {
+            this@StatsigClient.store.syncLoadFromLocalStorage(normalizedUser)
+        }
 
+        this.initialized = true
         return normalizedUser
     }
 
@@ -473,13 +475,17 @@ internal class StatsigClient() {
         }
     }
 
-    private suspend fun getLocalStorageStableID(): String {
+    private fun getLocalStorageStableID(): String {
         var stableID = this@StatsigClient.getSharedPrefs().getString(STABLE_ID_KEY, null)
         if (stableID == null) {
             stableID = UUID.randomUUID().toString()
-            this@StatsigClient.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
+            statsigScope.launch {
+                withContext(dispatcherProvider.io) {
+                    this@StatsigClient.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
+                }
+            }
         }
-        return stableID
+        return stableID!!
     }
 
     internal fun isInitialized(): Boolean {
