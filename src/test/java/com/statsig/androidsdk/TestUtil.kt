@@ -224,13 +224,6 @@ class TestUtil {
                 StatsigOptions::class.java
             )
             setupMethod.isAccessible = true
-            val parameters = arrayOfNulls<Any>(4)
-            parameters[0] = app
-            parameters[1] = "client-test"
-            parameters[2] = user
-            parameters[3] = options
-            println(setupMethod.parameterCount)
-            println(parameters.size)
             setupMethod.invoke(Statsig.client, app, "client-test", user, options)
         }
 

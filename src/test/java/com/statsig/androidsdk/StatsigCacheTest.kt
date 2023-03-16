@@ -95,5 +95,16 @@ class StatsigCacheTest {
         val config = client.getConfig("test_config")
         assertEquals("fallback", config.getString("string", "fallback"))
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
+
+        runBlocking {
+            Statsig.client.initialize(app, "client-test", user, StatsigOptions(loadCacheAsync = true))
+        }
+        assertTrue(client.checkGate("always_on"))
+
+        val netConfig = client.getConfig("test_config")
+        assertEquals("test", netConfig.getString("string", "fallback"))
+        assertEquals(EvaluationReason.Cache, netConfig.getEvaluationDetails().reason)
+
+        assertTrue(Statsig.client.isInitialized())
     }
 }
