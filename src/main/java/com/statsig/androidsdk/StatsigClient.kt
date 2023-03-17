@@ -76,8 +76,8 @@ internal class StatsigClient() {
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        val user = setup(application, sdkKey, user, options)
-        setupAsync(user)
+        val normalizedUser = setup(application, sdkKey, user, options)
+        setupAsync(normalizedUser)
     }
 
     private suspend fun setupAsync(user: StatsigUser) {
@@ -228,27 +228,25 @@ internal class StatsigClient() {
             return;
         }
 
-        statsigScope.launch {
-            var exposures = layer.getUndelegatedSecondaryExposures()
-            var allocatedExperiment = ""
-            val isExplicit = layer.getExplicitParameters()?.contains(parameterName) == true
-            if (isExplicit) {
-                exposures = layer.getSecondaryExposures()
-                allocatedExperiment = layer.getAllocatedExperimentName() ?: ""
-            }
-
-            logger.logLayerExposure(
-                layer.getName(),
-                layer.getRuleID(),
-                exposures,
-                user,
-                allocatedExperiment,
-                parameterName,
-                isExplicit,
-                layer.getEvaluationDetails(),
-                isManual
-            )
+        var exposures = layer.getUndelegatedSecondaryExposures()
+        var allocatedExperiment = ""
+        val isExplicit = layer.getExplicitParameters()?.contains(parameterName) == true
+        if (isExplicit) {
+            exposures = layer.getSecondaryExposures()
+            allocatedExperiment = layer.getAllocatedExperimentName() ?: ""
         }
+
+        logger.logLayerExposure(
+            layer.getName(),
+            layer.getRuleID(),
+            exposures,
+            user,
+            allocatedExperiment,
+            parameterName,
+            isExplicit,
+            layer.getEvaluationDetails(),
+            isManual
+        )
     }
 
     /**
@@ -452,15 +450,11 @@ internal class StatsigClient() {
     }
 
     private fun logExposure(name: String, config: DynamicConfig, isManual: Boolean = false) {
-        statsigScope.launch {
-            logger.logExposure(name, config, user, isManual)
-        }
+        logger.logExposure(name, config, user, isManual)
     }
 
     private fun logExposure(name: String, gate: FeatureGate, isManual: Boolean = false) {
-        statsigScope.launch {
-            logger.logExposure(name, gate, user, isManual)
-        }
+        logger.logExposure(name, gate, user, isManual)
     }
 
     private fun updateStickyValues() {
