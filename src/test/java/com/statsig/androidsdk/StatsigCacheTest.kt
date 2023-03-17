@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class StatsigCacheTest {
 
     private lateinit var app: Application
-    private var client: StatsigClient = StatsigClient()
+    private lateinit var client: StatsigClient
     private lateinit var testSharedPrefs: TestSharedPreferences
     private val gson = Gson()
 
@@ -59,6 +59,7 @@ class StatsigCacheTest {
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
+        assertTrue(client.isInitialized())
 
         assertTrue(client.checkGate("always_on"))
         runBlocking {
