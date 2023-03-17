@@ -62,10 +62,8 @@ internal class Store (private val statsigScope: CoroutineScope, private val shar
                 val localCache : Map<String, Cache> = gson.fromJson(cachedResponse, type)
                 cacheById = ConcurrentHashMap(localCache)
             } catch (_: Exception) {
-                statsigScope.launch {
-                    withContext(dispatcherProvider.io) {
-                        StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
-                    }
+                statsigScope.launch(dispatcherProvider.io) {
+                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
                 }
             }
         }
@@ -77,10 +75,8 @@ internal class Store (private val statsigScope: CoroutineScope, private val shar
                 val localSticky : Map<String, APIDynamicConfig> = gson.fromJson(cachedDeviceValues, type)
                 stickyDeviceExperiments = ConcurrentHashMap(localSticky)
             } catch (_: Exception) {
-                statsigScope.launch {
-                    withContext(dispatcherProvider.io) {
-                        StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
-                    }
+                statsigScope.launch(dispatcherProvider.io) {
+                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
                 }
             }
         }
@@ -90,10 +86,8 @@ internal class Store (private val statsigScope: CoroutineScope, private val shar
             try {
                 localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
             } catch (_: Exception) {
-                statsigScope.launch {
-                    withContext(dispatcherProvider.io) {
-                        StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
-                    }
+                statsigScope.launch(dispatcherProvider.io) {
+                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
                 }
             }
         }
