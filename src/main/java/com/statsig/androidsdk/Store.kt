@@ -5,7 +5,9 @@ import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
@@ -30,7 +32,7 @@ private data class Cache(
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
 )
 
-internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigUser) {
+internal class Store (private val statsigScope: CoroutineScope, private val sharedPrefs: SharedPreferences, user: StatsigUser) {
     private val gson = Gson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var currentUserCacheKey: String
@@ -49,45 +51,48 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
         reason = EvaluationReason.Uninitialized
     }
 
-    suspend fun loadFromLocalStorage(user: StatsigUser) {
-        withContext(dispatcherProvider.io) {
-            val cachedResponse = StatsigUtil.getFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
-            val cachedDeviceValues = StatsigUtil.getFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
-            val cachedLocalOverrides = StatsigUtil.getFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
+    fun syncLoadFromLocalStorage() {
+        val cachedResponse = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
+        val cachedDeviceValues = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
+        val cachedLocalOverrides = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
 
-            if (cachedResponse != null) {
-                val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
-                try {
-                    val localCache : Map<String, Cache> = gson.fromJson(cachedResponse, type)
-                    cacheById = ConcurrentHashMap(localCache)
-                } catch (_: Exception) {
+        if (cachedResponse != null) {
+            val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
+            try {
+                val localCache : Map<String, Cache> = gson.fromJson(cachedResponse, type)
+                cacheById = ConcurrentHashMap(localCache)
+            } catch (_: Exception) {
+                statsigScope.launch(dispatcherProvider.io) {
                     StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
                 }
             }
+        }
 
-            stickyDeviceExperiments = ConcurrentHashMap()
-            if (cachedDeviceValues != null) {
-                val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
-                try {
-                    val localSticky : Map<String, APIDynamicConfig> = gson.fromJson(cachedDeviceValues, type)
-                    stickyDeviceExperiments = ConcurrentHashMap(localSticky)
-                } catch (_: Exception) {
+        stickyDeviceExperiments = ConcurrentHashMap()
+        if (cachedDeviceValues != null) {
+            val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
+            try {
+                val localSticky : Map<String, APIDynamicConfig> = gson.fromJson(cachedDeviceValues, type)
+                stickyDeviceExperiments = ConcurrentHashMap(localSticky)
+            } catch (_: Exception) {
+                statsigScope.launch(dispatcherProvider.io) {
                     StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
                 }
             }
+        }
 
-            localOverrides = StatsigOverrides.empty()
-            if (cachedLocalOverrides != null) {
-                try {
-                    localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
-                } catch (_: Exception) {
+        localOverrides = StatsigOverrides.empty()
+        if (cachedLocalOverrides != null) {
+            try {
+                localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
+            } catch (_: Exception) {
+                statsigScope.launch(dispatcherProvider.io) {
                     StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
                 }
             }
-            currentCache = loadCacheForCurrentUser()
-            attemptToMigrateDeprecatedStickyUserExperiments(user)
-            reason = EvaluationReason.Cache
         }
+        currentCache = loadCacheForCurrentUser()
+        reason = EvaluationReason.Cache
     }
 
     fun loadAndResetForUser(user: StatsigUser) {
@@ -364,24 +369,5 @@ internal class Store (private val sharedPrefs: SharedPreferences, user: StatsigU
     suspend fun persistStickyValues() {
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, gson.toJson(cacheById))
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments))
-    }
-
-    private suspend fun attemptToMigrateDeprecatedStickyUserExperiments(user: StatsigUser) {
-        val oldStickyUserExperimentValues =
-            StatsigUtil.getFromSharedPrefs(sharedPrefs, DEPRECATED_STICKY_USER_EXPERIMENTS_KEY)
-                ?: return
-        StatsigUtil.removeFromSharedPrefs(sharedPrefs, DEPRECATED_STICKY_USER_EXPERIMENTS_KEY)
-
-        try {
-            val stickyUserExperiments = gson.fromJson(oldStickyUserExperimentValues, DeprecatedStickyUserExperiments::class.java)
-            if (stickyUserExperiments.userID != user.userID || currentCache.stickyUserExperiments.experiments.isNotEmpty()) {
-                return
-            }
-
-            currentCache.stickyUserExperiments = StickyUserExperiments(stickyUserExperiments.experiments)
-            cacheById[currentUserCacheKey] = currentCache
-        }
-        // no ops, since we've already removed the bad value
-        catch (_: Exception) {}
     }
 }

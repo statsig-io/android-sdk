@@ -9,7 +9,6 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
@@ -37,6 +36,7 @@ internal class StatsigClient() {
     private val statsigJob = SupervisorJob()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private val statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main)
+    private var initialized = false
 
     @VisibleForTesting
     internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
@@ -82,12 +82,9 @@ internal class StatsigClient() {
 
     private suspend fun setupAsync(user: StatsigUser) {
         withContext(dispatcherProvider.io) {
-            val stableID = getLocalStorageStableID()
-            if (this@StatsigClient.statsigMetadata.stableID == null) {
-                this@StatsigClient.statsigMetadata.overrideStableID(stableID)
+            if (this@StatsigClient.options.loadCacheAsync) {
+                this@StatsigClient.store.syncLoadFromLocalStorage()
             }
-            this@StatsigClient.store.loadFromLocalStorage(user)
-
             val initResponse = statsigNetwork.initialize(
                 this@StatsigClient.options.api,
                 this@StatsigClient.sdkKey,
@@ -136,7 +133,17 @@ internal class StatsigClient() {
             statsigMetadata,
             statsigNetwork
         )
-        store = Store(getSharedPrefs(), normalizedUser)
+        store = Store(statsigScope, getSharedPrefs(), normalizedUser)
+
+        if (options.overrideStableID == null) {
+            val stableID = getLocalStorageStableID()
+            this@StatsigClient.statsigMetadata.overrideStableID(stableID)
+        }
+        if (!this@StatsigClient.options.loadCacheAsync) {
+            this@StatsigClient.store.syncLoadFromLocalStorage()
+        }
+
+        this.initialized = true
         return normalizedUser
     }
 
@@ -422,7 +429,6 @@ internal class StatsigClient() {
         return statsigMetadata.stableID ?: statsigMetadata.stableID!!
     }
 
-
     fun logManualGateExposure(gateName: String) {
         enforceInitialized("logManualGateExposure")
         val gate = store.checkGate(gateName)
@@ -469,21 +475,25 @@ internal class StatsigClient() {
         }
     }
 
-    private suspend fun getLocalStorageStableID(): String {
+    private fun getLocalStorageStableID(): String {
         var stableID = this@StatsigClient.getSharedPrefs().getString(STABLE_ID_KEY, null)
         if (stableID == null) {
             stableID = UUID.randomUUID().toString()
-            this@StatsigClient.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
+            statsigScope.launch {
+                withContext(dispatcherProvider.io) {
+                    this@StatsigClient.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
+                }
+            }
         }
-        return stableID
+        return stableID!!
     }
 
     internal fun isInitialized(): Boolean {
-        return this::store.isInitialized
+        return this.initialized
     }
 
     internal fun enforceInitialized(functionName: String) {
-        if (!this::store.isInitialized) {
+        if (!this.initialized) {
             throw IllegalStateException("The SDK must be initialized prior to invoking $functionName")
         }
     }
@@ -544,10 +554,6 @@ internal class StatsigClient() {
 
     internal suspend fun saveStringToSharedPrefs(key: String, value: String) {
         StatsigUtil.saveStringToSharedPrefs(getSharedPrefs(), key, value)
-    }
-
-    internal suspend fun removeFromSharedPrefs(key: String) {
-        StatsigUtil.removeFromSharedPrefs(getSharedPrefs(), key)
     }
 
     private inner class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {

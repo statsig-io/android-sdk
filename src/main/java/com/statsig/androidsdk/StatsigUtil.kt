@@ -29,7 +29,21 @@ internal object StatsigUtil {
         }
     }
 
-    internal suspend fun saveStringToSharedPrefs(sharedPrefs: SharedPreferences, key: String, value: String) {
+    internal fun syncGetFromSharedPrefs(sharedPrefs: SharedPreferences?, key: String): String? {
+        if (sharedPrefs == null) {
+            return null
+        }
+        return try {
+            sharedPrefs.getString(key, null)
+        } catch (e: ClassCastException) {
+            null
+        }
+    }
+
+    internal suspend fun saveStringToSharedPrefs(sharedPrefs: SharedPreferences?, key: String, value: String) {
+        if (sharedPrefs == null) {
+            return
+        }
         withContext(dispatcherProvider.io) {
             val editor = sharedPrefs.edit()
             editor.putString(key, value)
@@ -37,7 +51,10 @@ internal object StatsigUtil {
         }
     }
 
-    internal suspend fun removeFromSharedPrefs(sharedPrefs: SharedPreferences, key: String) {
+    internal suspend fun removeFromSharedPrefs(sharedPrefs: SharedPreferences?, key: String) {
+        if (sharedPrefs == null) {
+            return
+        }
         withContext(dispatcherProvider.io) {
             val editor = sharedPrefs.edit()
             editor.remove(key)
@@ -45,7 +62,10 @@ internal object StatsigUtil {
         }
     }
 
-    internal suspend fun getFromSharedPrefs(sharedPrefs: SharedPreferences, key: String): String? {
+    internal suspend fun getFromSharedPrefs(sharedPrefs: SharedPreferences?, key: String): String? {
+        if (sharedPrefs == null) {
+            return null
+        }
         return withContext(dispatcherProvider.io) {
             return@withContext try {
                 sharedPrefs.getString(key, null)

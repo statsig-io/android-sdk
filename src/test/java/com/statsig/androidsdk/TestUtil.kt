@@ -213,12 +213,18 @@ class TestUtil {
         }
 
         @JvmName("startStatsigAndDontWait")
-        internal fun startStatsigAndDontWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
+        internal fun startStatsigAndDontWait(app: Application, user: StatsigUser, options: StatsigOptions) {
             Statsig.client = StatsigClient()
-            if (network != null) {
-                Statsig.client.statsigNetwork = network
-            }
-            Statsig.initialize(app, "client-apikey", user, options)
+
+            val setupMethod = Statsig.client.javaClass.getDeclaredMethod(
+                "setup",
+                Application::class.java,
+                String::class.java,
+                StatsigUser::class.java,
+                StatsigOptions::class.java
+            )
+            setupMethod.isAccessible = true
+            setupMethod.invoke(Statsig.client, app, "client-test", user, options)
         }
 
         fun getMockApp(): Application {
@@ -297,6 +303,10 @@ class TestUtil {
                 captureUser?.invoke(thirdArg())
                 makeInitializeResponse(featureGates, dynamicConfigs, layerConfigs)
             }
+
+            coEvery {
+                statsigNetwork.addFailedLogRequest(any())
+            } answers {}
 
             coEvery {
                 statsigNetwork.apiPostLogs(any(), any(), any())
