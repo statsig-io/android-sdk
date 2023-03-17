@@ -2,18 +2,12 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.gson.Gson
-import com.google.gson.annotations.SerializedName
 import io.mockk.*
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestCoroutineDispatcher
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 
 class StatsigCacheTest {
@@ -60,6 +54,7 @@ class StatsigCacheTest {
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
         assertTrue(client.isInitialized())
+        assertTrue(client.getStore().checkGate("always_on").details.reason == EvaluationReason.Cache)
 
         assertTrue(client.checkGate("always_on"))
         runBlocking {
@@ -87,7 +82,7 @@ class StatsigCacheTest {
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions(loadCacheAsync = true))
         client = Statsig.client
-
+        client.statsigNetwork = TestUtil.mockNetwork()
         assertFalse(client.checkGate("always_on"))
         runBlocking {
             client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1", "client-test")
@@ -104,7 +99,7 @@ class StatsigCacheTest {
 
         val netConfig = client.getConfig("test_config")
         assertEquals("test", netConfig.getString("string", "fallback"))
-        assertEquals(EvaluationReason.Cache, netConfig.getEvaluationDetails().reason)
+        assertEquals(EvaluationReason.Network, netConfig.getEvaluationDetails().reason)
 
         assertTrue(Statsig.client.isInitialized())
     }

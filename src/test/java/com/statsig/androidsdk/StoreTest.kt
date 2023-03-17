@@ -106,7 +106,7 @@ class StoreTest {
     assertEquals(EvaluationReason.Uninitialized, exp.getEvaluationDetails().reason)
     assertEquals(EvaluationReason.Uninitialized, fakeConfig.getEvaluationDetails().reason)
 
-    store.syncLoadFromLocalStorage(userJkw)
+    store.syncLoadFromLocalStorage()
 
     // save some value from "network" and check again
     store.save(getInitValue("v0", inExperiment = true, active = true), userJkw.getCacheKey())
@@ -121,7 +121,7 @@ class StoreTest {
     // re-initialize store, and check before any "network" value is saved
     Thread.sleep(1000) // wait 1 sec before reinitializing so that we can check the evaluation time in details has not advanced
     store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
-    store.syncLoadFromLocalStorage(userJkw)
+    store.syncLoadFromLocalStorage()
     exp = store.getExperiment(
       "exp",
       true
@@ -134,7 +134,7 @@ class StoreTest {
 
     // re-initialize and check the previously saved sticky value
     store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
-    store.syncLoadFromLocalStorage(userJkw)
+    store.syncLoadFromLocalStorage()
     store.save(getInitValue("v1", inExperiment = true, active = true), userJkw.getCacheKey())
     store.persistStickyValues()
 
@@ -278,7 +278,7 @@ class StoreTest {
   fun testStickyBehaviorAcrossSessions() = runBlocking {
     val sharedPrefs = TestSharedPreferences()
     var store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
-    store.syncLoadFromLocalStorage(userJkw)
+    store.syncLoadFromLocalStorage()
     val v0Values = getInitValue("v0", inExperiment = true, active = true)
     store.save(v0Values, userJkw.getCacheKey())
     store.persistStickyValues()
@@ -295,7 +295,7 @@ class StoreTest {
 
     // Reinitialize, same user ID, should keep sticky values
     store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
-    store.syncLoadFromLocalStorage(userJkw)
+    store.syncLoadFromLocalStorage()
     val configs = v0Values.configs as MutableMap<String, APIDynamicConfig>
 
     configs["exp!"] = newConfigUpdatingValue(configs["exp!"]!!, mapOf("key" to "v0_alt"))
@@ -315,7 +315,7 @@ class StoreTest {
     // Re-create store with a different user ID, update the values, user should still get sticky
     // value for device and only device
     store = Store(TestCoroutineScope(), sharedPrefs, userTore)
-    store.syncLoadFromLocalStorage(userTore)
+    store.syncLoadFromLocalStorage()
     store.save(getInitValue("v1", inExperiment = true, active = true), userTore.getCacheKey())
 
     config = store.getExperiment("config", true)
@@ -329,7 +329,7 @@ class StoreTest {
 
     // Re-create store with the original user ID, check that sticky values are persisted
     store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
-    store.syncLoadFromLocalStorage(userJkw)
+    store.syncLoadFromLocalStorage()
     store.save(getInitValue("v2", inExperiment = true, active = true), userJkw.getCacheKey())
 
     config = store.getExperiment("config", true)

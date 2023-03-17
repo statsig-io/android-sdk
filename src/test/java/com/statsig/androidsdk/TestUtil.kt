@@ -305,6 +305,10 @@ class TestUtil {
             }
 
             coEvery {
+                statsigNetwork.addFailedLogRequest(any())
+            } answers {}
+
+            coEvery {
                 statsigNetwork.apiPostLogs(any(), any(), any())
             } answers {}
 

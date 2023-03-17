@@ -83,7 +83,7 @@ internal class StatsigClient() {
     private suspend fun setupAsync(user: StatsigUser) {
         withContext(dispatcherProvider.io) {
             if (this@StatsigClient.options.loadCacheAsync) {
-                this@StatsigClient.store.syncLoadFromLocalStorage(user)
+                this@StatsigClient.store.syncLoadFromLocalStorage()
             }
             val initResponse = statsigNetwork.initialize(
                 this@StatsigClient.options.api,
@@ -140,7 +140,7 @@ internal class StatsigClient() {
             this@StatsigClient.statsigMetadata.overrideStableID(stableID)
         }
         if (!this@StatsigClient.options.loadCacheAsync) {
-            this@StatsigClient.store.syncLoadFromLocalStorage(normalizedUser)
+            this@StatsigClient.store.syncLoadFromLocalStorage()
         }
 
         this.initialized = true
