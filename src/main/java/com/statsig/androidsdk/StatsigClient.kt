@@ -556,10 +556,6 @@ internal class StatsigClient() {
         StatsigUtil.saveStringToSharedPrefs(getSharedPrefs(), key, value)
     }
 
-    internal suspend fun removeFromSharedPrefs(key: String) {
-        StatsigUtil.removeFromSharedPrefs(getSharedPrefs(), key)
-    }
-
     private inner class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {
         var currentActivity: Activity? = null
 

@@ -213,7 +213,7 @@ class TestUtil {
         }
 
         @JvmName("startStatsigAndDontWait")
-        internal fun startStatsigAndDontWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions()) {
+        internal fun startStatsigAndDontWait(app: Application, user: StatsigUser, options: StatsigOptions) {
             Statsig.client = StatsigClient()
 
             val setupMethod = Statsig.client.javaClass.getDeclaredMethod(
