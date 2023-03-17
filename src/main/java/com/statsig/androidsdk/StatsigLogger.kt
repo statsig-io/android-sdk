@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -24,7 +25,7 @@ internal data class LogEventData(
 )
 
 internal class StatsigLogger(
-    coroutineScope: CoroutineScope,
+    private val coroutineScope: CoroutineScope,
     private val sdkKey: String,
     private val api: String,
     private val statsigMetadata: StatsigMetadata,
@@ -42,9 +43,10 @@ internal class StatsigLogger(
     }
 
     private var events = ConcurrentLinkedQueue<LogEvent>()
-    private var loggedExposures: MutableMap<String, Long> = HashMap()
+    private var loggedExposures = ConcurrentHashMap<String, Long>()
 
     suspend fun log(event: LogEvent) {
+
         withContext(singleThreadDispatcher) {
             events.add(event)
 
@@ -55,7 +57,7 @@ internal class StatsigLogger(
     }
 
     fun onUpdateUser() {
-        this.loggedExposures = HashMap()
+        this.loggedExposures = ConcurrentHashMap()
     }
 
     suspend fun flush() {
@@ -69,13 +71,14 @@ internal class StatsigLogger(
         }
     }
 
-    suspend fun logExposure(name: String, gate: FeatureGate, user: StatsigUser, isManual: Boolean) {
+    fun logExposure(name: String, gate: FeatureGate, user: StatsigUser, isManual: Boolean) {
         val dedupeKey = name + gate.value + gate.ruleID + gate.details.reason.toString()
         if (!shouldLogExposure(dedupeKey)) {
             return
         }
-        withContext(singleThreadDispatcher) {
-            var event = LogEvent(GATE_EXPOSURE)
+
+        coroutineScope.launch(singleThreadDispatcher) {
+            val event = LogEvent(GATE_EXPOSURE)
             event.user = user
 
             val metadata = mutableMapOf(
@@ -93,13 +96,14 @@ internal class StatsigLogger(
         }
     }
 
-    suspend fun logExposure(name: String, config: DynamicConfig, user: StatsigUser, isManual: Boolean) {
+    fun logExposure(name: String, config: DynamicConfig, user: StatsigUser, isManual: Boolean) {
         val dedupeKey = name + config.getRuleID() + config.getEvaluationDetails().reason.toString()
         if (!shouldLogExposure(dedupeKey)) {
             return
         }
-        withContext(singleThreadDispatcher) {
-            var event = LogEvent(CONFIG_EXPOSURE)
+
+        coroutineScope.launch(singleThreadDispatcher) {
+            val event = LogEvent(CONFIG_EXPOSURE)
             event.user = user
             val metadata = mutableMapOf(
                 "config" to name,
@@ -116,7 +120,7 @@ internal class StatsigLogger(
         }
     }
 
-    suspend fun logLayerExposure(
+    fun logLayerExposure(
         configName: String,
         ruleID: String,
         secondaryExposures: Array<Map<String, String>>,
@@ -140,14 +144,16 @@ internal class StatsigLogger(
 
         val dedupeKey = arrayOf(configName, ruleID, allocatedExperiment, parameterName, isExplicitParameter.toString(),
             details.reason.toString()).joinToString("|")
-        if (shouldLogExposure(dedupeKey)) {
-            withContext(singleThreadDispatcher) {
-                val event = LogEvent(LAYER_EXPOSURE)
-                event.user = user
-                event.metadata = metadata
-                event.secondaryExposures = secondaryExposures
-                log(event)
-            }
+        if (!shouldLogExposure(dedupeKey)) {
+            return
+        }
+
+        coroutineScope.launch(singleThreadDispatcher) {
+            val event = LogEvent(LAYER_EXPOSURE)
+            event.user = user
+            event.metadata = metadata
+            event.secondaryExposures = secondaryExposures
+            log(event)
         }
     }
 
