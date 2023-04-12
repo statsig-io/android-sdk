@@ -62,10 +62,6 @@ task copyLibs(type: Copy) {
     into 'libs'
 }
 
-wrapper {
-    gradleVersion = '7.3.2'
-}
-
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
