@@ -50,10 +50,10 @@ internal class StatsigClient() {
     ) {
         val user = setup(application, sdkKey, user, options)
         statsigScope.launch {
-            setupAsync(user)
+            val initDetails = setupAsync(user)
             // The scope's dispatcher may change in the future. This "withContext" will ensure we keep true to the documentation above.
             withContext(dispatcherProvider.main) {
-                callback?.onStatsigInitialize()
+                callback?.onStatsigInitialize(initDetails)
             }
         }
     }
@@ -75,13 +75,15 @@ internal class StatsigClient() {
         sdkKey: String,
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
-    ) {
+    ): InitializationDetails {
         val normalizedUser = setup(application, sdkKey, user, options)
-        setupAsync(normalizedUser)
+        return setupAsync(normalizedUser)
     }
 
-    private suspend fun setupAsync(user: StatsigUser) {
-        withContext(dispatcherProvider.io) {
+    private suspend fun setupAsync(user: StatsigUser): InitializationDetails {
+        return withContext(dispatcherProvider.io) {
+            val initStartTime = System.currentTimeMillis()
+            var success = false
             if (this@StatsigClient.options.loadCacheAsync) {
                 this@StatsigClient.store.syncLoadFromLocalStorage()
             }
@@ -94,14 +96,17 @@ internal class StatsigClient() {
                 this@StatsigClient.getSharedPrefs(),
             )
 
-            if (initResponse != null) {
+            if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
                 val cacheKey = user.getCacheKey()
                 this@StatsigClient.store.save(initResponse, cacheKey)
+                success = true
             }
+            var duration = System.currentTimeMillis() - initStartTime
 
             this@StatsigClient.pollForUpdates()
 
             this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api, this@StatsigClient.sdkKey)
+            return@withContext InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null )
         }
     }
 
@@ -359,7 +364,7 @@ internal class StatsigClient() {
                 options.initTimeoutMs,
                 getSharedPrefs(),
             )
-            if (initResponse != null) {
+            if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
                 store.save(initResponse, cacheKey)
             }
             pollForUpdates()

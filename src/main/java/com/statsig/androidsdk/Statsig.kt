@@ -11,7 +11,12 @@ import kotlinx.coroutines.withContext
  */
 @FunctionalInterface
 interface IStatsigCallback {
+  // DEPRECATED: DO NOT USE
   fun onStatsigInitialize()
+
+  fun onStatsigInitialize(initDetails: InitializationDetails) {
+    return this.onStatsigInitialize()
+  }
 
   fun onStatsigUpdateUser()
 }
