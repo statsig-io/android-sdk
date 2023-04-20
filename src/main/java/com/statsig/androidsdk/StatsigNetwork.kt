@@ -191,7 +191,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
 
                 connection.requestMethod = POST
                 if (timeout != null) {
-                    connection.connectTimeout = timeout
+                    connection.readTimeout = timeout
                 }
                 connection.setRequestProperty(CONTENT_TYPE_HEADER_KEY, CONTENT_TYPE_HEADER_VALUE)
                 connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
