@@ -1,14 +1,29 @@
 package com.statsig.androidsdk
 
 import com.google.gson.annotations.SerializedName
+import java.lang.Exception
 
-internal data class InitializeResponse(
-    @SerializedName("feature_gates") val featureGates: Map<String, APIFeatureGate>?,
-    @SerializedName("dynamic_configs") val configs: Map<String, APIDynamicConfig>?,
-    @SerializedName("layer_configs") var layerConfigs: Map<String, APIDynamicConfig>?,
-    @SerializedName("has_updates") val hasUpdates: Boolean,
-    @SerializedName("time") val time: Long,
-)
+enum class InitializeFailReason {
+    CoroutineTimeout,
+    NetworkException,
+    InvalidResponse,
+    InternalError,
+}
+
+sealed class InitializeResponse {
+    data class FailedInitializeResponse(
+            @SerializedName("reason") val reason: InitializeFailReason,
+            @SerializedName("exception") val exception: Exception? = null,
+            @SerializedName("statusCode") val statusCode: Int? = null,
+    ): InitializeResponse()
+    internal data class SuccessfulInitializeResponse(
+            @SerializedName("feature_gates") val featureGates: Map<String, APIFeatureGate>?,
+            @SerializedName("dynamic_configs") val configs: Map<String, APIDynamicConfig>?,
+            @SerializedName("layer_configs") var layerConfigs: Map<String, APIDynamicConfig>?,
+            @SerializedName("has_updates") val hasUpdates: Boolean,
+            @SerializedName("time") val time: Long,
+    ): InitializeResponse()
+}
 
 internal data class APIFeatureGate(
     @SerializedName("name") val name: String,

@@ -7,7 +7,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.TimeUnit
 import kotlin.math.pow
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -57,7 +56,7 @@ internal interface StatsigNetwork {
 
     suspend fun initialize(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata, initTimeoutMs: Long, sharedPrefs: SharedPreferences) : InitializeResponse?
 
-    fun pollForChanges(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata): Flow<InitializeResponse?>
+    fun pollForChanges(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata): Flow<InitializeResponse.SuccessfulInitializeResponse?>
 
     suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String)
 
@@ -82,14 +81,14 @@ private class StatsigNetworkImpl : StatsigNetwork {
         metadata: StatsigMetadata,
         initTimeoutMs: Long,
         sharedPrefs: SharedPreferences
-    ): InitializeResponse? {
+    ): InitializeResponse {
         this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
             return initializeImpl(api, sdkKey, user, metadata)
         }
         return withTimeoutOrNull(initTimeoutMs) {
             initializeImpl(api, sdkKey, user, metadata, initTimeoutMs.toInt())
-        }
+        } ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.CoroutineTimeout)
     }
 
     private suspend fun initializeImpl(
@@ -98,16 +97,18 @@ private class StatsigNetworkImpl : StatsigNetwork {
         user: StatsigUser?,
         metadata: StatsigMetadata,
         timeoutMs: Int? = null
-    ): InitializeResponse? {
+    ): InitializeResponse {
         return try {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
             val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy)
-            val response = postRequest<InitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs)
+            var exception: Exception? = null
+            var statusCode: Int? = null
+            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs) { e: Exception?, status: Int? -> exception = e; statusCode = status }
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
-            response
-        } catch (_ : Exception) {
-            null
+            response ?: InitializeResponse.FailedInitializeResponse(if (statusCode != null) InitializeFailReason.InvalidResponse else InitializeFailReason.NetworkException, exception, statusCode)
+        } catch (e : Exception) {
+            return InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e)
         }
     }
 
@@ -116,9 +117,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
         sdkKey: String,
         user: StatsigUser?,
         metadata: StatsigMetadata
-    ): Flow<InitializeResponse?> {
+    ): Flow<InitializeResponse.SuccessfulInitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
-        return flow<InitializeResponse?> {
+        return flow<InitializeResponse.SuccessfulInitializeResponse?> {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
             while (true) {
@@ -182,7 +183,14 @@ private class StatsigNetworkImpl : StatsigNetwork {
     // Bug with Kotlin where any function that throws an IOException still triggers this lint warning
     // https://youtrack.jetbrains.com/issue/KTIJ-838
     @Suppress("BlockingMethodInNonBlockingContext")
-    private suspend inline fun <reified T : Any> postRequest(api: String, endpoint: String, sdkKey: String, bodyString: String, retries: Int, timeout: Int? = null): T? {
+    private suspend inline fun <reified T : Any> postRequest(
+            api: String,
+            endpoint: String,
+            sdkKey: String,
+            bodyString: String,
+            retries: Int,
+            timeout: Int? = null,
+            crossinline callback: ((e: Exception?, statusCode: Int?) -> Unit) = { _: Exception?, _: Int? -> }): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
             var retryAttempt = 0
             while (isActive) {
@@ -214,17 +222,23 @@ private class StatsigNetworkImpl : StatsigNetwork {
                                 delay(100.0.pow(retryAttempt + 1).toLong())
                             } else if (endpoint == LOGGING_ENDPOINT) {
                                 addFailedLogRequest(bodyString)
+                                callback(null, connection.responseCode)
                                 return@withContext null
                             } else {
+                                callback(null, connection.responseCode)
                                 return@withContext null
                             }
                         }
-                        else -> return@withContext null
+                        else -> {
+                            callback(null, connection.responseCode)
+                            return@withContext null
+                        }
                     }
                 } catch (e: Exception) {
                     if (endpoint == LOGGING_ENDPOINT) {
                         addFailedLogRequest(bodyString)
                     }
+                    callback(e, null)
                     return@withContext null
                 } finally {
                     connection.disconnect()
