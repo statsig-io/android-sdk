@@ -88,7 +88,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
             return initializeImpl(api, sdkKey, user, metadata)
         }
         return withTimeoutOrNull(initTimeoutMs) {
-            initializeImpl(api, sdkKey, user, metadata)
+            initializeImpl(api, sdkKey, user, metadata, initTimeoutMs.toInt())
         }
     }
 
@@ -97,12 +97,13 @@ private class StatsigNetworkImpl : StatsigNetwork {
         sdkKey: String,
         user: StatsigUser?,
         metadata: StatsigMetadata,
+        timeoutMs: Int? = null
     ): InitializeResponse? {
         return try {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
             val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy)
-            val response = postRequest<InitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0)
+            val response = postRequest<InitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs)
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
             response
         } catch (_ : Exception) {
@@ -181,7 +182,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
     // Bug with Kotlin where any function that throws an IOException still triggers this lint warning
     // https://youtrack.jetbrains.com/issue/KTIJ-838
     @Suppress("BlockingMethodInNonBlockingContext")
-    private suspend inline fun <reified T : Any> postRequest(api: String, endpoint: String, sdkKey: String, bodyString: String, retries: Int): T? {
+    private suspend inline fun <reified T : Any> postRequest(api: String, endpoint: String, sdkKey: String, bodyString: String, retries: Int, timeout: Int? = null): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
             var retryAttempt = 0
             while (isActive) {
@@ -189,6 +190,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
                 val connection: HttpURLConnection = URL(url).openConnection() as HttpURLConnection
 
                 connection.requestMethod = POST
+                if (timeout != null) {
+                    connection.readTimeout = timeout
+                }
                 connection.setRequestProperty(CONTENT_TYPE_HEADER_KEY, CONTENT_TYPE_HEADER_VALUE)
                 connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
                 connection.setRequestProperty(STATSIG_SDK_TYPE_KEY, "android-client")
