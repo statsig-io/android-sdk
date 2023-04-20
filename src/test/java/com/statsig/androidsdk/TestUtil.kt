@@ -181,8 +181,8 @@ class TestUtil {
         internal fun makeInitializeResponse(
             featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
             dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
-            layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs): InitializeResponse {
-            return InitializeResponse(
+            layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs): InitializeResponse.SuccessfulInitializeResponse {
+            return InitializeResponse.SuccessfulInitializeResponse(
                 featureGates = featureGates,
                 configs = dynamicConfigs,
                 layerConfigs = layerConfigs,
