@@ -30,8 +30,8 @@ class StoreTest {
     value: String,
     inExperiment: Boolean = false,
     active: Boolean = false
-  ): InitializeResponse {
-    return InitializeResponse(
+  ): InitializeResponse.SuccessfulInitializeResponse {
+    return InitializeResponse.SuccessfulInitializeResponse(
       featureGates =
       mutableMapOf("gate!" to APIFeatureGate("gate", inExperiment, "id", arrayOf())),
       configs =

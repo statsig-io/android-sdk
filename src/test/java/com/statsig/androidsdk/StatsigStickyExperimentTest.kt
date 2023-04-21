@@ -3,15 +3,10 @@ package com.statsig.androidsdk
 import android.app.Application
 import io.mockk.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.test.TestCoroutineDispatcher
-import kotlinx.coroutines.test.setMain
 import org.junit.After
-import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 class StatsigStickyExperimentTest {
   private lateinit var app: Application

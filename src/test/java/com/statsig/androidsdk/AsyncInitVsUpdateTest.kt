@@ -8,7 +8,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
 
 internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse? {
   return withContext(Dispatchers.IO) {
