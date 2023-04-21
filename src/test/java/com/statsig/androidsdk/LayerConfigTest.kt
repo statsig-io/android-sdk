@@ -1,13 +1,9 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestCoroutineDispatcher
-import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.*;
 import org.junit.Before
