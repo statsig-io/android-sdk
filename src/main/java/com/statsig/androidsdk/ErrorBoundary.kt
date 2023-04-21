@@ -32,8 +32,8 @@ internal class ErrorBoundary() {
     }
   }
 
-  suspend fun captureAsync(task: suspend () -> Unit, recover: (suspend () -> Unit)? = null) {
-    try {
+  suspend fun <T> captureAsync(task: suspend () -> T, recover: (suspend () -> Unit)? = null): T? {
+    return try {
       task()
     } catch (e: Exception) {
       println("[Statsig]: An unexpected exception occurred.")
@@ -41,6 +41,7 @@ internal class ErrorBoundary() {
 
       logException(e)
       recover?.let { it() }
+      null
     }
   }
 

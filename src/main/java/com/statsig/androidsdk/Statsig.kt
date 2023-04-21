@@ -78,14 +78,14 @@ object Statsig {
     sdkKey: String,
     user: StatsigUser? = null,
     options: StatsigOptions = StatsigOptions(),
-  ) {
+  ): InitializationDetails? {
     if (client.isInitialized()) {
-      return
+      return null
     }
 
     errorBoundary.setKey(sdkKey)
-    errorBoundary.captureAsync({
-      client.initialize(application, sdkKey, user, options)
+    return errorBoundary.captureAsync({
+      return@captureAsync client.initialize(application, sdkKey, user, options)
     })
   }
 
