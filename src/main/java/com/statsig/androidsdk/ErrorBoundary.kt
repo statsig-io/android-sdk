@@ -45,7 +45,7 @@ internal class ErrorBoundary() {
     }
   }
 
-  private fun logException(exception: Exception) {
+  fun logException(exception: Exception) {
     try {
       if (apiKey == null) {
         return

@@ -66,6 +66,7 @@ object Statsig {
    * @param sdkKey - a client or test SDK Key from the Statsig console
    * @param user - the user to associate with feature gate checks, config fetches, and logging
    * @param options - advanced SDK setup
+   * @return data class containing initialization details (e.g. duration, success), null otherwise
    * @throws IllegalArgumentException if and Invalid SDK Key provided
    * Checking Gates/Configs before initialization calls back will return default values
    * Logging Events before initialization will drop those events

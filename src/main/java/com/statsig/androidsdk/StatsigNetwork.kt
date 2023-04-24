@@ -114,6 +114,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
                 }
                 else -> {
+                    Statsig.errorBoundary.logException(e)
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e)
                 }
             }
