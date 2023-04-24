@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.net.SocketTimeoutException
 
 private val RETRY_CODES: IntArray = intArrayOf(
     HttpURLConnection.HTTP_CLIENT_TIMEOUT,
@@ -106,9 +107,16 @@ private class StatsigNetworkImpl : StatsigNetwork {
             var statusCode: Int? = null
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs) { e: Exception?, status: Int? -> exception = e; statusCode = status }
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
-            response ?: InitializeResponse.FailedInitializeResponse(if (statusCode != null) InitializeFailReason.InvalidResponse else InitializeFailReason.NetworkException, exception, statusCode)
+            response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, exception, statusCode)
         } catch (e : Exception) {
-            return InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e)
+            when(e) {
+                is SocketTimeoutException -> {
+                    return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
+                }
+                else -> {
+                    return InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e)
+                }
+            }
         }
     }
 
@@ -207,11 +215,17 @@ private class StatsigNetworkImpl : StatsigNetwork {
                 connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
                 connection.setRequestProperty(STATSIG_CLIENT_TIME_HEADER_KEY, System.currentTimeMillis().toString())
                 connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
+                connection.allowUserInteraction = false
 
                 try {
                     connection.outputStream.bufferedWriter(Charsets.UTF_8)
                         .use { it.write(bodyString) }
-                    val response = connection.inputStream.bufferedReader(Charsets.UTF_8)
+                    val inputStream = if (connection.responseCode < HttpURLConnection.HTTP_BAD_REQUEST) {
+                        connection.inputStream
+                    } else {
+                        connection.errorStream
+                    }
+                    val response = inputStream.bufferedReader(Charsets.UTF_8)
                         .use { gson.fromJson(it, T::class.java) }
 
                     when (connection.responseCode) {
@@ -238,7 +252,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     if (endpoint == LOGGING_ENDPOINT) {
                         addFailedLogRequest(bodyString)
                     }
-                    callback(e, null)
+                    callback(e, connection.responseCode)
                     return@withContext null
                 } finally {
                     connection.disconnect()
