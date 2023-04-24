@@ -215,7 +215,6 @@ private class StatsigNetworkImpl : StatsigNetwork {
                 connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
                 connection.setRequestProperty(STATSIG_CLIENT_TIME_HEADER_KEY, System.currentTimeMillis().toString())
                 connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
-                connection.allowUserInteraction = false
 
                 try {
                     connection.outputStream.bufferedWriter(Charsets.UTF_8)
