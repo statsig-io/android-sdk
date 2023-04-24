@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import io.mockk.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -23,18 +24,20 @@ class StatsigOverridesTest {
         "num" to 123)
 
     @Before
-    internal fun setup() = runBlocking {
-        TestUtil.mockDispatchers()
-        TestUtil.mockStatsigUtil()
-        app = mockk()
-        TestUtil.stubAppFunctions(app)
+    internal fun setup() {
+        runBlocking {
+            TestUtil.mockDispatchers()
+            TestUtil.mockStatsigUtil()
+            app = mockk()
+            TestUtil.stubAppFunctions(app)
 
-        val statsigNetwork = TestUtil.mockNetwork()
+            val statsigNetwork = TestUtil.mockNetwork()
 
-        Statsig.client = StatsigClient()
-        Statsig.client.statsigNetwork = statsigNetwork
+            Statsig.client = StatsigClient()
+            Statsig.client.statsigNetwork = statsigNetwork
 
-        Statsig.initialize(app, "test-key")
+            Statsig.initialize(app, "test-key")
+        }
     }
 
     @After
