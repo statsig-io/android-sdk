@@ -73,7 +73,6 @@ class AsyncInitVsUpdateTest {
     }
 
     Statsig.initializeAsync(app, "client-key", userA, callback)
-    Statsig.updateUserAsync(userB, callback)
 
     var value = Statsig.getConfig("a_config").getString("key", "default")
     assertEquals("default", value)
@@ -81,7 +80,9 @@ class AsyncInitVsUpdateTest {
     didInitializeUserA.await()
 
     value = Statsig.getConfig("a_config").getString("key", "default")
-    assertEquals("default", value)
+    assertEquals("user_a_value", value)
+
+    Statsig.updateUserAsync(userB, callback)
 
     didInitializeUserB.await()
 
