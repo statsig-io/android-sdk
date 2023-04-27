@@ -13,7 +13,7 @@ import java.util.concurrent.Executors
 internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse? {
   return withContext(Dispatchers.IO) {
     val isUserA = user.userID == "user-a"
-    delay(if (isUserA) 100 else 200)
+    delay(if (isUserA) 0 else 500)
     TestUtil.makeInitializeResponse(
       mapOf(),
       mapOf(
@@ -73,16 +73,16 @@ class AsyncInitVsUpdateTest {
     }
 
     Statsig.initializeAsync(app, "client-key", userA, callback)
+    Statsig.updateUserAsync(userB, callback)
 
     var value = Statsig.getConfig("a_config").getString("key", "default")
     assertEquals("default", value)
 
     didInitializeUserA.await()
 
+    // Since updateUserAsync has been called, we void values for user_a
     value = Statsig.getConfig("a_config").getString("key", "default")
-    assertEquals("user_a_value", value)
-
-    Statsig.updateUserAsync(userB, callback)
+    assertEquals("default", value)
 
     didInitializeUserB.await()
 
