@@ -27,7 +27,7 @@ private data class DeprecatedStickyUserExperiments(
 
 @VisibleForTesting
 private data class Cache(
-    @SerializedName("values") var values: InitializeResponse,
+    @SerializedName("values") var values: InitializeResponse.SuccessfulInitializeResponse,
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments,
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
 )
@@ -111,7 +111,7 @@ internal class Store (private val statsigScope: CoroutineScope, private val shar
         }
     }
 
-    suspend fun save(data: InitializeResponse, cacheKey: String) {
+    suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, cacheKey: String) {
         val cache = cacheById[cacheKey] ?: createEmptyCache()
         cache.values = data
         cache.evaluationTime = System.currentTimeMillis()
@@ -331,7 +331,7 @@ internal class Store (private val statsigScope: CoroutineScope, private val shar
     }
 
     private fun createEmptyCache(): Cache {
-        val emptyInitResponse = InitializeResponse(mapOf(), mapOf(), mapOf(), false, 0)
+        val emptyInitResponse = InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, 0)
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
         return Cache(emptyInitResponse, emptyStickyUserExperiments, System.currentTimeMillis())
     }

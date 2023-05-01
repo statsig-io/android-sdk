@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
 import io.mockk.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
@@ -181,8 +182,8 @@ class TestUtil {
         internal fun makeInitializeResponse(
             featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
             dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
-            layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs): InitializeResponse {
-            return InitializeResponse(
+            layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs): InitializeResponse.SuccessfulInitializeResponse {
+            return InitializeResponse.SuccessfulInitializeResponse(
                 featureGates = featureGates,
                 configs = dynamicConfigs,
                 layerConfigs = layerConfigs,
