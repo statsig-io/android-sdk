@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.*
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
@@ -36,7 +37,7 @@ internal class StatsigClient() {
     private val statsigJob = SupervisorJob()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private val statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main)
-    private var initialized = false
+    private var initialized = AtomicBoolean(false)
 
     @VisibleForTesting
     internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
@@ -148,7 +149,7 @@ internal class StatsigClient() {
             this@StatsigClient.store.syncLoadFromLocalStorage()
         }
 
-        this.initialized = true
+        this.initialized.set(true)
         return normalizedUser
     }
 
@@ -488,11 +489,11 @@ internal class StatsigClient() {
     }
 
     internal fun isInitialized(): Boolean {
-        return this.initialized
+        return this.initialized.get()
     }
 
     internal fun enforceInitialized(functionName: String) {
-        if (!this.initialized) {
+        if (!this.initialized.get()) {
             throw IllegalStateException("The SDK must be initialized prior to invoking $functionName")
         }
     }
