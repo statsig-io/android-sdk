@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert
+import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -285,6 +286,35 @@ class TestUtil {
             } coAnswers {
                 firstArg<SharedPreferences>().edit().remove(secondArg<String>())
             }
+        }
+
+        @JvmName("mockBrokenNetwork")
+        internal fun mockBrokenNetwork(): StatsigNetwork {
+            val statsigNetwork = mockk<StatsigNetwork>()
+            coEvery {
+                statsigNetwork.apiRetryFailedLogs(any(), any())
+            } answers {
+                throw IOException("Example exception in StatsigNetwork apiRetryFailedLogs")
+            }
+
+            coEvery {
+                statsigNetwork.initialize(any(), any(), any(), any(), any(), any())
+            } answers {
+                throw IOException("Example exception in StatsigNetwork initialize")
+            }
+
+            coEvery {
+                statsigNetwork.addFailedLogRequest(any())
+            } answers {
+                throw IOException("Example exception in StatsigNetwork addFailedLogRequest")
+            }
+
+            coEvery {
+                statsigNetwork.apiPostLogs(any(), any(), any())
+            } answers {
+                throw IOException("Example exception in StatsigNetwork apiPostLogs")
+            }
+            return statsigNetwork
         }
 
         @JvmName("mockNetwork")

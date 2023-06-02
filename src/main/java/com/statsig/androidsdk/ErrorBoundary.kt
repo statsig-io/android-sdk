@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineExceptionHandler
 import java.io.DataOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -20,32 +21,46 @@ internal class ErrorBoundary() {
     this.statsigMetadata = statsigMetadata
   }
 
+  private fun handleException(exception: Throwable) {
+    println("[Statsig]: An unexpected exception occurred.")
+    println(exception)
+    this.logException(exception)
+  }
+
+  fun getExceptionHandler(): CoroutineExceptionHandler {
+    return CoroutineExceptionHandler {_, exception ->
+      this.handleException(exception)
+    }
+  }
+
   fun capture(task: () -> Unit, recover: (() -> Unit)? = null) {
     try {
       task()
     } catch (e: Exception) {
-      println("[Statsig]: An unexpected exception occurred.")
-      println(e)
-
-      logException(e)
+      handleException(e)
       recover?.let { it() }
     }
   }
 
-  suspend fun <T> captureAsync(task: suspend () -> T, recover: (suspend () -> Unit)? = null): T? {
+  suspend fun <T> captureAsync(task: suspend () -> T): T? {
     return try {
       task()
     } catch (e: Exception) {
-      println("[Statsig]: An unexpected exception occurred.")
-      println(e)
-
-      logException(e)
-      recover?.let { it() }
+      handleException(e)
       null
     }
   }
 
-  internal fun logException(exception: Exception) {
+  suspend fun <T> captureAsync(task: suspend () -> T, recover: (suspend (e: Exception) -> T)): T {
+    return try {
+      task()
+    } catch (e: Exception) {
+      handleException(e)
+      recover(e)
+    }
+  }
+
+  internal fun logException(exception: Throwable) {
     try {
       if (apiKey == null) {
         return
