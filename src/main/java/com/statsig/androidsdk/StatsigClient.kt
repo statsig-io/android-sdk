@@ -483,7 +483,7 @@ internal class StatsigClient() {
     }
 
     private fun updateStickyValues() {
-        statsigScope.launch {
+        statsigScope.launch(dispatcherProvider.io) {
             store.persistStickyValues()
         }
     }
