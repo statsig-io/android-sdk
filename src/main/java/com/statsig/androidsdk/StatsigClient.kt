@@ -8,6 +8,7 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.annotation.VisibleForTesting
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import java.lang.Exception
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -32,11 +34,12 @@ internal class StatsigClient() {
     private lateinit var lifecycleListener: StatsigActivityLifecycleListener
     private lateinit var logger: StatsigLogger
     private lateinit var statsigMetadata: StatsigMetadata
+    private lateinit var exceptionHandler: CoroutineExceptionHandler
+    private lateinit var statsigScope: CoroutineScope
 
     private var pollingJob: Job? = null
     private val statsigJob = SupervisorJob()
     private val dispatcherProvider = CoroutineDispatcherProvider()
-    private val statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main)
     private var initialized = AtomicBoolean(false)
 
     @VisibleForTesting
@@ -84,30 +87,35 @@ internal class StatsigClient() {
     private suspend fun setupAsync(user: StatsigUser): InitializationDetails {
         return withContext(dispatcherProvider.io) {
             val initStartTime = System.currentTimeMillis()
-            var success = false
-            if (this@StatsigClient.options.loadCacheAsync) {
-                this@StatsigClient.store.syncLoadFromLocalStorage()
-            }
-            val initResponse = statsigNetwork.initialize(
-                this@StatsigClient.options.api,
-                this@StatsigClient.sdkKey,
-                user,
-                this@StatsigClient.statsigMetadata,
-                this@StatsigClient.options.initTimeoutMs,
-                this@StatsigClient.getSharedPrefs(),
-            )
+            return@withContext Statsig.errorBoundary.captureAsync({
+                var success = false
+                if (this@StatsigClient.options.loadCacheAsync) {
+                    this@StatsigClient.store.syncLoadFromLocalStorage()
+                }
+                val initResponse = statsigNetwork.initialize(
+                    this@StatsigClient.options.api,
+                    this@StatsigClient.sdkKey,
+                    user,
+                    this@StatsigClient.statsigMetadata,
+                    this@StatsigClient.options.initTimeoutMs,
+                    this@StatsigClient.getSharedPrefs(),
+                )
 
-            if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
-                val cacheKey = user.getCacheKey()
-                this@StatsigClient.store.save(initResponse, cacheKey)
-                success = true
-            }
-            var duration = System.currentTimeMillis() - initStartTime
+                if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
+                    val cacheKey = user.getCacheKey()
+                    this@StatsigClient.store.save(initResponse, cacheKey)
+                    success = true
+                }
+                var duration = System.currentTimeMillis() - initStartTime
 
-            this@StatsigClient.pollForUpdates()
+                this@StatsigClient.pollForUpdates()
 
-            this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api, this@StatsigClient.sdkKey)
-            return@withContext InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null )
+                this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api, this@StatsigClient.sdkKey)
+                InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null )
+            }, { e: Exception ->
+                var duration = System.currentTimeMillis() - initStartTime
+                InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e) )
+            })
         }
     }
 
@@ -129,6 +137,9 @@ internal class StatsigClient() {
         statsigMetadata = StatsigMetadata()
         Statsig.errorBoundary.setMetadata(statsigMetadata)
         populateStatsigMetadata()
+
+        exceptionHandler = Statsig.errorBoundary.getExceptionHandler()
+        statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
 
         lifecycleListener = StatsigActivityLifecycleListener()
         application.registerActivityLifecycleCallbacks(lifecycleListener)
@@ -350,25 +361,27 @@ internal class StatsigClient() {
      */
     suspend fun updateUser(user: StatsigUser?) {
         withContext(dispatcherProvider.io) {
-            enforceInitialized("updateUser")
-            logger.onUpdateUser()
-            pollingJob?.cancel()
-            this@StatsigClient.user = normalizeUser(user)
-            store.loadAndResetForUser(this@StatsigClient.user)
+            Statsig.errorBoundary.captureAsync {
+                enforceInitialized("updateUser")
+                logger.onUpdateUser()
+                pollingJob?.cancel()
+                this@StatsigClient.user = normalizeUser(user)
+                store.loadAndResetForUser(this@StatsigClient.user)
 
-            val cacheKey = this@StatsigClient.user.getCacheKey()
-            val initResponse = statsigNetwork.initialize(
-                options.api,
-                sdkKey,
-                this@StatsigClient.user,
-                statsigMetadata,
-                options.initTimeoutMs,
-                getSharedPrefs(),
-            )
-            if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
-                store.save(initResponse, cacheKey)
+                val cacheKey = this@StatsigClient.user.getCacheKey()
+                val initResponse = statsigNetwork.initialize(
+                    options.api,
+                    sdkKey,
+                    this@StatsigClient.user,
+                    statsigMetadata,
+                    options.initTimeoutMs,
+                    getSharedPrefs(),
+                )
+                if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
+                    store.save(initResponse, cacheKey)
+                }
+                pollForUpdates()
             }
-            pollForUpdates()
         }
     }
 
@@ -513,12 +526,7 @@ internal class StatsigClient() {
         }
         pollingJob?.cancel()
         val cacheKey = user.getCacheKey()
-        pollingJob = statsigNetwork.pollForChanges(
-            options.api,
-            sdkKey,
-            user,
-            statsigMetadata
-        ).onEach {
+        pollingJob = statsigNetwork.pollForChanges(options.api, sdkKey, user, statsigMetadata).onEach {
             if (it?.hasUpdates == true) {
                 store.save(it, cacheKey)
             }
@@ -539,8 +547,7 @@ internal class StatsigClient() {
 
         try {
             if (application.packageManager != null) {
-                val pInfo: PackageInfo =
-                    application.packageManager.getPackageInfo(application.packageName, 0)
+                val pInfo: PackageInfo = application.packageManager.getPackageInfo(application.packageName, 0)
                 statsigMetadata.appVersion = pInfo.versionName
             }
         } catch (e: PackageManager.NameNotFoundException) {
