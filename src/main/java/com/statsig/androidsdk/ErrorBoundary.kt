@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.util.Log
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineExceptionHandler
 import java.io.DataOutputStream
@@ -22,8 +23,6 @@ internal class ErrorBoundary() {
   }
 
   private fun handleException(exception: Throwable) {
-    println("[Statsig]: An unexpected exception occurred.")
-    println(exception)
     this.logException(exception)
   }
 
@@ -61,6 +60,8 @@ internal class ErrorBoundary() {
   }
 
   internal fun logException(exception: Throwable) {
+    Log.d("Statsig", "An unexpected exception occurred", exception)
+
     try {
       if (apiKey == null) {
         return
