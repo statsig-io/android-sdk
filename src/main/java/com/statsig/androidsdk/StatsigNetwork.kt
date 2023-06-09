@@ -252,7 +252,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     if (endpoint == LOGGING_ENDPOINT) {
                         addFailedLogRequest(bodyString)
                     }
-                    callback(e, connection.responseCode)
+                    callback(e, null)
                     return@withContext null
                 } finally {
                     connection.disconnect()
