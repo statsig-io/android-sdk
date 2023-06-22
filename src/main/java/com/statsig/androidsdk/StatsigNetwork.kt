@@ -110,6 +110,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, exception, statusCode)
         } catch (e : Exception) {
+            Statsig.errorBoundary.logException(e)
             when(e) {
                 is SocketTimeoutException -> {
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
@@ -118,7 +119,6 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.CoroutineTimeout, e)
                 }
                 else -> {
-                    Statsig.errorBoundary.logException(e)
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e)
                 }
             }

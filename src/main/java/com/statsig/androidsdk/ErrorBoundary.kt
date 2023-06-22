@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineExceptionHandler
 import java.io.DataOutputStream
+import java.lang.RuntimeException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -77,7 +78,7 @@ internal class ErrorBoundary() {
       val url = URL(urlString)
       val body = mapOf(
         "exception" to name,
-        "info" to exception.stackTraceToString(),
+        "info" to RuntimeException(exception).stackTraceToString(),
         "statsigMetadata" to metadata
       )
       val postData = Gson().toJson(body)
