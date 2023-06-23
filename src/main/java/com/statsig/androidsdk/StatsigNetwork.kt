@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import java.net.ConnectException
 import java.net.SocketTimeoutException
 
 private val RETRY_CODES: IntArray = intArrayOf(
@@ -112,7 +113,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         } catch (e : Exception) {
             Statsig.errorBoundary.logException(e)
             when(e) {
-                is SocketTimeoutException -> {
+                is SocketTimeoutException, is ConnectException -> {
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
                 }
                 is TimeoutCancellationException -> {
@@ -212,6 +213,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
 
                 connection.requestMethod = POST
                 if (timeout != null) {
+                    connection.connectTimeout = timeout
                     connection.readTimeout = timeout
                 }
                 connection.setRequestProperty(CONTENT_TYPE_HEADER_KEY, CONTENT_TYPE_HEADER_VALUE)
