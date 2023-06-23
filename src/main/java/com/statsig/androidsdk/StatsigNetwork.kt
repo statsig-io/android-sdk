@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import android.content.SharedPreferences
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
+import kotlinx.coroutines.TimeoutCancellationException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.TimeUnit
@@ -12,7 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
 import java.net.SocketTimeoutException
 
 private val RETRY_CODES: IntArray = intArrayOf(
@@ -87,9 +88,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
         if (initTimeoutMs == 0L) {
             return initializeImpl(api, sdkKey, user, metadata)
         }
-        return withTimeoutOrNull(initTimeoutMs) {
+        return withTimeout(initTimeoutMs) {
             initializeImpl(api, sdkKey, user, metadata, initTimeoutMs.toInt())
-        } ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.CoroutineTimeout)
+        }
     }
 
     private suspend fun initializeImpl(
@@ -109,12 +110,15 @@ private class StatsigNetworkImpl : StatsigNetwork {
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, exception, statusCode)
         } catch (e : Exception) {
+            Statsig.errorBoundary.logException(e)
             when(e) {
                 is SocketTimeoutException -> {
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
                 }
+                is TimeoutCancellationException -> {
+                    return InitializeResponse.FailedInitializeResponse(InitializeFailReason.CoroutineTimeout, e)
+                }
                 else -> {
-                    Statsig.errorBoundary.logException(e)
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e)
                 }
             }
@@ -252,7 +256,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     if (endpoint == LOGGING_ENDPOINT) {
                         addFailedLogRequest(bodyString)
                     }
-                    callback(e, connection.responseCode)
+                    callback(e, null)
                     return@withContext null
                 } finally {
                     connection.disconnect()
