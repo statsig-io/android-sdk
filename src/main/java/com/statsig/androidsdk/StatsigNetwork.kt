@@ -105,11 +105,10 @@ private class StatsigNetworkImpl : StatsigNetwork {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
             val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy)
-            var exception: Exception? = null
             var statusCode: Int? = null
-            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs) { e: Exception?, status: Int? -> exception = e; statusCode = status }
+            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs) { status: Int? -> statusCode = status }
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
-            response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, exception, statusCode)
+            response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
         } catch (e : Exception) {
             Statsig.errorBoundary.logException(e)
             when(e) {
@@ -151,7 +150,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
     }
 
     override suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String) {
-        postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, sdkKey, bodyString, 3)
+        try {
+            postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, sdkKey, bodyString, 3)
+        } catch (_: Exception) {}
     }
 
     override suspend fun apiRetryFailedLogs(api: String, sdkKey: String) {
@@ -204,7 +205,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
             bodyString: String,
             retries: Int,
             timeout: Int? = null,
-            crossinline callback: ((e: Exception?, statusCode: Int?) -> Unit) = { _: Exception?, _: Int? -> }): T? {
+            crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> }): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
             var retryAttempt = 0
             while (isActive) {
@@ -242,15 +243,15 @@ private class StatsigNetworkImpl : StatsigNetwork {
                                 delay(100.0.pow(retryAttempt + 1).toLong())
                             } else if (endpoint == LOGGING_ENDPOINT) {
                                 addFailedLogRequest(bodyString)
-                                callback(null, connection.responseCode)
+                                callback(connection.responseCode)
                                 return@withContext null
                             } else {
-                                callback(null, connection.responseCode)
+                                callback(connection.responseCode)
                                 return@withContext null
                             }
                         }
                         else -> {
-                            callback(null, connection.responseCode)
+                            callback(connection.responseCode)
                             return@withContext null
                         }
                     }
@@ -258,8 +259,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     if (endpoint == LOGGING_ENDPOINT) {
                         addFailedLogRequest(bodyString)
                     }
-                    callback(e, null)
-                    return@withContext null
+                    throw e
                 } finally {
                     connection.disconnect()
                 }
