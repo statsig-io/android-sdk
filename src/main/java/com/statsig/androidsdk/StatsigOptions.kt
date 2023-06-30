@@ -26,6 +26,7 @@ class StatsigOptions(
     @SerializedName("enableAutoValueUpdate") var enableAutoValueUpdate: Boolean = false,
     @SerializedName("overrideStableID") var overrideStableID: String? = null,
     @SerializedName("loadCacheAsync") var loadCacheAsync: Boolean = false,
+    @SerializedName("initializeValues") var initializeValues:Map<String,Any>? = null,
 ) {
 
     private var environment: MutableMap<String, String>? = null

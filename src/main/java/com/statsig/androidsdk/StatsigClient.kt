@@ -41,6 +41,7 @@ internal class StatsigClient() {
     private val statsigJob = SupervisorJob()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var initialized = AtomicBoolean(false)
+    private val ready = AtomicBoolean(false)
 
     @VisibleForTesting
     internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
@@ -88,6 +89,9 @@ internal class StatsigClient() {
         return withContext(dispatcherProvider.io) {
             val initStartTime = System.currentTimeMillis()
             return@withContext Statsig.errorBoundary.captureAsync({
+                if (this@StatsigClient.ready.get()) {
+                    return@captureAsync InitializationDetails(System.currentTimeMillis() - initStartTime, true, null)
+                }
                 var success = false
                 if (this@StatsigClient.options.loadCacheAsync) {
                     this@StatsigClient.store.syncLoadFromLocalStorage()
@@ -132,6 +136,7 @@ internal class StatsigClient() {
         this.sdkKey = sdkKey
         this.options = options
         val normalizedUser = normalizeUser(user)
+        val initializeValues = options.initializeValues
         this.user = normalizedUser
 
         statsigMetadata = StatsigMetadata()
@@ -151,13 +156,16 @@ internal class StatsigClient() {
             statsigNetwork
         )
         store = Store(statsigScope, getSharedPrefs(), normalizedUser)
-
         if (options.overrideStableID == null) {
             val stableID = getLocalStorageStableID()
             this@StatsigClient.statsigMetadata.overrideStableID(stableID)
         }
         if (!this@StatsigClient.options.loadCacheAsync) {
             this@StatsigClient.store.syncLoadFromLocalStorage()
+        }
+        if (initializeValues != null) {
+            this@StatsigClient.store.bootstrap(initializeValues, this@StatsigClient.user)
+            this@StatsigClient.ready.set(true)
         }
 
         this.initialized.set(true)

@@ -7,6 +7,8 @@ enum class EvaluationReason {
     LocalOverride,
     Unrecognized,
     Uninitialized,
+    Bootstrap,
+    InvalidBootstrap,
 }
 
 data class EvaluationDetails(
