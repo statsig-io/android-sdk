@@ -41,7 +41,7 @@ internal class StatsigClient() {
     private val statsigJob = SupervisorJob()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var initialized = AtomicBoolean(false)
-    private val ready = AtomicBoolean(false)
+    private val isBootstrapped = AtomicBoolean(false)
 
     @VisibleForTesting
     internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
@@ -53,9 +53,9 @@ internal class StatsigClient() {
         callback: IStatsigCallback? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        val user = setup(application, sdkKey, user, options)
+        val normalizedUser = setup(application, sdkKey, user, options)
         statsigScope.launch {
-            val initDetails = setupAsync(user)
+            val initDetails = setupAsync(normalizedUser)
             // The scope's dispatcher may change in the future. This "withContext" will ensure we keep true to the documentation above.
             withContext(dispatcherProvider.main) {
                 callback?.onStatsigInitialize(initDetails)
@@ -89,7 +89,7 @@ internal class StatsigClient() {
         return withContext(dispatcherProvider.io) {
             val initStartTime = System.currentTimeMillis()
             return@withContext Statsig.errorBoundary.captureAsync({
-                if (this@StatsigClient.ready.get()) {
+                if (this@StatsigClient.isBootstrapped.get()) {
                     return@captureAsync InitializationDetails(System.currentTimeMillis() - initStartTime, true, null)
                 }
                 var success = false
@@ -110,14 +110,14 @@ internal class StatsigClient() {
                     this@StatsigClient.store.save(initResponse, cacheKey)
                     success = true
                 }
-                var duration = System.currentTimeMillis() - initStartTime
+                val duration = System.currentTimeMillis() - initStartTime
 
                 this@StatsigClient.pollForUpdates()
 
                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api, this@StatsigClient.sdkKey)
                 InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null )
             }, { e: Exception ->
-                var duration = System.currentTimeMillis() - initStartTime
+                val duration = System.currentTimeMillis() - initStartTime
                 InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e) )
             })
         }
@@ -156,16 +156,19 @@ internal class StatsigClient() {
             statsigNetwork
         )
         store = Store(statsigScope, getSharedPrefs(), normalizedUser)
+
         if (options.overrideStableID == null) {
             val stableID = getLocalStorageStableID()
             this@StatsigClient.statsigMetadata.overrideStableID(stableID)
         }
+
         if (!this@StatsigClient.options.loadCacheAsync) {
             this@StatsigClient.store.syncLoadFromLocalStorage()
         }
+
         if (initializeValues != null) {
             this@StatsigClient.store.bootstrap(initializeValues, this@StatsigClient.user)
-            this@StatsigClient.ready.set(true)
+            this@StatsigClient.isBootstrapped.set(true)
         }
 
         this.initialized.set(true)

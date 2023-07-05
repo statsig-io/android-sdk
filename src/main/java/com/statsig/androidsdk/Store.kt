@@ -104,10 +104,11 @@ internal class Store (private val statsigScope: CoroutineScope, private val shar
     fun bootstrap(initializeValues:Map<String, Any>, user: StatsigUser) {
         val isValid = BootstrapValidator.isValid(initializeValues,user)
         reason = if (isValid) EvaluationReason.Bootstrap else EvaluationReason.InvalidBootstrap
+
         try {
-            currentCache.values = gson.fromJson(gson.toJson(initializeValues),InitializeResponse.SuccessfulInitializeResponse::class.java)
+            currentCache.values = gson.fromJson(gson.toJson(initializeValues),
+              InitializeResponse.SuccessfulInitializeResponse::class.java)
             cacheById[currentUserCacheKey] = currentCache
-            EvaluationReason.Bootstrap
         } catch (e: Exception) {
             // Do Nothing
         }
