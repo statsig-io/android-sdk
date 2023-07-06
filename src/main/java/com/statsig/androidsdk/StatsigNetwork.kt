@@ -89,7 +89,6 @@ private class StatsigNetworkImpl : StatsigNetwork {
 
     private val gson =  GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
     private val dispatcherProvider = CoroutineDispatcherProvider()
-    private var lastSyncTimeForUser: Long = 0
     private var sharedPrefs: SharedPreferences? = null
 
     override suspend fun initialize(
@@ -124,7 +123,6 @@ private class StatsigNetworkImpl : StatsigNetwork {
             val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime)
             var statusCode: Int? = null
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs) { status: Int? -> statusCode = status }
-            lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
         } catch (e : Exception) {
             Statsig.errorBoundary.logException(e)
@@ -246,31 +244,36 @@ private class StatsigNetworkImpl : StatsigNetwork {
                 try {
                     connection.outputStream.bufferedWriter(Charsets.UTF_8)
                         .use { it.write(bodyString) }
-                    val inputStream = if (connection.responseCode < HttpURLConnection.HTTP_BAD_REQUEST) {
+                    val code = connection.responseCode
+                    val inputStream = if (code < HttpURLConnection.HTTP_BAD_REQUEST) {
                         connection.inputStream
                     } else {
                         connection.errorStream
                     }
-                    val response = inputStream.bufferedReader(Charsets.UTF_8)
-                        .use { gson.fromJson(it, T::class.java) }
 
-                    when (connection.responseCode) {
-                        in 200..299 -> return@withContext response
+                    when (code) {
+                        in 200..299 -> {
+                            if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
+                                return@withContext gson.fromJson("{has_updates: false}", T::class.java)
+                            }
+                            return@withContext inputStream.bufferedReader(Charsets.UTF_8)
+                                .use { gson.fromJson(it, T::class.java) }
+                        }
                         in RETRY_CODES -> {
                             if (retries > 0 && retryAttempt++ < retries) {
                                 // Don't return, just allow the loop to happen
                                 delay(100.0.pow(retryAttempt + 1).toLong())
                             } else if (endpoint == LOGGING_ENDPOINT) {
                                 addFailedLogRequest(bodyString)
-                                callback(connection.responseCode)
+                                callback(code)
                                 return@withContext null
                             } else {
-                                callback(connection.responseCode)
+                                callback(code)
                                 return@withContext null
                             }
                         }
                         else -> {
-                            callback(connection.responseCode)
+                            callback(code)
                             return@withContext null
                         }
                     }

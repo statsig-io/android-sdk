@@ -106,7 +106,7 @@ internal class StatsigClient() {
                     this@StatsigClient.getSharedPrefs(),
                 )
 
-                if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
+                if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
                     val cacheKey = user.getCacheKey()
                     this@StatsigClient.store.save(initResponse, cacheKey)
                     success = true

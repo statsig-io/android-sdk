@@ -137,7 +137,7 @@ internal class Store (private val statsigScope: CoroutineScope, private val shar
 
         if (cacheKey == currentUserCacheKey) {
             currentCache = cache
-            reason = EvaluationReason.Network
+            reason = if (data.hasUpdates) EvaluationReason.Network else EvaluationReason.NetworkNotModified
         }
 
         var cacheString = gson.toJson(cacheById)

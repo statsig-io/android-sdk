@@ -9,6 +9,7 @@ enum class EvaluationReason {
     Uninitialized,
     Bootstrap,
     InvalidBootstrap,
+    NetworkNotModified,
 }
 
 data class EvaluationDetails(

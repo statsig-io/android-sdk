@@ -36,7 +36,8 @@ class StoreTest {
   private fun getInitValue(
     value: String,
     inExperiment: Boolean = false,
-    active: Boolean = false
+    active: Boolean = false,
+    hasUpdates: Boolean = true
   ): InitializeResponse.SuccessfulInitializeResponse {
     return InitializeResponse.SuccessfulInitializeResponse(
       featureGates =
@@ -82,7 +83,7 @@ class StoreTest {
             ),
       ),
       layerConfigs = null,
-      hasUpdates = false,
+      hasUpdates = hasUpdates,
       time = 1621637839,
     )
   }
@@ -114,6 +115,12 @@ class StoreTest {
     assertEquals(EvaluationReason.Uninitialized, fakeConfig.getEvaluationDetails().reason)
 
     store.syncLoadFromLocalStorage()
+
+    // save value with no updates
+    store.save(getInitValue("v0", hasUpdates = false), userJkw.getCacheKey())
+    store.persistStickyValues()
+    exp = store.getExperiment("exp", false)
+    assertEquals(EvaluationReason.NetworkNotModified, exp.getEvaluationDetails().reason)
 
     // save some value from "network" and check again
     store.save(getInitValue("v0", inExperiment = true, active = true), userJkw.getCacheKey())
