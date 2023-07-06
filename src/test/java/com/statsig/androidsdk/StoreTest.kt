@@ -1,6 +1,9 @@
 package com.statsig.androidsdk
 
+import android.app.Application
+import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
@@ -11,12 +14,16 @@ import org.junit.Before
 import org.junit.Test
 
 class StoreTest {
+  private lateinit var app: Application
   private val userJkw = StatsigUser(userID = "jkw")
   private val userDloomb = StatsigUser(userID = "dloomb")
   private val userTore = StatsigUser(userID = "tore")
 
   @Before
   internal fun setup() {
+    TestUtil.mockDispatchers()
+    app = mockk()
+    TestUtil.stubAppFunctions(app)
     mockkObject(StatsigUtil)
     every { StatsigUtil.getHashedString(any()) } answers { firstArg<String>() + "!" }
   }
@@ -344,6 +351,43 @@ class StoreTest {
     // Reset sticky exp
     exp = store.getExperiment("exp", false)
     assertEquals("v2", exp.getString("key", ""))
+  }
+
+  @Test
+  fun testStoreUpdatesOnlyWithUpdatedValues() {
+    val networkTime = 123456789L
+    var network: StatsigNetwork = TestUtil.mockNetwork(
+        dynamicConfigs = mapOf(
+            "test_config!" to APIDynamicConfig(
+                "test_config!",
+                mutableMapOf("key" to "first"),
+                "default",
+            ),
+        ),
+        time = networkTime,
+        hasUpdates = true,
+    )
+    val user = StatsigUser("123")
+    TestUtil.startStatsigAndWait(app, user, StatsigOptions(), network)
+    coVerify { network.initialize(any(), any(), any(), null, any(), any(), any()) }
+    assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
+    assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
+    network = TestUtil.mockNetwork(
+        dynamicConfigs = mapOf(
+            "test_config!" to APIDynamicConfig(
+                "test_config!",
+                mutableMapOf("key" to "second"),
+                "default",
+            ),
+        ),
+        time = networkTime - 1,
+        hasUpdates = false,
+    )
+    Statsig.client.statsigNetwork = network
+    runBlocking { Statsig.updateUser(user) }
+    coVerify { network.initialize(any(), any(), any(), networkTime, any(), any(), any()) }
+    assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
+    assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
   }
 
   private fun newConfigUpdatingValue(

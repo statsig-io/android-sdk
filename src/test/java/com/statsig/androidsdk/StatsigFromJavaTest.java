@@ -146,6 +146,8 @@ public class StatsigFromJavaTest {
                 gates,
                 configs,
                 layers,
+                null,
+                true,
                 null);
 
         TestUtil.Companion.captureLogs(network, new Function1<LogEventData, Unit>() {

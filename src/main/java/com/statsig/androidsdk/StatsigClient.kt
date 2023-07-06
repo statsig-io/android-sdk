@@ -100,6 +100,7 @@ internal class StatsigClient() {
                     this@StatsigClient.options.api,
                     this@StatsigClient.sdkKey,
                     user,
+                    this@StatsigClient.store.getLastUpdateTime(this@StatsigClient.user),
                     this@StatsigClient.statsigMetadata,
                     this@StatsigClient.options.initTimeoutMs,
                     this@StatsigClient.getSharedPrefs(),
@@ -378,17 +379,19 @@ internal class StatsigClient() {
                 pollingJob?.cancel()
                 this@StatsigClient.user = normalizeUser(user)
                 store.loadAndResetForUser(this@StatsigClient.user)
+                val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
 
                 val cacheKey = this@StatsigClient.user.getCacheKey()
                 val initResponse = statsigNetwork.initialize(
                     options.api,
                     sdkKey,
                     this@StatsigClient.user,
+                    sinceTime,
                     statsigMetadata,
                     options.initTimeoutMs,
                     getSharedPrefs(),
                 )
-                if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
+                if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
                     store.save(initResponse, cacheKey)
                 }
                 pollForUpdates()
@@ -537,7 +540,8 @@ internal class StatsigClient() {
         }
         pollingJob?.cancel()
         val cacheKey = user.getCacheKey()
-        pollingJob = statsigNetwork.pollForChanges(options.api, sdkKey, user, statsigMetadata).onEach {
+        val sinceTime = store.getLastUpdateTime(user)
+        pollingJob = statsigNetwork.pollForChanges(options.api, sdkKey, user, sinceTime, statsigMetadata).onEach {
             if (it?.hasUpdates == true) {
                 store.save(it, cacheKey)
             }

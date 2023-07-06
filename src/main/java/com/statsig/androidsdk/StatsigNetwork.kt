@@ -36,6 +36,7 @@ private const val POLLING_INTERVAL_MS: Long = 10000
 private const val USER = "user"
 private const val STATSIG_METADATA = "statsigMetadata"
 private const val LAST_SYNC_TIME_FOR_USER = "lastSyncTimeForUser"
+private const val SINCE_TIME = "sinceTime"
 
 // SharedPref keys
 private const val OFFLINE_LOGS_KEY: String = "StatsigNetwork.OFFLINE_LOGS"
@@ -57,9 +58,23 @@ private const val ACCEPT_HEADER_VALUE = "application/json"
 
 internal interface StatsigNetwork {
 
-    suspend fun initialize(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata, initTimeoutMs: Long, sharedPrefs: SharedPreferences) : InitializeResponse?
+    suspend fun initialize(
+        api: String,
+        sdkKey: String,
+        user: StatsigUser?,
+        sinceTime: Long?,
+        metadata: StatsigMetadata,
+        initTimeoutMs: Long,
+        sharedPrefs: SharedPreferences
+    ) : InitializeResponse?
 
-    fun pollForChanges(api: String, sdkKey: String, user: StatsigUser?, metadata: StatsigMetadata): Flow<InitializeResponse.SuccessfulInitializeResponse?>
+    fun pollForChanges(
+        api: String,
+        sdkKey: String,
+        user: StatsigUser?,
+        sinceTime: Long?,
+        metadata: StatsigMetadata
+    ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
 
     suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String)
 
@@ -81,16 +96,17 @@ private class StatsigNetworkImpl : StatsigNetwork {
         api: String,
         sdkKey: String,
         user: StatsigUser?,
+        sinceTime: Long?,
         metadata: StatsigMetadata,
         initTimeoutMs: Long,
         sharedPrefs: SharedPreferences
     ): InitializeResponse {
         this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
-            return initializeImpl(api, sdkKey, user, metadata)
+            return initializeImpl(api, sdkKey, user, sinceTime, metadata)
         }
         return withTimeout(initTimeoutMs) {
-            initializeImpl(api, sdkKey, user, metadata, initTimeoutMs.toInt())
+            initializeImpl(api, sdkKey, user, sinceTime, metadata, initTimeoutMs.toInt())
         }
     }
 
@@ -98,13 +114,14 @@ private class StatsigNetworkImpl : StatsigNetwork {
         api: String,
         sdkKey: String,
         user: StatsigUser?,
+        sinceTime: Long?,
         metadata: StatsigMetadata,
         timeoutMs: Int? = null
     ): InitializeResponse {
         return try {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
-            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy)
+            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime)
             var statusCode: Int? = null
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs) { status: Int? -> statusCode = status }
             lastSyncTimeForUser = response?.time ?: lastSyncTimeForUser
@@ -129,6 +146,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         api: String,
         sdkKey: String,
         user: StatsigUser?,
+        sinceTime: Long?,
         metadata: StatsigMetadata
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
@@ -140,7 +158,8 @@ private class StatsigNetworkImpl : StatsigNetwork {
                 val body = mapOf(
                     USER to userCopy,
                     STATSIG_METADATA to metadataCopy,
-                    LAST_SYNC_TIME_FOR_USER to lastSyncTimeForUser
+                    LAST_SYNC_TIME_FOR_USER to sinceTime,
+                    SINCE_TIME to sinceTime
                 )
                 try {
                     emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0))

@@ -41,7 +41,7 @@ class AsyncInitVsUpdateTest {
 
     val network = TestUtil.mockNetwork()
     coEvery {
-      network.initialize(any(), any(), any(), any(), any(), any())
+      network.initialize(any(), any(), any(), any(), any(), any(), any())
     } coAnswers {
       val user = thirdArg<StatsigUser>()
       getResponseForUser(user)

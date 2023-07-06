@@ -124,6 +124,11 @@ internal class Store (private val statsigScope: CoroutineScope, private val shar
         }
     }
 
+    fun getLastUpdateTime(user: StatsigUser): Long? {
+        val cachedValues = cacheById[user.getCacheKey()]
+        return cachedValues?.values?.time
+    }
+
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, cacheKey: String) {
         val cache = cacheById[cacheKey] ?: createEmptyCache()
         cache.values = data

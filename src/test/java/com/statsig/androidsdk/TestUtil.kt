@@ -183,13 +183,16 @@ class TestUtil {
         internal fun makeInitializeResponse(
             featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
             dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
-            layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs): InitializeResponse.SuccessfulInitializeResponse {
+            layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
+            time: Long? = null,
+            hasUpdates: Boolean = true
+        ): InitializeResponse.SuccessfulInitializeResponse {
             return InitializeResponse.SuccessfulInitializeResponse(
                 featureGates = featureGates,
                 configs = dynamicConfigs,
                 layerConfigs = layerConfigs,
-                hasUpdates = true,
-                time = 1621637839,
+                hasUpdates = hasUpdates,
+                time = time ?: 1621637839,
             )
         }
 
@@ -298,7 +301,7 @@ class TestUtil {
             }
 
             coEvery {
-                statsigNetwork.initialize(any(), any(), any(), any(), any(), any())
+                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any())
             } answers {
                 throw IOException("Example exception in StatsigNetwork initialize")
             }
@@ -321,6 +324,8 @@ class TestUtil {
         internal fun mockNetwork(featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
                                  dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
                                  layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
+                                 time: Long? = null,
+                                 hasUpdates: Boolean = true,
                                  captureUser: ((StatsigUser) -> Unit)? = null): StatsigNetwork {
             val statsigNetwork = mockk<StatsigNetwork>()
 
@@ -329,10 +334,10 @@ class TestUtil {
             } returns Unit
 
             coEvery {
-                statsigNetwork.initialize(any(), any(), any(), any(), any(), any())
+                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any())
             } coAnswers {
                 captureUser?.invoke(thirdArg())
-                makeInitializeResponse(featureGates, dynamicConfigs, layerConfigs)
+                makeInitializeResponse(featureGates, dynamicConfigs, layerConfigs, time, hasUpdates)
             }
 
             coEvery {
