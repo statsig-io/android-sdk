@@ -6,7 +6,6 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
 import io.mockk.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
@@ -65,7 +64,7 @@ class TestUtil {
                   "nestedLong": 13
                 }
             }
-        """.trimIndent()
+            """.trimIndent()
             val gson = GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
             return gson.fromJson(string, Map::class.java) as Map<String, Any>
         }
@@ -78,23 +77,23 @@ class TestUtil {
                     "always_on_rule_id",
                     arrayOf(
                         mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"),
-                        mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2")
-                    )
+                        mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2"),
+                    ),
                 ),
             "always_off!" to
                 APIFeatureGate(
                     "always_off!",
                     false,
                     "always_on_rule_id",
-                    arrayOf()
+                    arrayOf(),
                 ),
             "always_on_v2!" to
-                    APIFeatureGate(
-                        "always_off!",
-                        true,
-                        "always_on_v2_rule_id",
-                        arrayOf()
-                    ),
+                APIFeatureGate(
+                    "always_off!",
+                    true,
+                    "always_on_v2_rule_id",
+                    arrayOf(),
+                ),
         )
 
         private val dummyDynamicConfigs = mapOf(
@@ -102,13 +101,13 @@ class TestUtil {
                 "test_config!",
                 mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                 "default",
-                arrayOf(mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"))
+                arrayOf(mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1")),
             ),
             "exp!" to APIDynamicConfig(
                 "exp!",
                 mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                 "exp_rule",
-                arrayOf()
+                arrayOf(),
             ),
             "layer_exp!" to APIDynamicConfig(
                 "layer_exp!",
@@ -125,29 +124,29 @@ class TestUtil {
                 arrayOf(),
                 isExperimentActive = true,
                 isUserInExperiment = true,
-                )
+            ),
         )
 
         val dummyHoldoutExposure = mapOf(
-          "gate" to "holdout!",
-          "gateValue" to "true",
-          "ruleID" to "assadfs"
+            "gate" to "holdout!",
+            "gateValue" to "true",
+            "ruleID" to "assadfs",
         )
 
         val dummyTargetingGateExposure = mapOf(
-          "gate" to "targeting!",
-          "gateValue" to "true",
-          "ruleID" to "asdf57"
+            "gate" to "targeting!",
+            "gateValue" to "true",
+            "ruleID" to "asdf57",
         )
 
         val dummySecondaryExposures = arrayOf(
-          dummyHoldoutExposure,
-          dummyHoldoutExposure,
-          dummyTargetingGateExposure
+            dummyHoldoutExposure,
+            dummyHoldoutExposure,
+            dummyTargetingGateExposure,
         )
 
         val dummyUndelegatedSecondaryExposures = arrayOf(
-          dummyHoldoutExposure
+            dummyHoldoutExposure,
         )
 
         private val dummyLayerConfigs = mapOf(
@@ -167,17 +166,17 @@ class TestUtil {
                 mapOf(
                     "string" to "default_string",
                     "number" to 9942,
-                    "otherNumber" to 9917)
-                ,
+                    "otherNumber" to 9917,
+                ),
                 "default",
                 secondaryExposures = arrayOf(
-                  dummyHoldoutExposure,
+                    dummyHoldoutExposure,
                 ),
                 undelegatedSecondaryExposures = arrayOf(
-                  dummyHoldoutExposure
+                    dummyHoldoutExposure,
                 ),
-                allocatedExperimentName = ""
-            )
+                allocatedExperimentName = "",
+            ),
         )
 
         internal fun makeInitializeResponse(
@@ -185,7 +184,7 @@ class TestUtil {
             dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
             layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
             time: Long? = null,
-            hasUpdates: Boolean = true
+            hasUpdates: Boolean = true,
         ): InitializeResponse.SuccessfulInitializeResponse {
             return InitializeResponse.SuccessfulInitializeResponse(
                 featureGates = featureGates,
@@ -198,23 +197,23 @@ class TestUtil {
 
         @JvmName("startStatsigAndWait")
         internal fun startStatsigAndWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
-          val countdown = CountDownLatch(1)
-          val callback = object : IStatsigCallback {
-            override fun onStatsigInitialize() {
-              countdown.countDown()
+            val countdown = CountDownLatch(1)
+            val callback = object : IStatsigCallback {
+                override fun onStatsigInitialize() {
+                    countdown.countDown()
+                }
+
+                override fun onStatsigUpdateUser() {
+                    Assert.fail("Statsig.onStatsigUpdateUser should not have been called")
+                }
             }
 
-            override fun onStatsigUpdateUser() {
-              Assert.fail("Statsig.onStatsigUpdateUser should not have been called")
+            Statsig.client = StatsigClient()
+            if (network != null) {
+                Statsig.client.statsigNetwork = network
             }
-          }
-
-          Statsig.client = StatsigClient()
-          if (network != null) {
-            Statsig.client.statsigNetwork = network
-          }
-          Statsig.initializeAsync(app, "client-apikey", user, callback, options)
-          countdown.await(1L, TimeUnit.SECONDS)
+            Statsig.initializeAsync(app, "client-apikey", user, callback, options)
+            countdown.await(1L, TimeUnit.SECONDS)
         }
 
         @JvmName("startStatsigAndDontWait")
@@ -226,23 +225,23 @@ class TestUtil {
                 Application::class.java,
                 String::class.java,
                 StatsigUser::class.java,
-                StatsigOptions::class.java
+                StatsigOptions::class.java,
             )
             setupMethod.isAccessible = true
             setupMethod.invoke(Statsig.client, app, "client-test", user, options)
         }
 
         fun getMockApp(): Application {
-          return mockk()
+            return mockk()
         }
 
         @JvmName("captureLogs")
         internal fun captureLogs(network: StatsigNetwork, onLog: ((LogEventData) -> Unit)? = null) {
-          coEvery {
-            network.apiPostLogs(any(), any(), any())
-          } answers {
-              onLog?.invoke(Gson().fromJson(thirdArg<String>(), LogEventData::class.java))
-          }
+            coEvery {
+                network.apiPostLogs(any(), any(), any())
+            } answers {
+                onLog?.invoke(Gson().fromJson(thirdArg<String>(), LogEventData::class.java))
+            }
         }
 
         fun stubAppFunctions(app: Application): TestSharedPreferences {
@@ -321,12 +320,14 @@ class TestUtil {
         }
 
         @JvmName("mockNetwork")
-        internal fun mockNetwork(featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
-                                 dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
-                                 layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
-                                 time: Long? = null,
-                                 hasUpdates: Boolean = true,
-                                 captureUser: ((StatsigUser) -> Unit)? = null): StatsigNetwork {
+        internal fun mockNetwork(
+            featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
+            dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
+            layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
+            time: Long? = null,
+            hasUpdates: Boolean = true,
+            captureUser: ((StatsigUser) -> Unit)? = null,
+        ): StatsigNetwork {
             val statsigNetwork = mockk<StatsigNetwork>()
 
             coEvery {

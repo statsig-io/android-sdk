@@ -13,7 +13,6 @@ import org.junit.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
-
 class StatsigTest {
 
     private lateinit var app: Application
@@ -76,7 +75,7 @@ class StatsigTest {
 
         assertEquals(
             Gson().toJson(initUser?.customIDs),
-            Gson().toJson(mapOf("random_id" to "abcde"))
+            Gson().toJson(mapOf("random_id" to "abcde")),
         )
         assertTrue(client.checkGate("always_on"))
         assertTrue(client.checkGateWithExposureLoggingDisabled("always_on_v2"))
@@ -90,9 +89,9 @@ class StatsigTest {
         assertEquals(42, config.getInt("number", 0))
         assertEquals(
             "default string instead",
-            config.getString("otherNumber", "default string instead")
+            config.getString("otherNumber", "default string instead"),
         )
-        assertEquals("default",config.getRuleID())
+        assertEquals("default", config.getRuleID())
 
         val configNoExposure = client.getConfigWithExposureLoggingDisabled("a_different_config")
         assertEquals("fallback", configNoExposure.getString("string", "fallback"))
@@ -108,9 +107,9 @@ class StatsigTest {
         assertEquals("exp_other", expNoExposure.getName())
         assertEquals(0, expNoExposure.getInt("number", 0))
 
-        client.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"));
-        client.logEvent("test_event2", mapOf("key" to "value2"));
-        client.logEvent("test_event3", "1");
+        client.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"))
+        client.logEvent("test_event2", mapOf("key" to "value2"))
+        client.logEvent("test_event3", "1")
 
         // check a few previously checked gate and config; they should not result in exposure logs due to deduping logic
         client.checkGate("always_on")
@@ -144,20 +143,21 @@ class StatsigTest {
         var evalTime = parsedLogs.events[0].metadata!!["time"]!!.toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(
-            Gson().toJson(parsedLogs.events[0].secondaryExposures), Gson().toJson(
+            Gson().toJson(parsedLogs.events[0].secondaryExposures),
+            Gson().toJson(
                 arrayOf(
                     mapOf(
                         "gate" to "dependent_gate",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_1"
+                        "ruleID" to "rule_id_1",
                     ),
                     mapOf(
                         "gate" to "dependent_gate_2",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_2"
-                    )
-                )
-            )
+                        "ruleID" to "rule_id_2",
+                    ),
+                ),
+            ),
         )
 
         // validate non-existent gate's evaluation reason
@@ -173,15 +173,16 @@ class StatsigTest {
         evalTime = parsedLogs.events[3].metadata!!["time"]!!.toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(
-            Gson().toJson(parsedLogs.events[3].secondaryExposures), Gson().toJson(
+            Gson().toJson(parsedLogs.events[3].secondaryExposures),
+            Gson().toJson(
                 arrayOf(
                     mapOf(
                         "gate" to "dependent_gate",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_1"
-                    )
-                )
-            )
+                        "ruleID" to "rule_id_1",
+                    ),
+                ),
+            ),
         )
 
         // validate exp exposure
@@ -201,7 +202,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[6].value, 1.0)
         assertEquals(
             Gson().toJson(parsedLogs.events[6].metadata),
-            Gson().toJson(mapOf("key" to "value"))
+            Gson().toJson(mapOf("key" to "value")),
         )
         assertNull(parsedLogs.events[6].secondaryExposures)
 
@@ -210,7 +211,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[7].value, null)
         assertEquals(
             Gson().toJson(parsedLogs.events[7].metadata),
-            Gson().toJson(mapOf("key" to "value2"))
+            Gson().toJson(mapOf("key" to "value2")),
         )
         assertNull(parsedLogs.events[7].secondaryExposures)
 

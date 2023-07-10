@@ -1,9 +1,8 @@
 package com.statsig.androidsdk
 
-import java.security.MessageDigest
 import android.content.SharedPreferences
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.security.MessageDigest
 
 internal object StatsigUtil {
     private val dispatcherProvider = CoroutineDispatcherProvider()
@@ -23,8 +22,8 @@ internal object StatsigUtil {
                 value.size == (value.filter { it is String }).size
             } else {
                 value is String ||
-                        value is Boolean ||
-                        value is Double
+                    value is Boolean ||
+                    value is Double
             }
         }
     }

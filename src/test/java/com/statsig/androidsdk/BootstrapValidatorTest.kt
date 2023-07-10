@@ -8,7 +8,7 @@ class BootstrapValidatorTest {
     @Test
     fun testIsValid() {
         val user = StatsigUser("test_user")
-        val initializeValues = mutableMapOf<String,Any>()
+        val initializeValues = mutableMapOf<String, Any>()
         val customIDs = mutableMapOf("id_1" to "value_1", "id_2" to "value_2")
         // Only userID
         initializeValues["evaluated_keys"] = mapOf("userID" to "test_user")

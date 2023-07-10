@@ -29,11 +29,11 @@ internal class StatsigLogger(
     private val sdkKey: String,
     private val api: String,
     private val statsigMetadata: StatsigMetadata,
-    private val statsigNetwork: StatsigNetwork
+    private val statsigNetwork: StatsigNetwork,
 ) {
     private val gson = Gson()
 
-    private val executor = Executors.newSingleThreadExecutor();
+    private val executor = Executors.newSingleThreadExecutor()
     private val singleThreadDispatcher = executor.asCoroutineDispatcher()
     private val timer = coroutineScope.launch {
         while (coroutineScope.isActive) {
@@ -46,7 +46,6 @@ internal class StatsigLogger(
     private var loggedExposures = ConcurrentHashMap<String, Long>()
 
     suspend fun log(event: LogEvent) {
-
         withContext(singleThreadDispatcher) {
             events.add(event)
 
@@ -86,7 +85,7 @@ internal class StatsigLogger(
                 "gateValue" to gate.value.toString(),
                 "ruleID" to gate.ruleID,
                 "reason" to gate.details.reason.toString(),
-                "time" to gate.details.time.toString()
+                "time" to gate.details.time.toString(),
             )
             addManualFlag(metadata, isManual)
 
@@ -109,7 +108,7 @@ internal class StatsigLogger(
                 "config" to name,
                 "ruleID" to config.getRuleID(),
                 "reason" to config.getEvaluationDetails().reason.toString(),
-                "time" to config.getEvaluationDetails().time.toString()
+                "time" to config.getEvaluationDetails().time.toString(),
             )
             addManualFlag(metadata, isManual)
 
@@ -129,7 +128,7 @@ internal class StatsigLogger(
         parameterName: String,
         isExplicitParameter: Boolean,
         details: EvaluationDetails,
-        isManual: Boolean
+        isManual: Boolean,
     ) {
         val metadata = mutableMapOf(
             "config" to configName,
@@ -142,8 +141,14 @@ internal class StatsigLogger(
         )
         addManualFlag(metadata, isManual)
 
-        val dedupeKey = arrayOf(configName, ruleID, allocatedExperiment, parameterName, isExplicitParameter.toString(),
-            details.reason.toString()).joinToString("|")
+        val dedupeKey = arrayOf(
+            configName,
+            ruleID,
+            allocatedExperiment,
+            parameterName,
+            isExplicitParameter.toString(),
+            details.reason.toString(),
+        ).joinToString("|")
         if (!shouldLogExposure(dedupeKey)) {
             return
         }

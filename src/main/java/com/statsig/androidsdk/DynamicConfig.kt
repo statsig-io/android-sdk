@@ -12,7 +12,8 @@ class DynamicConfig(
     private val isUserInExperiment: Boolean = false,
     private val isExperimentActive: Boolean = false,
     private val isDeviceBased: Boolean = false,
-    private val allocatedExperimentName: String = "") {
+    private val allocatedExperimentName: String = "",
+) {
 
     internal companion object {
         fun getUninitialized(name: String): DynamicConfig {

@@ -3,11 +3,10 @@ package com.statsig.androidsdk
 import android.app.Application
 import io.mockk.*
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import org.junit.After
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import org.junit.Assert.*
 
 class StatsigOverridesTest {
     private lateinit var app: Application
@@ -15,13 +14,14 @@ class StatsigOverridesTest {
     private val aValueMap = mapOf(
         "str" to "string-val",
         "bool" to true,
-        "num" to 123
+        "num" to 123,
     )
 
     private val aConfig = mapOf(
         "str" to "string-val",
         "bool" to true,
-        "num" to 123)
+        "num" to 123,
+    )
 
     @Before
     internal fun setup() {
@@ -46,7 +46,7 @@ class StatsigOverridesTest {
     }
 
     @Test
-    fun testOverrideGate()  {
+    fun testOverrideGate() {
         Statsig.overrideGate("always_off", true)
         assertTrue(Statsig.checkGate("always_off"))
 
@@ -55,7 +55,7 @@ class StatsigOverridesTest {
     }
 
     @Test
-    fun testOverrideConfig()  {
+    fun testOverrideConfig() {
         Statsig.overrideConfig("a_config", aConfig)
 
         val config = Statsig.getConfig("a_config")
@@ -67,7 +67,7 @@ class StatsigOverridesTest {
     }
 
     @Test
-    fun testOverrideExperiment()  {
+    fun testOverrideExperiment() {
         Statsig.overrideConfig("a_config", aConfig)
 
         val experiment = Statsig.getExperiment("a_config")

@@ -86,7 +86,7 @@ data class StatsigUser(
         return userCopy
     }
 
-    internal  fun getCacheKey(): String {
+    internal fun getCacheKey(): String {
         var id = userID ?: STATSIG_NULL_USER
         val customIds = customIDs ?: return id
 

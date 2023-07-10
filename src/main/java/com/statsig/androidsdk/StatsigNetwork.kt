@@ -4,10 +4,6 @@ import android.content.SharedPreferences
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
 import kotlinx.coroutines.TimeoutCancellationException
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.concurrent.TimeUnit
-import kotlin.math.pow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -15,7 +11,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.net.ConnectException
+import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
+import java.net.URL
+import java.util.concurrent.TimeUnit
+import kotlin.math.pow
 
 private val RETRY_CODES: IntArray = intArrayOf(
     HttpURLConnection.HTTP_CLIENT_TIMEOUT,
@@ -25,7 +25,7 @@ private val RETRY_CODES: IntArray = intArrayOf(
     HttpURLConnection.HTTP_GATEWAY_TIMEOUT,
     522,
     524,
-    599
+    599,
 )
 
 // Constants
@@ -65,15 +65,15 @@ internal interface StatsigNetwork {
         sinceTime: Long?,
         metadata: StatsigMetadata,
         initTimeoutMs: Long,
-        sharedPrefs: SharedPreferences
-    ) : InitializeResponse?
+        sharedPrefs: SharedPreferences,
+    ): InitializeResponse?
 
     fun pollForChanges(
         api: String,
         sdkKey: String,
         user: StatsigUser?,
         sinceTime: Long?,
-        metadata: StatsigMetadata
+        metadata: StatsigMetadata,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
 
     suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String)
@@ -87,7 +87,7 @@ internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()
 
 private class StatsigNetworkImpl : StatsigNetwork {
 
-    private val gson =  GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
+    private val gson = GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var sharedPrefs: SharedPreferences? = null
 
@@ -98,7 +98,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         sinceTime: Long?,
         metadata: StatsigMetadata,
         initTimeoutMs: Long,
-        sharedPrefs: SharedPreferences
+        sharedPrefs: SharedPreferences,
     ): InitializeResponse {
         this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
@@ -115,7 +115,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         user: StatsigUser?,
         sinceTime: Long?,
         metadata: StatsigMetadata,
-        timeoutMs: Int? = null
+        timeoutMs: Int? = null,
     ): InitializeResponse {
         return try {
             val userCopy = user?.getCopyForEvaluation()
@@ -124,9 +124,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
             var statusCode: Int? = null
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
-        } catch (e : Exception) {
+        } catch (e: Exception) {
             Statsig.errorBoundary.logException(e)
-            when(e) {
+            when (e) {
                 is SocketTimeoutException, is ConnectException -> {
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
                 }
@@ -145,7 +145,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         sdkKey: String,
         user: StatsigUser?,
         sinceTime: Long?,
-        metadata: StatsigMetadata
+        metadata: StatsigMetadata,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
         return flow<InitializeResponse.SuccessfulInitializeResponse?> {
@@ -157,7 +157,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     USER to userCopy,
                     STATSIG_METADATA to metadataCopy,
                     LAST_SYNC_TIME_FOR_USER to sinceTime,
-                    SINCE_TIME to sinceTime
+                    SINCE_TIME to sinceTime,
                 )
                 try {
                     emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0))
@@ -216,13 +216,14 @@ private class StatsigNetworkImpl : StatsigNetwork {
     // https://youtrack.jetbrains.com/issue/KTIJ-838
     @Suppress("BlockingMethodInNonBlockingContext")
     private suspend inline fun <reified T : Any> postRequest(
-            api: String,
-            endpoint: String,
-            sdkKey: String,
-            bodyString: String,
-            retries: Int,
-            timeout: Int? = null,
-            crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> }): T? {
+        api: String,
+        endpoint: String,
+        sdkKey: String,
+        bodyString: String,
+        retries: Int,
+        timeout: Int? = null,
+        crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> },
+    ): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
             var retryAttempt = 0
             while (isActive) {

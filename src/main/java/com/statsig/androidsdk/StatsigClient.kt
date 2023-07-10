@@ -116,10 +116,10 @@ internal class StatsigClient() {
                 this@StatsigClient.pollForUpdates()
 
                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api, this@StatsigClient.sdkKey)
-                InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null )
+                InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null)
             }, { e: Exception ->
                 val duration = System.currentTimeMillis() - initStartTime
-                InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e) )
+                InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e))
             })
         }
     }
@@ -154,7 +154,7 @@ internal class StatsigClient() {
             sdkKey,
             options.api,
             statsigMetadata,
-            statsigNetwork
+            statsigNetwork,
         )
         store = Store(statsigScope, getSharedPrefs(), normalizedUser)
 
@@ -261,7 +261,7 @@ internal class StatsigClient() {
 
     fun logLayerParameterExposure(layer: Layer, parameterName: String, isManual: Boolean = false) {
         if (!isInitialized()) {
-            return;
+            return
         }
 
         var exposures = layer.getUndelegatedSecondaryExposures()
@@ -281,7 +281,7 @@ internal class StatsigClient() {
             parameterName,
             isExplicit,
             layer.getEvaluationDetails(),
-            isManual
+            isManual,
         )
     }
 
@@ -485,7 +485,7 @@ internal class StatsigClient() {
     }
 
     internal fun getStore(): Store {
-        return store;
+        return store
     }
 
     private fun logExposure(name: String, config: DynamicConfig, isManual: Boolean = false) {
@@ -567,7 +567,6 @@ internal class StatsigClient() {
             }
         } catch (e: PackageManager.NameNotFoundException) {
         }
-
     }
 
     internal fun getSharedPrefs(): SharedPreferences {

@@ -23,4 +23,3 @@ internal data class StatsigMetadata(
         }
     }
 }
-

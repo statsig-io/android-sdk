@@ -26,16 +26,16 @@ class StatsigOptions(
     @SerializedName("enableAutoValueUpdate") var enableAutoValueUpdate: Boolean = false,
     @SerializedName("overrideStableID") var overrideStableID: String? = null,
     @SerializedName("loadCacheAsync") var loadCacheAsync: Boolean = false,
-    @SerializedName("initializeValues") var initializeValues:Map<String,Any>? = null,
+    @SerializedName("initializeValues") var initializeValues: Map<String, Any>? = null,
 ) {
 
     private var environment: MutableMap<String, String>? = null
 
-    fun setTier(tier : Tier) {
+    fun setTier(tier: Tier) {
         setEnvironmentParameter(TIER_KEY, tier.toString().lowercase())
     }
 
-    fun setEnvironmentParameter(key: String, value: String){
+    fun setEnvironmentParameter(key: String, value: String) {
         if (environment == null) {
             environment = mutableMapOf(key to value)
             return
@@ -46,5 +46,4 @@ class StatsigOptions(
     fun getEnvironment(): MutableMap<String, String>? {
         return environment
     }
-
 }

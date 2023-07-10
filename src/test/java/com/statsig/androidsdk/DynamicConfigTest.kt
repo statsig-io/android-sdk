@@ -1,8 +1,8 @@
 package com.statsig.androidsdk
 
-import org.junit.Test
 import org.junit.Assert.*
 import org.junit.Before
+import org.junit.Test
 
 class DynamicConfigTest {
 
@@ -89,8 +89,9 @@ class DynamicConfigTest {
                 "nestedString" to "nested",
                 "nestedBoolean" to true,
                 "nestedDouble" to 13.74,
-                "nestedLong" to 13L
-            ), dc.getDictionary("testNested", mapOf())
+                "nestedLong" to 13L,
+            ),
+            dc.getDictionary("testNested", mapOf()),
         )
     }
 }
