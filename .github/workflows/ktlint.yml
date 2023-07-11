@@ -1,0 +1,19 @@
+name: ktlint
+
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  ktlint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "checkout"
+        uses: actions/checkout@v2
+
+      - name: "ktlint"
+        uses: musichin/ktlint-check@v2
+        with: 
+          ktlint-version: '0.50.0'
+          editorconfig: .editorconfig 
