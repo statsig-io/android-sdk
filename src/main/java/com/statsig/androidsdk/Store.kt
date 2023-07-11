@@ -163,7 +163,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             )
         }
 
-        val hashName = StatsigUtil.getHashedString(gateName)
+        val hashName = Hashing.getHashedString(gateName, currentCache.values.hashUsed)
         val gate = currentCache.values.featureGates?.get(hashName)
             ?: return FeatureGate(gateName, getEvaluationDetails(false), false, "")
         return FeatureGate(gate.name, getEvaluationDetails(true), gate.value, gate.ruleID, gate.secondaryExposures)
@@ -180,7 +180,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             )
         }
 
-        val hashName = StatsigUtil.getHashedString(configName)
+        val hashName = Hashing.getHashedString(configName, currentCache.values.hashUsed)
         val data = getConfigData(hashName)
         return hydrateDynamicConfig(configName, getEvaluationDetails(data != null), data)
     }
@@ -207,7 +207,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             )
         }
 
-        val hashName = StatsigUtil.getHashedString(experimentName)
+        val hashName = Hashing.getHashedString(experimentName, currentCache.values.hashUsed)
         val latestValue = currentCache.values.configs?.get(hashName)
         val details = getEvaluationDetails(latestValue != null)
         val finalValue = getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
@@ -230,7 +230,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             )
         }
 
-        val hashedLayerName = StatsigUtil.getHashedString(layerName)
+        val hashedLayerName = Hashing.getHashedString(layerName, currentCache.values.hashUsed)
         val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
         val details = getEvaluationDetails(latestValue != null)
         val finalValue = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, details, true)
@@ -357,7 +357,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     private fun createEmptyCache(): Cache {
-        val emptyInitResponse = InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, 0)
+        val emptyInitResponse = InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0)
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
         return Cache(emptyInitResponse, emptyStickyUserExperiments, System.currentTimeMillis())
     }
@@ -365,7 +365,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     // save and remove sticky values in memory only
     // a separate coroutine will persist them to storage
     private fun removeStickyValue(expName: String) {
-        val expNameHash = StatsigUtil.getHashedString(expName)
+        val expNameHash = Hashing.getHashedString(expName, currentCache.values.hashUsed)
         currentCache.stickyUserExperiments.experiments.remove(expNameHash)
         stickyDeviceExperiments.remove(expNameHash)
     }
@@ -377,7 +377,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             return
         }
 
-        val expNameHash = StatsigUtil.getHashedString(expName)
+        val expNameHash = Hashing.getHashedString(expName, currentCache.values.hashUsed)
         if (latestValue.isExperimentActive && latestValue.isUserInExperiment) {
             if (latestValue.isDeviceBased) {
                 stickyDeviceExperiments[expNameHash] = latestValue
@@ -388,7 +388,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     private fun getStickyValue(expName: String): APIDynamicConfig? {
-        val hashName = StatsigUtil.getHashedString(expName)
+        val hashName = Hashing.getHashedString(expName, currentCache.values.hashUsed)
         return currentCache.stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
     }
 

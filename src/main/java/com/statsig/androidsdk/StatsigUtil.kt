@@ -2,16 +2,9 @@ package com.statsig.androidsdk
 
 import android.content.SharedPreferences
 import kotlinx.coroutines.withContext
-import java.security.MessageDigest
 
 internal object StatsigUtil {
     private val dispatcherProvider = CoroutineDispatcherProvider()
-    fun getHashedString(input: String): String {
-        val md = MessageDigest.getInstance("SHA-256")
-        val inputBytes = input.toByteArray()
-        val bytes = md.digest(inputBytes)
-        return android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
-    }
 
     fun normalizeUser(user: Map<String, Any>?): Map<String, Any>? {
         if (user == null) {

@@ -23,9 +23,10 @@ class StatsigCacheTest {
         app = mockk()
         testSharedPrefs = TestUtil.stubAppFunctions(app)
 
+        mockkObject(Hashing)
         mockkObject(StatsigUtil)
         every {
-            StatsigUtil.getHashedString(any())
+            Hashing.getHashedString(any(), null)
         } answers {
             firstArg<String>() + "!"
         }

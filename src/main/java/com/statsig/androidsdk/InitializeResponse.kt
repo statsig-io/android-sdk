@@ -21,6 +21,7 @@ sealed class InitializeResponse {
         @SerializedName("dynamic_configs") val configs: Map<String, APIDynamicConfig>?,
         @SerializedName("layer_configs") var layerConfigs: Map<String, APIDynamicConfig>?,
         @SerializedName("has_updates") val hasUpdates: Boolean,
+        @SerializedName("hash_used") val hashUsed: HashAlgorithm? = null,
         @SerializedName("time") val time: Long,
     ) : InitializeResponse()
 }

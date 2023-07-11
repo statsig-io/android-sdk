@@ -264,13 +264,14 @@ class TestUtil {
         }
 
         fun mockStatsigUtil() {
-            mockkObject(StatsigUtil)
+            mockkObject(Hashing)
             every {
-                StatsigUtil.getHashedString(any())
+                Hashing.getHashedString(any(), null)
             } answers {
                 firstArg<String>() + "!"
             }
 
+            mockkObject(StatsigUtil)
             coEvery {
                 StatsigUtil.getFromSharedPrefs(any(), any())
             } coAnswers {

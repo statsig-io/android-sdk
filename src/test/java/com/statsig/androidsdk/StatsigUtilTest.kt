@@ -64,7 +64,7 @@ class StatsigUtilTest {
 
     @Test
     fun testHashing() {
-        assertEquals("n4bQgYhMfWWaL+qgxVrQFaO/TxsrC4Is0V1sFbDwCgg=", StatsigUtil.getHashedString("test"))
-        assertEquals("7NcYcNGWMxapfjrDQIyYNa2M8PPBvHA1J8MCZVNPda4=", StatsigUtil.getHashedString("test123"))
+        assertEquals("n4bQgYhMfWWaL+qgxVrQFaO/TxsrC4Is0V1sFbDwCgg=", Hashing.getHashedString("test", null))
+        assertEquals("7NcYcNGWMxapfjrDQIyYNa2M8PPBvHA1J8MCZVNPda4=", Hashing.getHashedString("test123", null))
     }
 }

@@ -24,8 +24,8 @@ class StoreTest {
         TestUtil.mockDispatchers()
         app = mockk()
         TestUtil.stubAppFunctions(app)
-        mockkObject(StatsigUtil)
-        every { StatsigUtil.getHashedString(any()) } answers { firstArg<String>() + "!" }
+        mockkObject(Hashing)
+        every { Hashing.getHashedString(any(), null) } answers { firstArg<String>() + "!" }
     }
 
     @After

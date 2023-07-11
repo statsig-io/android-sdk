@@ -37,6 +37,7 @@ private const val USER = "user"
 private const val STATSIG_METADATA = "statsigMetadata"
 private const val LAST_SYNC_TIME_FOR_USER = "lastSyncTimeForUser"
 private const val SINCE_TIME = "sinceTime"
+private const val HASH = "hash"
 
 // SharedPref keys
 private const val OFFLINE_LOGS_KEY: String = "StatsigNetwork.OFFLINE_LOGS"
@@ -120,7 +121,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         return try {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
-            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime)
+            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime, HASH to HashAlgorithm.DJB2.value)
             var statusCode: Int? = null
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, timeoutMs) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
@@ -158,6 +159,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     STATSIG_METADATA to metadataCopy,
                     LAST_SYNC_TIME_FOR_USER to sinceTime,
                     SINCE_TIME to sinceTime,
+                    HASH to HashAlgorithm.DJB2.value,
                 )
                 try {
                     emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0))
