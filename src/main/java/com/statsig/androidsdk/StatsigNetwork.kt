@@ -81,7 +81,7 @@ internal interface StatsigNetwork {
 
     suspend fun apiRetryFailedLogs(api: String, sdkKey: String)
 
-    suspend fun addFailedLogRequest(body: String)
+    suspend fun addFailedLogRequest(requestBody: String)
 }
 
 internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()

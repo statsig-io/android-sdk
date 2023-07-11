@@ -78,6 +78,7 @@ class LayerConfigTest {
         assertEquals(true, emptyConfig.getBoolean("test_config", true))
         assertEquals(3.0, emptyConfig.getDouble("test_config", 3.0), 0.0)
         val arr = arrayOf("test", "one")
+        @Suppress("UNCHECKED_CAST")
         assertArrayEquals(arr, emptyConfig.getArray("test_config", arr as Array<Any>))
         assertEquals("default", emptyConfig.getRuleID())
         assertNull(emptyConfig.getConfig("nested"))

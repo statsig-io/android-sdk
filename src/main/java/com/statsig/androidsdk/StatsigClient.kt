@@ -512,7 +512,7 @@ internal class StatsigClient() {
                 }
             }
         }
-        return stableID!!
+        return stableID
     }
 
     internal fun isInitialized(): Boolean {

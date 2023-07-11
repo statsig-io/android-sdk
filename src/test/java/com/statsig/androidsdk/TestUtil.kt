@@ -66,6 +66,7 @@ class TestUtil {
             }
             """.trimIndent()
             val gson = GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
+            @Suppress("UNCHECKED_CAST")
             return gson.fromJson(string, Map::class.java) as Map<String, Any>
         }
 

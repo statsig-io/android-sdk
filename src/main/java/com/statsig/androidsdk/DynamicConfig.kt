@@ -100,6 +100,20 @@ class DynamicConfig(
         }
     }
 
+    private inline fun <reified A, reified B> List<*>.asListOfPairs(): List<Pair<A, B>>? {
+        return this.mapNotNull { if (it is Pair<*, *>) it.asPairOf() else null }
+    }
+
+    private inline fun <reified A, reified B> Pair<*, *>.asPairOf(): Pair<A, B>? {
+        if (first !is A || second !is B) return null
+        return first as A to second as B
+    }
+
+    private inline fun <reified K, reified V> Map<*, *>.asMapOf(default: Map<K, V>? = null): Map<K, V>? {
+        if (keys.first() !is K || values.first() !is V) return default
+        return toList().asListOfPairs<K, V>()?.associate { Pair(it.first, it.second) }
+    }
+
     /**
      * Gets a dictionary from the config, falling back to the provided default value
      * @param key the index within the DynamicConfig to fetch a dictionary from
@@ -108,7 +122,7 @@ class DynamicConfig(
      */
     fun getDictionary(key: String, default: Map<String, Any>?): Map<String, Any>? {
         return when (val value = this.jsonValue[key]) {
-            is Map<*, *> -> value as Map<String, Any>
+            is Map<*, *> -> value.asMapOf()
             else -> default
         }
     }
@@ -120,12 +134,16 @@ class DynamicConfig(
      */
     fun getConfig(key: String): DynamicConfig? {
         return when (val value = this.jsonValue[key]) {
-            is Map<*, *> -> DynamicConfig(
-                key,
-                value as Map<String, Any>,
-                this.rule,
-                this.details,
-            )
+            is Map<*, *> ->
+                when (val valueTyped = value.asMapOf<String, Any>()) {
+                    null -> null
+                    else -> DynamicConfig(
+                        key,
+                        valueTyped,
+                        this.rule,
+                        this.details,
+                    )
+                }
             else -> null
         }
     }
