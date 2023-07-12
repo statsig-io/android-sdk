@@ -49,12 +49,12 @@ class StatsigCacheTest {
         values.put("stickyUserExperiments", sticky)
         cacheById.put("123", values)
 
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById))
+        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById)).apply()
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
         assertTrue(client.isInitialized())
-        assertTrue(client.getStore().checkGate("always_on").details.reason == EvaluationReason.Cache)
+        assertEquals(EvaluationReason.Cache, client.getStore().checkGate("always_on").details.reason)
 
         assertTrue(client.checkGate("always_on"))
         runBlocking {
@@ -78,7 +78,7 @@ class StatsigCacheTest {
         values.put("stickyUserExperiments", sticky)
         cacheById.put("123", values)
 
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById))
+        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById)).apply()
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions(loadCacheAsync = true))
         client = Statsig.client
