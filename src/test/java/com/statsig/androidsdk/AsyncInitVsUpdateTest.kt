@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.*
@@ -31,13 +32,15 @@ internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse? 
 
 class AsyncInitVsUpdateTest {
     lateinit var app: Application
+    private lateinit var testSharedPrefs: TestSharedPreferences
+    private val gson = Gson()
 
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
 
         app = mockk()
-        TestUtil.stubAppFunctions(app)
+        testSharedPrefs = TestUtil.stubAppFunctions(app)
         TestUtil.mockStatsigUtil()
 
         val network = TestUtil.mockNetwork()
@@ -52,7 +55,7 @@ class AsyncInitVsUpdateTest {
     }
 
     @Test
-    fun testDummy() {
+    fun testWithDefault() {
         val userA = StatsigUser("user-a")
         userA.customIDs = mapOf("workID" to "employee-a")
 
@@ -83,6 +86,64 @@ class AsyncInitVsUpdateTest {
         // Since updateUserAsync has been called, we void values for user_a
         value = Statsig.getConfig("a_config").getString("key", "default")
         assertEquals("default", value)
+
+        didInitializeUserB.await()
+
+        value = Statsig.getConfig("a_config").getString("key", "default")
+        assertEquals("user_b_value", value)
+    }
+
+    @Test
+    fun testWithCache() {
+        val userA = StatsigUser("user-a")
+        val userB = StatsigUser("user-b")
+
+        val didInitializeUserA = CountDownLatch(1)
+        val didInitializeUserB = CountDownLatch(1)
+
+        val callback = object : IStatsigCallback {
+            override fun onStatsigInitialize() {
+                didInitializeUserA.countDown()
+            }
+
+            override fun onStatsigUpdateUser() {
+                didInitializeUserB.countDown()
+            }
+        }
+
+        var cacheById: MutableMap<String, Any> = HashMap()
+        var values: MutableMap<String, Any> = HashMap()
+        val sticky: MutableMap<String, Any> = HashMap()
+        var userBCacheValues = TestUtil.makeInitializeResponse(
+            mapOf(),
+            mapOf(
+                "a_config!" to APIDynamicConfig(
+                    "a_config!",
+                    mutableMapOf(
+                        "key" to "user_b_value",
+                    ),
+                    "default",
+                ),
+            ),
+            mapOf(),
+        )
+        values.put("values", userBCacheValues)
+        values.put("stickyUserExperiments", sticky)
+        cacheById.put("user-b", values)
+        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById))
+
+        Statsig.initializeAsync(app, "client-key", userA, callback)
+        Statsig.updateUserAsync(userB, callback)
+
+        // Since updateUserAsync has been called, we void values for user_a and serve cache
+        // values for user_b
+        var value = Statsig.getConfig("a_config").getString("key", "default")
+        assertEquals("user_b_value", value)
+
+        didInitializeUserA.await()
+
+        value = Statsig.getConfig("a_config").getString("key", "default")
+        assertEquals("user_b_value", value)
 
         didInitializeUserB.await()
 
