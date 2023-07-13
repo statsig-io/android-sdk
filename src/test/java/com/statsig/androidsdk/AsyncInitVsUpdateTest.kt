@@ -4,6 +4,7 @@ import android.app.Application
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.spyk
 import kotlinx.coroutines.*
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -50,12 +51,24 @@ class AsyncInitVsUpdateTest {
             val user = thirdArg<StatsigUser>()
             getResponseForUser(user)
         }
-        Statsig.client = StatsigClient()
+        Statsig.client = spyk()
+        coEvery {
+            Statsig.client.updateUserAsync(any())
+        } coAnswers {
+            delay(500)
+            callOriginal()
+        }
+        coEvery {
+            Statsig.client.updateUser(any())
+        } coAnswers {
+            delay(500)
+            callOriginal()
+        }
         Statsig.client.statsigNetwork = network
     }
 
     @Test
-    fun testWithDefault() {
+    fun testNoCache() {
         val userA = StatsigUser("user-a")
         userA.customIDs = mapOf("workID" to "employee-a")
 
@@ -78,14 +91,18 @@ class AsyncInitVsUpdateTest {
         Statsig.initializeAsync(app, "client-key", userA, callback)
         Statsig.updateUserAsync(userB, callback)
 
-        var value = Statsig.getConfig("a_config").getString("key", "default")
+        // Since updateUserAsync has been called, we void values for user_a
+        var config = Statsig.getConfig("a_config")
+        var value = config.getString("key", "default")
         assertEquals("default", value)
+        assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
 
         didInitializeUserA.await()
 
-        // Since updateUserAsync has been called, we void values for user_a
-        value = Statsig.getConfig("a_config").getString("key", "default")
+        config = Statsig.getConfig("a_config")
+        value = config.getString("key", "default")
         assertEquals("default", value)
+        assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
 
         didInitializeUserB.await()
 
@@ -94,7 +111,7 @@ class AsyncInitVsUpdateTest {
     }
 
     @Test
-    fun testWithCache() {
+    fun testLoadFromCache() {
         val userA = StatsigUser("user-a")
         val userB = StatsigUser("user-b")
 
@@ -120,7 +137,7 @@ class AsyncInitVsUpdateTest {
                 "a_config!" to APIDynamicConfig(
                     "a_config!",
                     mutableMapOf(
-                        "key" to "user_b_value",
+                        "key" to "user_b_value_cache",
                     ),
                     "default",
                 ),
@@ -137,17 +154,49 @@ class AsyncInitVsUpdateTest {
 
         // Since updateUserAsync has been called, we void values for user_a and serve cache
         // values for user_b
-        var value = Statsig.getConfig("a_config").getString("key", "default")
-        assertEquals("user_b_value", value)
+        var config = Statsig.getConfig("a_config")
+        var value = config.getString("key", "default")
+        assertEquals("user_b_value_cache", value)
+        assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
 
         didInitializeUserA.await()
 
-        value = Statsig.getConfig("a_config").getString("key", "default")
-        assertEquals("user_b_value", value)
+        config = Statsig.getConfig("a_config")
+        value = config.getString("key", "default")
+        assertEquals("user_b_value_cache", value)
+        assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
 
         didInitializeUserB.await()
 
-        value = Statsig.getConfig("a_config").getString("key", "default")
+        config = Statsig.getConfig("a_config")
+        value = config.getString("key", "default")
         assertEquals("user_b_value", value)
+        assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
+    }
+
+    @Test
+    fun testNoAwait() {
+        val userA = StatsigUser("user-a")
+        val userB = StatsigUser("user-b")
+
+        val didInitializeUserA = CountDownLatch(1)
+        val callback = object : IStatsigCallback {
+            override fun onStatsigInitialize() {
+                didInitializeUserA.countDown()
+            }
+
+            override fun onStatsigUpdateUser() {}
+        }
+        Statsig.initializeAsync(app, "client-key", userA, callback)
+        didInitializeUserA.await()
+        GlobalScope.async {
+            Statsig.updateUser(userB)
+        }
+
+        // Calling updateUser without suspending will not guarantee synchronous load from cache
+        var config = Statsig.getConfig("a_config")
+        var value = config.getString("key", "default")
+        assertEquals("user_a_value", value)
+        assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
     }
 }

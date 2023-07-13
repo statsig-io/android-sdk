@@ -347,7 +347,9 @@ internal class StatsigClient() {
 
     /**
      * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
-     * user with additional properties
+     * user with additional properties.
+     * Will make network call in a separate coroutine.
+     * But fetch cached values from memory synchronously.
      *
      * @param user the updated user
      * @param callback a callback to invoke upon update completion. Before this callback is
@@ -356,8 +358,9 @@ internal class StatsigClient() {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
+        updateUserCache(user)
         statsigScope.launch {
-            updateUser(user)
+            updateUserImpl(user)
             withContext(dispatcherProvider.main) {
                 callback?.onStatsigUpdateUser()
             }
@@ -372,13 +375,23 @@ internal class StatsigClient() {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     suspend fun updateUser(user: StatsigUser?) {
+        updateUserCache(user)
+        updateUserImpl(user)
+    }
+
+    private fun updateUserCache(user: StatsigUser?) {
+        Statsig.errorBoundary.capture({
+            enforceInitialized("updateUser")
+            logger.onUpdateUser()
+            pollingJob?.cancel()
+            this@StatsigClient.user = normalizeUser(user)
+            store.loadAndResetForUser(this@StatsigClient.user)
+        })
+    }
+
+    private suspend fun updateUserImpl(user: StatsigUser?) {
         withContext(dispatcherProvider.io) {
             Statsig.errorBoundary.captureAsync {
-                enforceInitialized("updateUser")
-                logger.onUpdateUser()
-                pollingJob?.cancel()
-                this@StatsigClient.user = normalizeUser(user)
-                store.loadAndResetForUser(this@StatsigClient.user)
                 val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
 
                 val cacheKey = this@StatsigClient.user.getCacheKey()
