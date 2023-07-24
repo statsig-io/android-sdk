@@ -18,6 +18,7 @@ internal const val SHUTDOWN_WAIT_S: Long = 3
 internal const val CONFIG_EXPOSURE = "statsig::config_exposure"
 internal const val LAYER_EXPOSURE = "statsig::layer_exposure"
 internal const val GATE_EXPOSURE = "statsig::gate_exposure"
+internal const val DIAGNOSTICS_EVENT = "statsig::diagnostics"
 
 internal data class LogEventData(
     @SerializedName("events") val events: ArrayList<LogEvent>,
@@ -30,6 +31,7 @@ internal class StatsigLogger(
     private val api: String,
     private val statsigMetadata: StatsigMetadata,
     private val statsigNetwork: StatsigNetwork,
+    private val diagnostics: Diagnostics,
 ) {
     private val gson = Gson()
 
@@ -191,5 +193,41 @@ internal class StatsigLogger(
         }
         loggedExposures[key] = now
         return true
+    }
+
+    /*
+     * Diagnostics
+     * */
+    fun logDiagnostics(user: StatsigUser) {
+        if (diagnostics.getIsDisabled()) {
+            return
+        }
+        val markers = diagnostics.getMarkers()
+        if (markers.isEmpty()) {
+            return
+        }
+        val event = this.makeDiagnosticsEvent(user, diagnostics.diagnosticsContext, markers)
+
+        coroutineScope.launch(singleThreadDispatcher) { log(event) }
+        diagnostics.clearContext()
+    }
+
+    internal fun makeDiagnosticsEvent(user: StatsigUser?, context: ContextType, markers: Collection<Marker>): LogEvent {
+        // Need to verify if the JSON is in the right format for log event
+        val event = LogEvent(DIAGNOSTICS_EVENT)
+        event.user = user
+        event.metadata = mapOf("context" to context.toString().lowercase(), "markers" to gson.toJson(markers))
+        return event
+    }
+
+    internal fun addErrorBoundaryDiagnostics(user: StatsigUser) {
+        val markers = diagnostics.getMarkers(ContextType.ERROR_BOUNDARY)
+        if (markers.isEmpty()) {
+            return
+            markers
+        }
+        val event = this.makeDiagnosticsEvent(user, ContextType.ERROR_BOUNDARY, markers)
+        this.events.add(event)
+        diagnostics.clearContext(ContextType.ERROR_BOUNDARY)
     }
 }

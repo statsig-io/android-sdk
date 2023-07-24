@@ -302,7 +302,7 @@ class TestUtil {
             }
 
             coEvery {
-                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any())
+                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any())
             } answers {
                 throw IOException("Example exception in StatsigNetwork initialize")
             }
@@ -337,7 +337,7 @@ class TestUtil {
             } returns Unit
 
             coEvery {
-                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any())
+                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any())
             } coAnswers {
                 captureUser?.invoke(thirdArg())
                 makeInitializeResponse(featureGates, dynamicConfigs, layerConfigs, time, hasUpdates)

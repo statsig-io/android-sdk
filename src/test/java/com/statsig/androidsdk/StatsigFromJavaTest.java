@@ -138,7 +138,7 @@ public class StatsigFromJavaTest {
         Statsig.logEvent("test-event");
         Statsig.shutdown();
 
-        assertEquals("test-event", logs.getEvents().get(0).getEventName());
+        assertEquals("test-event", logs.getEvents().get(1).getEventName());
     }
 
     private void start() {

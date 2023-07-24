@@ -123,13 +123,16 @@ class StatsigTest {
 
         client.shutdown()
 
-        val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
-        assertEquals(13, parsedLogs.events.count())
+        var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+        assertEquals(14, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
         assertEquals("custom_stable_id", client.getStableID())
         assertEquals("Android", parsedLogs.statsigMetadata.systemName)
         assertEquals("Android", parsedLogs.statsigMetadata.deviceOS)
+        // validate diagnostics
+        assertEquals(parsedLogs.events[0].eventName, "statsig::diagnostics")
+        parsedLogs = LogEventData(parsedLogs.events.filter { it -> it.eventName != "statsig::diagnostics" } as ArrayList<LogEvent>, parsedLogs.statsigMetadata)
 
         // validate gate exposure
         assertEquals(parsedLogs.events[0].eventName, "statsig::gate_exposure")
@@ -140,7 +143,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[0].metadata!!["reason"], "Network")
         assertEquals(parsedLogs.events[0].metadata!!["isManualExposure"], null)
 
-        var evalTime = parsedLogs.events[0].metadata!!["time"]!!.toLong()
+        var evalTime = parsedLogs.events[1].metadata!!["time"]!!.toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(
             Gson().toJson(parsedLogs.events[0].secondaryExposures),

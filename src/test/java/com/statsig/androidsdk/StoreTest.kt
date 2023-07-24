@@ -376,7 +376,7 @@ class StoreTest {
         )
         val user = StatsigUser("123")
         TestUtil.startStatsigAndWait(app, user, StatsigOptions(), network)
-        coVerify { network.initialize(any(), any(), any(), null, any(), any(), any()) }
+        coVerify { network.initialize(any(), any(), any(), null, any(), any(), any(), any()) }
         assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
         network = TestUtil.mockNetwork(
@@ -392,7 +392,7 @@ class StoreTest {
         )
         Statsig.client.statsigNetwork = network
         runBlocking { Statsig.updateUser(user) }
-        coVerify { network.initialize(any(), any(), any(), networkTime, any(), any(), any()) }
+        coVerify { network.initialize(any(), any(), any(), networkTime, any(), any(), any(), any()) }
         assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
     }

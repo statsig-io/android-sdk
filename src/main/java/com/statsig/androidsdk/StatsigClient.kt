@@ -36,6 +36,7 @@ internal class StatsigClient() {
     private lateinit var statsigMetadata: StatsigMetadata
     private lateinit var exceptionHandler: CoroutineExceptionHandler
     private lateinit var statsigScope: CoroutineScope
+    private lateinit var diagnostics: Diagnostics
 
     private var pollingJob: Job? = null
     private val statsigJob = SupervisorJob()
@@ -104,11 +105,14 @@ internal class StatsigClient() {
                     this@StatsigClient.statsigMetadata,
                     this@StatsigClient.options.initTimeoutMs,
                     this@StatsigClient.getSharedPrefs(),
+                    this@StatsigClient.diagnostics,
                 )
 
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
                     val cacheKey = user.getCacheKey()
+                    this@StatsigClient.diagnostics.markStart(KeyType.INITIALIZE, StepType.PROCESS)
                     this@StatsigClient.store.save(initResponse, cacheKey)
+                    this@StatsigClient.diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.PROCESS)
                     success = true
                 }
                 val duration = System.currentTimeMillis() - initStartTime
@@ -116,9 +120,13 @@ internal class StatsigClient() {
                 this@StatsigClient.pollForUpdates()
 
                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api, this@StatsigClient.sdkKey)
+                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, success)
+                logger.logDiagnostics(this@StatsigClient.user)
                 InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null)
             }, { e: Exception ->
                 val duration = System.currentTimeMillis() - initStartTime
+                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false)
+                logger.logDiagnostics(this@StatsigClient.user)
                 InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e))
             })
         }
@@ -133,6 +141,8 @@ internal class StatsigClient() {
         if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
             throw IllegalArgumentException("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
         }
+        this.diagnostics = Diagnostics(options.disableDiagnosticsLogging)
+        diagnostics.markStart(KeyType.OVERALL)
         this.application = application
         this.sdkKey = sdkKey
         this.options = options
@@ -155,6 +165,7 @@ internal class StatsigClient() {
             options.api,
             statsigMetadata,
             statsigNetwork,
+            diagnostics,
         )
         store = Store(statsigScope, getSharedPrefs(), normalizedUser)
 
