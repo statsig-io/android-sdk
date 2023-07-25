@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+const val NANO_IN_MS = 1_000_000.0
 internal class Diagnostics(private var isDisabled: Boolean) {
     var diagnosticsContext: ContextType = ContextType.INITIALIZE
     private var defaultMaxMarkers: Int = 30
@@ -21,7 +22,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
         if (this.isDisabled) {
             return false
         }
-        val marker = Marker(key = key, action = ActionType.START, timestamp = System.currentTimeMillis(), step = step)
+        val marker = Marker(key = key, action = ActionType.START, timestamp = System.nanoTime() / NANO_IN_MS, step = step)
         when (this.diagnosticsContext) {
             ContextType.INITIALIZE -> {
                 if (key == KeyType.INITIALIZE && step == StepType.NETWORK_REQUEST) {
@@ -39,7 +40,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
         if (this.isDisabled) {
             return false
         }
-        val marker = Marker(key = key, action = ActionType.END, timestamp = System.currentTimeMillis(), success = success, step = step)
+        val marker = Marker(key = key, action = ActionType.END, timestamp = System.nanoTime() / NANO_IN_MS, success = success, step = step)
         when (this.diagnosticsContext) {
             ContextType.INITIALIZE -> {
                 if (key == KeyType.INITIALIZE && step == StepType.NETWORK_REQUEST) {

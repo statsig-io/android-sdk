@@ -8,7 +8,7 @@ Interface
 data class Marker(
     @SerializedName("key") val key: KeyType? = null,
     @SerializedName("action") val action: ActionType? = null,
-    @SerializedName("timestamp") val timestamp: Long? = null,
+    @SerializedName("timestamp") val timestamp: Double? = null,
     @SerializedName("step") var step: StepType? = null,
     @SerializedName("statusCode") var statusCode: Int? = null,
     @SerializedName("success") var success: Boolean? = null,
