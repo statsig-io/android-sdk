@@ -87,7 +87,6 @@ internal class ErrorBoundary() {
             conn.requestMethod = "POST"
             conn.doOutput = true
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("Content-Length", postData.length.toString())
             conn.setRequestProperty("STATSIG-API-KEY", apiKey)
             conn.useCaches = false
 
