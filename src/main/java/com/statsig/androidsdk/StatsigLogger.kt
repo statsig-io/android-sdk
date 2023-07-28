@@ -31,6 +31,7 @@ internal class StatsigLogger(
     private val api: String,
     private val statsigMetadata: StatsigMetadata,
     private val statsigNetwork: StatsigNetwork,
+    private val statsigUser: StatsigUser,
     private val diagnostics: Diagnostics,
 ) {
     private val gson = Gson()
@@ -59,10 +60,12 @@ internal class StatsigLogger(
 
     fun onUpdateUser() {
         this.loggedExposures = ConcurrentHashMap()
+        diagnostics.clearAllContext()
     }
 
     suspend fun flush() {
         withContext(singleThreadDispatcher) {
+            addErrorBoundaryDiagnostics()
             if (events.size == 0) {
                 return@withContext
             }
@@ -206,27 +209,27 @@ internal class StatsigLogger(
         if (markers.isEmpty()) {
             return
         }
-        val event = this.makeDiagnosticsEvent(user, diagnostics.diagnosticsContext, markers)
+        val event = this.makeDiagnosticsEvent(diagnostics.diagnosticsContext, markers)
 
         coroutineScope.launch(singleThreadDispatcher) { log(event) }
         diagnostics.clearContext()
     }
 
-    internal fun makeDiagnosticsEvent(user: StatsigUser?, context: ContextType, markers: Collection<Marker>): LogEvent {
+    internal fun makeDiagnosticsEvent(context: ContextType, markers: Collection<Marker>): LogEvent {
         // Need to verify if the JSON is in the right format for log event
         val event = LogEvent(DIAGNOSTICS_EVENT)
-        event.user = user
+        event.user = this.statsigUser
         event.metadata = mapOf("context" to context.toString().lowercase(), "markers" to gson.toJson(markers))
         return event
     }
 
-    internal fun addErrorBoundaryDiagnostics(user: StatsigUser) {
+    internal fun addErrorBoundaryDiagnostics() {
         val markers = diagnostics.getMarkers(ContextType.ERROR_BOUNDARY)
         if (markers.isEmpty()) {
             return
             markers
         }
-        val event = this.makeDiagnosticsEvent(user, ContextType.ERROR_BOUNDARY, markers)
+        val event = this.makeDiagnosticsEvent(ContextType.ERROR_BOUNDARY, markers)
         this.events.add(event)
         diagnostics.clearContext(ContextType.ERROR_BOUNDARY)
     }

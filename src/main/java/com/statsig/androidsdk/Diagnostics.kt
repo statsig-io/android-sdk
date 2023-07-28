@@ -4,8 +4,8 @@ const val NANO_IN_MS = 1_000_000.0
 internal class Diagnostics(private var isDisabled: Boolean) {
     var diagnosticsContext: ContextType = ContextType.INITIALIZE
     private var defaultMaxMarkers: Int = 30
-    private var maxMarkers: Map<ContextType, Int> = mapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.ERROR_BOUNDARY to this.defaultMaxMarkers)
-    private val markers: DiagnosticsMarkers = mutableMapOf()
+    private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.ERROR_BOUNDARY to this.defaultMaxMarkers)
+    private var markers: DiagnosticsMarkers = mutableMapOf()
 
     fun getIsDisabled(): Boolean {
         return this.isDisabled
@@ -14,8 +14,16 @@ internal class Diagnostics(private var isDisabled: Boolean) {
         return this.markers[context ?: this.diagnosticsContext] ?: listOf()
     }
 
+    fun setMaxMarkers(context: ContextType, maxMarkers: Int) {
+        this.maxMarkers[context] = maxMarkers
+    }
+
     fun clearContext(context: ContextType? = null) {
         this.markers[context ?: this.diagnosticsContext] = mutableListOf()
+    }
+
+    fun clearAllContext() {
+        this.markers = mutableMapOf()
     }
 
     fun markStart(key: KeyType, step: StepType? = null, additionalMarker: Marker? = null): Boolean {

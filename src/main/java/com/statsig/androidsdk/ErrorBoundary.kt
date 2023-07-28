@@ -6,13 +6,16 @@ import java.io.DataOutputStream
 import java.lang.RuntimeException
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlin.math.floor
 
+const val SAMPLING_RATE = 10_000
 internal class ErrorBoundary() {
     internal var urlString = "https://statsigapi.net/v1/sdk_exception"
 
     private var apiKey: String? = null
     private var statsigMetadata: StatsigMetadata? = null
     private var seen = HashSet<String>()
+    private var diagnostics: Diagnostics? = null
 
     fun setKey(apiKey: String) {
         this.apiKey = apiKey
@@ -20,6 +23,17 @@ internal class ErrorBoundary() {
 
     fun setMetadata(statsigMetadata: StatsigMetadata) {
         this.statsigMetadata = statsigMetadata
+    }
+
+    fun setDiagnostics(diagnostics: Diagnostics) {
+        this.diagnostics = diagnostics
+        val sampled = floor(Math.random() * SAMPLING_RATE) == 0.0
+        if (!sampled) {
+            diagnostics.setMaxMarkers(
+                ContextType.ERROR_BOUNDARY,
+                0,
+            )
+        }
     }
 
     private fun handleException(exception: Throwable) {
@@ -34,11 +48,15 @@ internal class ErrorBoundary() {
         }
     }
 
-    fun capture(task: () -> Unit, recover: (() -> Unit)? = null) {
+    fun capture(task: () -> Unit, tag: String? = null, recover: (() -> Unit)? = null, configName: String? = null) {
+        val markerID = ""
         try {
+            val markerID = startMarker(tag, configName)
             task()
+            endMarker(tag, markerID, true, configName)
         } catch (e: Exception) {
             handleException(e)
+            endMarker(tag, markerID, false, configName)
             recover?.let { it() }
         }
     }
@@ -94,5 +112,32 @@ internal class ErrorBoundary() {
             conn.responseCode // triggers request
         } catch (e: Exception) {
         }
+    }
+
+    private fun startMarker(tag: String?, configName: String?): String? {
+        if (configName == null) {
+            return null
+        }
+        val diagnostics = this.diagnostics
+        val markerKey = KeyType.convertFromString(tag ?: "")
+        if (tag == null || diagnostics == null || markerKey == null) {
+            return null
+        }
+        val markerID = tag + "_" + diagnostics.getMarkers(ContextType.ERROR_BOUNDARY).count()
+        diagnostics.diagnosticsContext = ContextType.ERROR_BOUNDARY
+        diagnostics.markStart(markerKey, step = null, Marker(markerID = markerID, configName = configName))
+        return markerID
+    }
+
+    private fun endMarker(tag: String?, markerID: String?, success: Boolean, configName: String?) {
+        if (configName == null) {
+            return
+        }
+        val diagnostics = this.diagnostics
+        val markerKey = KeyType.convertFromString(tag ?: "")
+        if (tag == null || diagnostics == null || markerKey == null) {
+            return
+        }
+        diagnostics.markEnd(markerKey, success, step = null, Marker(markerID = markerID, configName = configName))
     }
 }

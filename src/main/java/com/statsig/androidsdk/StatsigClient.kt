@@ -152,6 +152,7 @@ internal class StatsigClient() {
 
         statsigMetadata = StatsigMetadata()
         Statsig.errorBoundary.setMetadata(statsigMetadata)
+        Statsig.errorBoundary.setDiagnostics(diagnostics)
         populateStatsigMetadata()
 
         exceptionHandler = Statsig.errorBoundary.getExceptionHandler()
@@ -165,6 +166,7 @@ internal class StatsigClient() {
             options.api,
             statsigMetadata,
             statsigNetwork,
+            normalizedUser,
             diagnostics,
         )
         store = Store(statsigScope, getSharedPrefs(), normalizedUser)

@@ -99,11 +99,12 @@ object Statsig {
      */
     @JvmStatic
     fun checkGate(gateName: String): Boolean {
-        enforceInitialized("checkGate")
+        val functionName = "checkGate"
+        enforceInitialized(functionName)
         var result = false
         errorBoundary.capture({
             result = client.checkGate(gateName)
-        })
+        }, functionName)
         return result
     }
 
@@ -133,11 +134,12 @@ object Statsig {
      */
     @JvmStatic
     fun getConfig(configName: String): DynamicConfig {
-        enforceInitialized("getConfig")
+        val functionName = "getConfig"
+        enforceInitialized(functionName)
         var result: DynamicConfig? = null
         errorBoundary.capture({
             result = client.getConfig(configName)
-        })
+        }, functionName)
         return result ?: DynamicConfig.getUninitialized(configName)
     }
 
@@ -169,11 +171,12 @@ object Statsig {
     @JvmOverloads
     @JvmStatic
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
-        enforceInitialized("getExperiment")
+        val functionName = "getExperiment"
+        enforceInitialized(functionName)
         var result: DynamicConfig? = null
         errorBoundary.capture({
             result = client.getExperiment(experimentName, keepDeviceValue)
-        })
+        }, functionName)
         return result ?: DynamicConfig.getUninitialized(experimentName)
     }
 
@@ -210,11 +213,12 @@ object Statsig {
     @JvmOverloads
     @JvmStatic
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
-        enforceInitialized("getLayer")
+        val functionName = "getLayer"
+        enforceInitialized(functionName)
         var result: Layer? = null
         errorBoundary.capture({
             result = client.getLayer(layerName, keepDeviceValue)
-        })
+        }, functionName)
         return result ?: Layer.getUninitialized(layerName)
     }
 

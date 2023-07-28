@@ -53,6 +53,25 @@ enum class KeyType {
 
     @SerializedName("get_layer")
     GET_LAYER,
+
+    ;
+
+    companion object {
+        fun convertFromString(value: String): KeyType? {
+            return when (value) {
+                in "checkGate" ->
+                    KeyType.CHECK_GATE
+                in "getExperiment" ->
+                    KeyType.GET_EXPERIMENT
+                in "getConfig" ->
+                    KeyType.GET_CONFIG
+                in "getLayer" ->
+                    KeyType.GET_LAYER
+                else ->
+                    null
+            }
+        }
+    }
 }
 
 enum class StepType {
