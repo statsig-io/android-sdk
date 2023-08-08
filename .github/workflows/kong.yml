@@ -2,8 +2,6 @@ name: KONG
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0/4 * * *"
   pull_request:
     branches: [main]
   push:
@@ -17,8 +15,7 @@ env:
 
 jobs:
   KONG:
-    if: github.event_name != 'schedule' || github.event.repository.private
-    timeout-minutes: 6
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
       - name: Get KONG
