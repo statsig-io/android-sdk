@@ -71,7 +71,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
             return false
         }
         val context = overrideContext ?: this.diagnosticsContext
-        if (this.maxMarkers[context] ?: this.defaultMaxMarkers < this.markers[context]?.size ?: 0) {
+        if (this.maxMarkers[context] ?: this.defaultMaxMarkers <= this.markers[context]?.size ?: 0) {
             return false
         }
         if (this.markers[context] == null) {

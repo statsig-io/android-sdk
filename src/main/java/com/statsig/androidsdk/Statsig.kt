@@ -104,7 +104,7 @@ object Statsig {
         var result = false
         errorBoundary.capture({
             result = client.checkGate(gateName)
-        }, functionName)
+        }, tag = functionName, configName = gateName)
         return result
     }
 
@@ -139,7 +139,7 @@ object Statsig {
         var result: DynamicConfig? = null
         errorBoundary.capture({
             result = client.getConfig(configName)
-        }, functionName)
+        }, tag = functionName, configName = configName)
         return result ?: DynamicConfig.getUninitialized(configName)
     }
 
@@ -176,7 +176,7 @@ object Statsig {
         var result: DynamicConfig? = null
         errorBoundary.capture({
             result = client.getExperiment(experimentName, keepDeviceValue)
-        }, functionName)
+        }, tag = functionName, configName = experimentName)
         return result ?: DynamicConfig.getUninitialized(experimentName)
     }
 
@@ -218,7 +218,7 @@ object Statsig {
         var result: Layer? = null
         errorBoundary.capture({
             result = client.getLayer(layerName, keepDeviceValue)
-        }, functionName)
+        }, tag = functionName, configName = layerName)
         return result ?: Layer.getUninitialized(layerName)
     }
 

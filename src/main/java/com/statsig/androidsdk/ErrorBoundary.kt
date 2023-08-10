@@ -115,9 +115,6 @@ internal class ErrorBoundary() {
     }
 
     private fun startMarker(tag: String?, configName: String?): String? {
-        if (configName == null) {
-            return null
-        }
         val diagnostics = this.diagnostics
         val markerKey = KeyType.convertFromString(tag ?: "")
         if (tag == null || diagnostics == null || markerKey == null) {
@@ -130,9 +127,6 @@ internal class ErrorBoundary() {
     }
 
     private fun endMarker(tag: String?, markerID: String?, success: Boolean, configName: String?) {
-        if (configName == null) {
-            return
-        }
         val diagnostics = this.diagnostics
         val markerKey = KeyType.convertFromString(tag ?: "")
         if (tag == null || diagnostics == null || markerKey == null) {
