@@ -28,8 +28,8 @@ enum class ContextType {
     @SerializedName("initialize")
     INITIALIZE,
 
-    @SerializedName("error_boundary")
-    ERROR_BOUNDARY,
+    @SerializedName("api_call")
+    API_CALL,
 
     @SerializedName("config_sync")
     CONFIG_SYNC,

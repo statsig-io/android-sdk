@@ -8,6 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.floor
 
+const val MAX_DIAGNOSTICS_MARKERS = 30
 const val SAMPLING_RATE = 10_000
 internal class ErrorBoundary() {
     internal var urlString = "https://statsigapi.net/v1/sdk_exception"
@@ -28,9 +29,14 @@ internal class ErrorBoundary() {
     fun setDiagnostics(diagnostics: Diagnostics) {
         this.diagnostics = diagnostics
         val sampled = floor(Math.random() * SAMPLING_RATE) == 0.0
-        if (!sampled) {
+        if (sampled) {
             diagnostics.setMaxMarkers(
-                ContextType.ERROR_BOUNDARY,
+                ContextType.API_CALL,
+                MAX_DIAGNOSTICS_MARKERS,
+            )
+        } else {
+            diagnostics.setMaxMarkers(
+                ContextType.API_CALL,
                 0,
             )
         }
@@ -120,8 +126,8 @@ internal class ErrorBoundary() {
         if (tag == null || diagnostics == null || markerKey == null) {
             return null
         }
-        val markerID = tag + "_" + diagnostics.getMarkers(ContextType.ERROR_BOUNDARY).count()
-        diagnostics.diagnosticsContext = ContextType.ERROR_BOUNDARY
+        val markerID = tag + "_" + diagnostics.getMarkers(ContextType.API_CALL).count()
+        diagnostics.diagnosticsContext = ContextType.API_CALL
         diagnostics.markStart(markerKey, step = null, Marker(markerID = markerID, configName = configName))
         return markerID
     }

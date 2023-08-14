@@ -224,13 +224,13 @@ internal class StatsigLogger(
     }
 
     internal fun addErrorBoundaryDiagnostics() {
-        val markers = diagnostics.getMarkers(ContextType.ERROR_BOUNDARY)
+        val markers = diagnostics.getMarkers(ContextType.API_CALL)
         if (markers.isEmpty()) {
             return
             markers
         }
-        val event = this.makeDiagnosticsEvent(ContextType.ERROR_BOUNDARY, markers)
+        val event = this.makeDiagnosticsEvent(ContextType.API_CALL, markers)
         this.events.add(event)
-        diagnostics.clearContext(ContextType.ERROR_BOUNDARY)
+        diagnostics.clearContext(ContextType.API_CALL)
     }
 }

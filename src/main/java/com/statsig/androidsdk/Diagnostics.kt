@@ -4,7 +4,9 @@ const val NANO_IN_MS = 1_000_000.0
 internal class Diagnostics(private var isDisabled: Boolean) {
     var diagnosticsContext: ContextType = ContextType.INITIALIZE
     private var defaultMaxMarkers: Int = 30
-    private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.ERROR_BOUNDARY to this.defaultMaxMarkers, ContextType.EVENT_LOGGING to 0, ContextType.CONFIG_SYNC to 0)
+
+    private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.API_CALL to this.defaultMaxMarkers, ContextType.EVENT_LOGGING to 0, ContextType.CONFIG_SYNC to 0)
+
     private var markers: DiagnosticsMarkers = mutableMapOf()
 
     fun getIsDisabled(): Boolean {
@@ -41,7 +43,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
                     marker.attempt = additionalMarker?.attempt
                 }
             }
-            ContextType.ERROR_BOUNDARY -> {
+            ContextType.API_CALL -> {
                 marker.markerID = additionalMarker?.markerID
             }
         }
@@ -66,7 +68,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
                     marker.statusCode = additionalMarker.statusCode
                 }
             }
-            ContextType.ERROR_BOUNDARY -> {
+            ContextType.API_CALL -> {
                 marker.markerID = additionalMarker?.markerID!!
                 marker.configName = additionalMarker?.configName!!
             }
