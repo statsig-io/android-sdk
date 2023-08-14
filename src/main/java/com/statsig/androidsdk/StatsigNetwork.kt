@@ -130,7 +130,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
             val metadataCopy = metadata.copy()
             val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime, HASH to hashUsed)
             var statusCode: Int? = null
-            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), retries, diagnostics, timeoutMs) { status: Int? -> statusCode = status }
+            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), retries, ContextType.INITIALIZE, diagnostics, timeoutMs) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
         } catch (e: Exception) {
             Statsig.errorBoundary.logException(e)
@@ -170,7 +170,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     HASH to HashAlgorithm.DJB2.value,
                 )
                 try {
-                    emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0))
+                    emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, ContextType.CONFIG_SYNC))
                 } catch (_: Exception) {}
             }
         }
@@ -178,7 +178,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
 
     override suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String) {
         try {
-            postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, sdkKey, bodyString, 3)
+            postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, sdkKey, bodyString, 3, ContextType.EVENT_LOGGING)
         } catch (_: Exception) {}
     }
 
@@ -231,6 +231,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         sdkKey: String,
         bodyString: String,
         retries: Int,
+        contextType: ContextType,
         diagnostics: Diagnostics? = null,
         timeout: Int? = null,
         crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> },
@@ -252,7 +253,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                 connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
                 connection.setRequestProperty(STATSIG_CLIENT_TIME_HEADER_KEY, System.currentTimeMillis().toString())
                 connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
-                diagnostics?.markStart(KeyType.INITIALIZE, StepType.NETWORK_REQUEST, Marker(attempt = retryAttempt))
+                diagnostics?.markStart(KeyType.INITIALIZE, StepType.NETWORK_REQUEST, Marker(attempt = retryAttempt), contextType)
                 try {
                     connection.outputStream.bufferedWriter(Charsets.UTF_8)
                         .use { it.write(bodyString) }
@@ -262,7 +263,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     } else {
                         connection.errorStream
                     }
-                    endDiagnostics(diagnostics, code, connection.headerFields["x-statsig-region"]?.get(0), retryAttempt, retries)
+                    endDiagnostics(diagnostics, contextType, code, connection.headerFields["x-statsig-region"]?.get(0), retryAttempt, retries)
                     when (code) {
                         in 200..299 -> {
                             if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
@@ -302,7 +303,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
         }
     }
 
-    private fun endDiagnostics(diagnostics: Diagnostics?, statusCode: Int, sdkRegion: String?, attempt: Int, retryLimit: Int) {
+    private fun endDiagnostics(diagnostics: Diagnostics?, diagnosticsContext: ContextType, statusCode: Int, sdkRegion: String?, attempt: Int, retryLimit: Int) {
         if (diagnostics == null) {
             return
         }

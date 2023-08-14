@@ -4,7 +4,7 @@ const val NANO_IN_MS = 1_000_000.0
 internal class Diagnostics(private var isDisabled: Boolean) {
     var diagnosticsContext: ContextType = ContextType.INITIALIZE
     private var defaultMaxMarkers: Int = 30
-    private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.ERROR_BOUNDARY to this.defaultMaxMarkers)
+    private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.ERROR_BOUNDARY to this.defaultMaxMarkers, ContextType.EVENT_LOGGING to 0, ContextType.CONFIG_SYNC to 0)
     private var markers: DiagnosticsMarkers = mutableMapOf()
 
     fun getIsDisabled(): Boolean {
@@ -26,12 +26,16 @@ internal class Diagnostics(private var isDisabled: Boolean) {
         this.markers = mutableMapOf()
     }
 
-    fun markStart(key: KeyType, step: StepType? = null, additionalMarker: Marker? = null): Boolean {
+    fun markStart(key: KeyType, step: StepType? = null, additionalMarker: Marker? = null, overrideContext: ContextType? = null): Boolean {
         if (this.isDisabled) {
             return false
         }
+        val context = overrideContext ?: this.diagnosticsContext
+        if (this.maxMarkers[context] ?: this.defaultMaxMarkers < this.markers[context]?.size ?: 0) {
+            return false
+        }
         val marker = Marker(key = key, action = ActionType.START, timestamp = System.nanoTime() / NANO_IN_MS, step = step)
-        when (this.diagnosticsContext) {
+        when (context) {
             ContextType.INITIALIZE -> {
                 if (key == KeyType.INITIALIZE && step == StepType.NETWORK_REQUEST) {
                     marker.attempt = additionalMarker?.attempt
@@ -41,15 +45,19 @@ internal class Diagnostics(private var isDisabled: Boolean) {
                 marker.markerID = additionalMarker?.markerID
             }
         }
-        return this.addMarker(marker)
+        return this.addMarker(marker, overrideContext)
     }
 
-    fun markEnd(key: KeyType, success: Boolean, step: StepType? = null, additionalMarker: Marker? = null): Boolean {
+    fun markEnd(key: KeyType, success: Boolean, step: StepType? = null, additionalMarker: Marker? = null, overrideContext: ContextType? = null): Boolean {
         if (this.isDisabled) {
             return false
         }
+        val context = overrideContext ?: this.diagnosticsContext
+        if (this.maxMarkers[context] ?: this.defaultMaxMarkers < this.markers[context]?.size ?: 0) {
+            return false
+        }
         val marker = Marker(key = key, action = ActionType.END, timestamp = System.nanoTime() / NANO_IN_MS, success = success, step = step)
-        when (this.diagnosticsContext) {
+        when (context) {
             ContextType.INITIALIZE -> {
                 if (key == KeyType.INITIALIZE && step == StepType.NETWORK_REQUEST) {
                     marker.attempt = additionalMarker?.attempt!!
@@ -63,13 +71,10 @@ internal class Diagnostics(private var isDisabled: Boolean) {
                 marker.configName = additionalMarker?.configName!!
             }
         }
-        return this.addMarker(marker)
+        return this.addMarker(marker, overrideContext)
     }
 
     private fun addMarker(marker: Marker, overrideContext: ContextType? = null): Boolean {
-        if (this.isDisabled) {
-            return false
-        }
         val context = overrideContext ?: this.diagnosticsContext
         if (this.maxMarkers[context] ?: this.defaultMaxMarkers <= this.markers[context]?.size ?: 0) {
             return false

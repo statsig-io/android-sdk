@@ -30,6 +30,12 @@ enum class ContextType {
 
     @SerializedName("error_boundary")
     ERROR_BOUNDARY,
+
+    @SerializedName("config_sync")
+    CONFIG_SYNC,
+
+    @SerializedName("event_logging")
+    EVENT_LOGGING,
 }
 
 enum class KeyType {
