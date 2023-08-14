@@ -68,6 +68,7 @@ internal interface StatsigNetwork {
         initTimeoutMs: Long,
         sharedPrefs: SharedPreferences,
         diagnostics: Diagnostics? = null,
+        hashUsed: HashAlgorithm,
     ): InitializeResponse?
 
     fun pollForChanges(
@@ -102,13 +103,14 @@ private class StatsigNetworkImpl : StatsigNetwork {
         initTimeoutMs: Long,
         sharedPrefs: SharedPreferences,
         diagnostics: Diagnostics?,
+        hashUsed: HashAlgorithm,
     ): InitializeResponse {
         this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
-            return initializeImpl(api, sdkKey, user, sinceTime, metadata, diagnostics)
+            return initializeImpl(api, sdkKey, user, sinceTime, metadata, diagnostics, hashUsed = hashUsed)
         }
         return withTimeout(initTimeoutMs) {
-            initializeImpl(api, sdkKey, user, sinceTime, metadata, diagnostics, initTimeoutMs.toInt())
+            initializeImpl(api, sdkKey, user, sinceTime, metadata, diagnostics, initTimeoutMs.toInt(), hashUsed = hashUsed)
         }
     }
 
@@ -120,12 +122,13 @@ private class StatsigNetworkImpl : StatsigNetwork {
         metadata: StatsigMetadata,
         diagnostics: Diagnostics?,
         timeoutMs: Int? = null,
+        hashUsed: HashAlgorithm,
     ): InitializeResponse {
         val retries = 0
         return try {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
-            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime, HASH to HashAlgorithm.DJB2.value)
+            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime, HASH to hashUsed)
             var statusCode: Int? = null
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), retries, diagnostics, timeoutMs) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)

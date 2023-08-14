@@ -106,6 +106,7 @@ internal class StatsigClient() {
                     this@StatsigClient.options.initTimeoutMs,
                     this@StatsigClient.getSharedPrefs(),
                     this@StatsigClient.diagnostics,
+                    if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
                 )
 
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
@@ -416,6 +417,7 @@ internal class StatsigClient() {
                     statsigMetadata,
                     options.initTimeoutMs,
                     getSharedPrefs(),
+                    hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
                 )
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
                     store.save(initResponse, cacheKey)
