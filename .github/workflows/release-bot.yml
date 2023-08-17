@@ -9,6 +9,7 @@ on:
 
 jobs:
   run:
+    timeout-minutes: 10
     if: startsWith(github.head_ref, 'releases/') || github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
