@@ -2,28 +2,23 @@ name: test
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - src/**
-      - .github/workflows/tests.yml
-      - consumer-rules.pro
   pull_request:
     branches: [main]
-    paths:
-      - src/**
-      - .github/workflows/tests.yml
+  push:
+    branches: [main]
 
 jobs:
   gradle:
     timeout-minutes: 10
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
       - uses: actions/setup-java@v2
         with:
           java-version: 11
           distribution: "adopt"
+
       - name: Setup and execute Gradle 'test' task
         uses: gradle/gradle-build-action@v2
         with:
