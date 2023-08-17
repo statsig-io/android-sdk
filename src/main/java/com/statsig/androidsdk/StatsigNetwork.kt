@@ -307,15 +307,9 @@ private class StatsigNetworkImpl : StatsigNetwork {
         if (diagnostics == null) {
             return
         }
-        when (statusCode) {
-            in 200..299 -> {
-                diagnostics?.markEnd(KeyType.INITIALIZE, true, StepType.NETWORK_REQUEST, Marker(attempt = attempt, retryLimit = retryLimit, sdkRegion = sdkRegion, statusCode = statusCode))
-            }
-            in RETRY_CODES -> {
-                diagnostics?.markEnd(KeyType.INITIALIZE, (retryLimit >= attempt), StepType.NETWORK_REQUEST, Marker(attempt = attempt, retryLimit = retryLimit, sdkRegion = sdkRegion, statusCode = statusCode))
-            } else -> {
-                diagnostics?.markEnd(KeyType.INITIALIZE, false, StepType.NETWORK_REQUEST, Marker(attempt = attempt, retryLimit = retryLimit, sdkRegion = sdkRegion, statusCode = statusCode))
-            }
-        }
+
+        val marker = Marker(attempt = attempt, retryLimit = retryLimit, sdkRegion = sdkRegion, statusCode = statusCode)
+        val wasSuccessful = statusCode in 200..299
+        diagnostics.markEnd(KeyType.INITIALIZE, wasSuccessful, StepType.NETWORK_REQUEST, marker, overrideContext = diagnosticsContext)
     }
 }

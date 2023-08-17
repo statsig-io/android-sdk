@@ -181,6 +181,23 @@ internal class StatsigLogger(
         }
     }
 
+    /*
+     * Diagnostics
+     * */
+    fun logDiagnostics() {
+        if (diagnostics.getIsDisabled()) {
+            return
+        }
+        val markers = diagnostics.getMarkers()
+        if (markers.isEmpty()) {
+            return
+        }
+        val event = this.makeDiagnosticsEvent(diagnostics.diagnosticsContext, markers)
+
+        coroutineScope.launch(singleThreadDispatcher) { log(event) }
+        diagnostics.clearContext()
+    }
+
     private fun addManualFlag(metadata: MutableMap<String, String>, isManual: Boolean): MutableMap<String, String> {
         if (isManual) {
             metadata["isManualExposure"] = "true"
@@ -198,24 +215,7 @@ internal class StatsigLogger(
         return true
     }
 
-    /*
-     * Diagnostics
-     * */
-    fun logDiagnostics(user: StatsigUser) {
-        if (diagnostics.getIsDisabled()) {
-            return
-        }
-        val markers = diagnostics.getMarkers()
-        if (markers.isEmpty()) {
-            return
-        }
-        val event = this.makeDiagnosticsEvent(diagnostics.diagnosticsContext, markers)
-
-        coroutineScope.launch(singleThreadDispatcher) { log(event) }
-        diagnostics.clearContext()
-    }
-
-    internal fun makeDiagnosticsEvent(context: ContextType, markers: Collection<Marker>): LogEvent {
+    private fun makeDiagnosticsEvent(context: ContextType, markers: Collection<Marker>): LogEvent {
         // Need to verify if the JSON is in the right format for log event
         val event = LogEvent(DIAGNOSTICS_EVENT)
         event.user = this.statsigUser
@@ -223,11 +223,10 @@ internal class StatsigLogger(
         return event
     }
 
-    internal fun addErrorBoundaryDiagnostics() {
+    private fun addErrorBoundaryDiagnostics() {
         val markers = diagnostics.getMarkers(ContextType.API_CALL)
         if (markers.isEmpty()) {
             return
-            markers
         }
         val event = this.makeDiagnosticsEvent(ContextType.API_CALL, markers)
         this.events.add(event)

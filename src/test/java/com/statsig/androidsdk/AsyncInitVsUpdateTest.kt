@@ -10,8 +10,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
-internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse? {
+internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse {
     return withContext(Dispatchers.IO) {
         val isUserA = user.userID == "user-a"
         delay(if (isUserA) 0 else 500)
@@ -97,14 +98,14 @@ class AsyncInitVsUpdateTest {
         assertEquals("default", value)
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
 
-        didInitializeUserA.await()
+        didInitializeUserA.await(1, TimeUnit.SECONDS)
 
         config = Statsig.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("default", value)
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
 
-        didInitializeUserB.await()
+        didInitializeUserB.await(1, TimeUnit.SECONDS)
 
         value = Statsig.getConfig("a_config").getString("key", "default")
         assertEquals("user_b_value", value)
@@ -128,10 +129,10 @@ class AsyncInitVsUpdateTest {
             }
         }
 
-        var cacheById: MutableMap<String, Any> = HashMap()
-        var values: MutableMap<String, Any> = HashMap()
+        val cacheById: MutableMap<String, Any> = HashMap()
+        val values: MutableMap<String, Any> = HashMap()
         val sticky: MutableMap<String, Any> = HashMap()
-        var userBCacheValues = TestUtil.makeInitializeResponse(
+        val userBCacheValues = TestUtil.makeInitializeResponse(
             mapOf(),
             mapOf(
                 "a_config!" to APIDynamicConfig(
@@ -144,9 +145,9 @@ class AsyncInitVsUpdateTest {
             ),
             mapOf(),
         )
-        values.put("values", userBCacheValues)
-        values.put("stickyUserExperiments", sticky)
-        cacheById.put("user-b", values)
+        values["values"] = userBCacheValues
+        values["stickyUserExperiments"] = sticky
+        cacheById["user-b"] = values
         testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById))
 
         Statsig.initializeAsync(app, "client-key", userA, callback)
@@ -159,14 +160,14 @@ class AsyncInitVsUpdateTest {
         assertEquals("user_b_value_cache", value)
         assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
 
-        didInitializeUserA.await()
+        didInitializeUserA.await(1, TimeUnit.SECONDS)
 
         config = Statsig.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("user_b_value_cache", value)
         assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
 
-        didInitializeUserB.await()
+        didInitializeUserB.await(1, TimeUnit.SECONDS)
 
         config = Statsig.getConfig("a_config")
         value = config.getString("key", "default")
@@ -174,6 +175,7 @@ class AsyncInitVsUpdateTest {
         assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     @Test
     fun testNoAwait() {
         val userA = StatsigUser("user-a")
@@ -188,14 +190,14 @@ class AsyncInitVsUpdateTest {
             override fun onStatsigUpdateUser() {}
         }
         Statsig.initializeAsync(app, "client-key", userA, callback)
-        didInitializeUserA.await()
+        didInitializeUserA.await(1, TimeUnit.SECONDS)
         GlobalScope.async {
             Statsig.updateUser(userB)
         }
 
         // Calling updateUser without suspending will not guarantee synchronous load from cache
-        var config = Statsig.getConfig("a_config")
-        var value = config.getString("key", "default")
+        val config = Statsig.getConfig("a_config")
+        val value = config.getString("key", "default")
         assertEquals("user_a_value", value)
         assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
     }

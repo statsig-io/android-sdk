@@ -33,7 +33,8 @@ internal class Diagnostics(private var isDisabled: Boolean) {
             return false
         }
         val context = overrideContext ?: this.diagnosticsContext
-        if (this.maxMarkers[context] ?: this.defaultMaxMarkers < this.markers[context]?.size ?: 0) {
+        if (this.getMaxMarkers(context) < (this.markers[context]?.size ?: 0)
+        ) {
             return false
         }
         val marker = Marker(key = key, action = ActionType.START, timestamp = System.nanoTime() / NANO_IN_MS, step = step)
@@ -46,6 +47,8 @@ internal class Diagnostics(private var isDisabled: Boolean) {
             ContextType.API_CALL -> {
                 marker.markerID = additionalMarker?.markerID
             }
+
+            else -> return false
         }
         return this.addMarker(marker, overrideContext)
     }
@@ -55,30 +58,37 @@ internal class Diagnostics(private var isDisabled: Boolean) {
             return false
         }
         val context = overrideContext ?: this.diagnosticsContext
-        if (this.maxMarkers[context] ?: this.defaultMaxMarkers < this.markers[context]?.size ?: 0) {
+        if (this.getMaxMarkers(context) < (this.markers[context]?.size ?: 0)) {
             return false
         }
         val marker = Marker(key = key, action = ActionType.END, timestamp = System.nanoTime() / NANO_IN_MS, success = success, step = step)
         when (context) {
             ContextType.INITIALIZE -> {
                 if (key == KeyType.INITIALIZE && step == StepType.NETWORK_REQUEST) {
-                    marker.attempt = additionalMarker?.attempt!!
-                    marker.retryLimit = additionalMarker?.retryLimit!!
-                    marker.sdkRegion = additionalMarker.sdkRegion
-                    marker.statusCode = additionalMarker.statusCode
+                    marker.attempt = additionalMarker?.attempt
+                    marker.retryLimit = additionalMarker?.retryLimit
+                    marker.sdkRegion = additionalMarker?.sdkRegion
+                    marker.statusCode = additionalMarker?.statusCode
                 }
             }
+
             ContextType.API_CALL -> {
-                marker.markerID = additionalMarker?.markerID!!
-                marker.configName = additionalMarker?.configName!!
+                marker.markerID = additionalMarker?.markerID
+                marker.configName = additionalMarker?.configName
             }
+
+            else -> return false
         }
         return this.addMarker(marker, overrideContext)
     }
 
+    private fun getMaxMarkers(context: ContextType): Int {
+        return this.maxMarkers[context] ?: this.defaultMaxMarkers
+    }
+
     private fun addMarker(marker: Marker, overrideContext: ContextType? = null): Boolean {
         val context = overrideContext ?: this.diagnosticsContext
-        if (this.maxMarkers[context] ?: this.defaultMaxMarkers <= this.markers[context]?.size ?: 0) {
+        if (this.getMaxMarkers(context) <= (this.markers[context]?.size ?: 0)) {
             return false
         }
         if (this.markers[context] == null) {

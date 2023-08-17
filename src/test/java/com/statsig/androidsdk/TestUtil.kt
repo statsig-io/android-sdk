@@ -7,6 +7,7 @@ import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
@@ -15,6 +16,7 @@ import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class TestUtil {
     companion object {
         private val dispatcher = TestCoroutineDispatcher()

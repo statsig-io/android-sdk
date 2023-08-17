@@ -122,12 +122,12 @@ internal class StatsigClient() {
 
                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api, this@StatsigClient.sdkKey)
                 this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, success)
-                logger.logDiagnostics(this@StatsigClient.user)
+                logger.logDiagnostics()
                 InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null)
             }, { e: Exception ->
                 val duration = System.currentTimeMillis() - initStartTime
                 this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false)
-                logger.logDiagnostics(this@StatsigClient.user)
+                logger.logDiagnostics()
                 InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e))
             })
         }
@@ -374,7 +374,7 @@ internal class StatsigClient() {
     fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
         updateUserCache(user)
         statsigScope.launch {
-            updateUserImpl(user)
+            updateUserImpl()
             withContext(dispatcherProvider.main) {
                 callback?.onStatsigUpdateUser()
             }
@@ -390,7 +390,7 @@ internal class StatsigClient() {
      */
     suspend fun updateUser(user: StatsigUser?) {
         updateUserCache(user)
-        updateUserImpl(user)
+        updateUserImpl()
     }
 
     private fun updateUserCache(user: StatsigUser?) {
@@ -403,7 +403,7 @@ internal class StatsigClient() {
         })
     }
 
-    private suspend fun updateUserImpl(user: StatsigUser?) {
+    private suspend fun updateUserImpl() {
         withContext(dispatcherProvider.io) {
             Statsig.errorBoundary.captureAsync {
                 val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
@@ -485,7 +485,7 @@ internal class StatsigClient() {
      * Null prior to completion of async initialization
      */
     fun getStableID(): String {
-        return statsigMetadata.stableID ?: statsigMetadata.stableID!!
+        return statsigMetadata.stableID ?: ""
     }
 
     fun logManualGateExposure(gateName: String) {
@@ -594,6 +594,7 @@ internal class StatsigClient() {
                 statsigMetadata.appVersion = pInfo.versionName
             }
         } catch (e: PackageManager.NameNotFoundException) {
+            // noop
         }
     }
 

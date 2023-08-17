@@ -55,9 +55,9 @@ internal class ErrorBoundary() {
     }
 
     fun capture(task: () -> Unit, tag: String? = null, recover: (() -> Unit)? = null, configName: String? = null) {
-        val markerID = ""
+        var markerID = ""
         try {
-            val markerID = startMarker(tag, configName)
+            markerID = startMarker(tag, configName) ?: ""
             task()
             endMarker(tag, markerID, true, configName)
         } catch (e: Exception) {
@@ -117,6 +117,7 @@ internal class ErrorBoundary() {
             DataOutputStream(conn.outputStream).use { it.writeBytes(postData) }
             conn.responseCode // triggers request
         } catch (e: Exception) {
+            // noop
         }
     }
 
