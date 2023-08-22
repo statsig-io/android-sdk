@@ -427,6 +427,10 @@ internal class StatsigClient() {
         }
     }
 
+    fun getInitializeResponseJson(): ExternalInitializeResponse? {
+        return store.getCurrentCacheValuesAndEvaluationReason()
+    }
+
     suspend fun shutdownSuspend() {
         enforceInitialized("shutdown")
         pollingJob?.cancel()

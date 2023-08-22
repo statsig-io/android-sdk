@@ -148,7 +148,6 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             cacheById[currentUserCacheKey] = currentCache
             cacheString = gson.toJson(cacheById)
         }
-
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, cacheString)
     }
 
@@ -340,6 +339,10 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             localOverrides.configs,
             localOverrides.layers,
         )
+    }
+
+    fun getCurrentCacheValuesAndEvaluationReason(): ExternalInitializeResponse {
+        return ExternalInitializeResponse(gson.toJson(currentCache.values), getEvaluationDetails(true))
     }
 
     private fun hydrateDynamicConfig(name: String, details: EvaluationDetails, config: APIDynamicConfig?): DynamicConfig {

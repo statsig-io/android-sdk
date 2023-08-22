@@ -376,6 +376,19 @@ object Statsig {
         })
     }
 
+    /**
+     * @return Initialize response currently being used in JSON and evaluation details
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getInitializeResponseJson(): ExternalInitializeResponse {
+        var result: ExternalInitializeResponse? = null
+        enforceInitialized("getInitializeResponseJson")
+        errorBoundary.capture({
+            result = client.getInitializeResponseJson()
+        }, tag = "getInitializeResponseJson")
+        return result ?: ExternalInitializeResponse.getUninitialized()
+    }
+
     @JvmSynthetic
     suspend fun shutdownSuspend() {
         enforceInitialized("shutdownSuspend")
