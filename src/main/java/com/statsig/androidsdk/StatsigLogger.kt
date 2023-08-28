@@ -1,6 +1,5 @@
 package com.statsig.androidsdk
 
-import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
@@ -34,7 +33,7 @@ internal class StatsigLogger(
     private val statsigUser: StatsigUser,
     private val diagnostics: Diagnostics,
 ) {
-    private val gson = Gson()
+    private val gson = StatsigUtil.getGson()
 
     private val executor = Executors.newSingleThreadExecutor()
     private val singleThreadDispatcher = executor.asCoroutineDispatcher()

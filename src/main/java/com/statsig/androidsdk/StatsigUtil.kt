@@ -1,6 +1,9 @@
 package com.statsig.androidsdk
 
 import android.content.SharedPreferences
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.ToNumberPolicy
 import kotlinx.coroutines.withContext
 
 internal object StatsigUtil {
@@ -66,5 +69,9 @@ internal object StatsigUtil {
                 null
             }
         }
+    }
+
+    internal fun getGson(): Gson {
+        return GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
     }
 }

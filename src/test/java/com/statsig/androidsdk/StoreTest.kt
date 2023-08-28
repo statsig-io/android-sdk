@@ -106,6 +106,32 @@ class StoreTest {
     }
 
     @Test
+    fun testParsingNumberPrecision() = runBlocking {
+        var network: StatsigNetwork = TestUtil.mockNetwork(
+            dynamicConfigs = mapOf(
+                "long!" to
+                    APIDynamicConfig(
+                        "long!",
+                        mutableMapOf("key" to Long.MAX_VALUE),
+                        "id",
+                        arrayOf(),
+                    ),
+                "double!" to APIDynamicConfig("double!", mutableMapOf("key" to Double.MIN_VALUE), "id", arrayOf()),
+            ),
+            time = 1621637839,
+            hasUpdates = true,
+        )
+        TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(), network)
+        assertEquals(Long.MAX_VALUE, Statsig.getConfig("long").getLong("key", 0L))
+        assertEquals(Double.MIN_VALUE, Statsig.getConfig("double").getDouble("key", 0.0), 0.0)
+        network = TestUtil.mockBrokenNetwork()
+        TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(loadCacheAsync = true), network)
+        assertEquals(EvaluationReason.Cache, Statsig.getConfig("long").getEvaluationDetails().reason)
+        assertEquals(Long.MAX_VALUE, Statsig.getConfig("long").getLong("key", 0L))
+        assertEquals(Double.MIN_VALUE, Statsig.getConfig("double").getDouble("key", 0.0), 0.0)
+    }
+
+    @Test
     fun testEvaluationReasons() = runBlocking {
         val sharedPrefs = TestSharedPreferences()
         var store = Store(TestCoroutineScope(), sharedPrefs, userJkw)

@@ -3,8 +3,6 @@ package com.statsig.androidsdk
 import android.app.Application
 import android.content.SharedPreferences
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import com.google.gson.ToNumberPolicy
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,6 +40,7 @@ class TestUtil {
                 "testBoolean": true,
                 "testInt": 12,
                 "testDouble": 42.3,
+                "testAnotherDouble": 41.0,
                 "testLong": 9223372036854775806,
                 "testArray": [
                   "one",
@@ -67,7 +66,7 @@ class TestUtil {
                 }
             }
             """.trimIndent()
-            val gson = GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
+            val gson = StatsigUtil.getGson()
             @Suppress("UNCHECKED_CAST")
             return gson.fromJson(string, Map::class.java) as Map<String, Any>
         }

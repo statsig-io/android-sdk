@@ -67,6 +67,8 @@ class DynamicConfigTest {
         assertEquals(12, dc.getInt("testInt", 13))
         assertEquals(42.3, dc.getDouble("testDouble", 13.0), 0.0)
         assertEquals(9223372036854775806, dc.getLong("testLong", 1))
+        assertEquals(12.0, dc.getDouble("testInt", 13.0), 0.0)
+        assertEquals(41, dc.getInt("testAnotherDouble", 44))
     }
 
     @Test

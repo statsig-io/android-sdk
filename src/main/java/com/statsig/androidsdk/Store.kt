@@ -2,7 +2,6 @@ package com.statsig.androidsdk
 
 import android.content.SharedPreferences
 import androidx.annotation.VisibleForTesting
-import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.CoroutineScope
@@ -31,7 +30,7 @@ private data class Cache(
 )
 
 internal class Store(private val statsigScope: CoroutineScope, private val sharedPrefs: SharedPreferences, user: StatsigUser) {
-    private val gson = Gson()
+    private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var currentUserCacheKey: String
     private var cacheById: ConcurrentHashMap<String, Cache>

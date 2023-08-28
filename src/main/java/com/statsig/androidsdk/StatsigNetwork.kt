@@ -1,8 +1,6 @@
 package com.statsig.androidsdk
 
 import android.content.SharedPreferences
-import com.google.gson.GsonBuilder
-import com.google.gson.ToNumberPolicy
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -90,7 +88,7 @@ internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()
 
 private class StatsigNetworkImpl : StatsigNetwork {
 
-    private val gson = GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
+    private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var sharedPrefs: SharedPreferences? = null
 
