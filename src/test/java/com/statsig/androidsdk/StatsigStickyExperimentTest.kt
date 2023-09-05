@@ -125,7 +125,8 @@ class StatsigStickyExperimentTest {
         initialize(
             mapOf(
                 "exp!" to copyConfig(
-                    expConfig, mapOf("key" to "exp_v3"),
+                    expConfig,
+                    mapOf("key" to "exp_v3"),
                     isUserInExperiment = false,
                     isExperimentActive = false,
                 ),
@@ -133,7 +134,8 @@ class StatsigStickyExperimentTest {
             ),
             mapOf(
                 "layer!" to copyConfig(
-                    layerConfig, mapOf("key" to "layer_v3"),
+                    layerConfig,
+                    mapOf("key" to "layer_v3"),
                     isUserInExperiment = true,
                     isExperimentActive = true,
                     allocatedExperimentName = "new_exp!",
@@ -156,19 +158,22 @@ class StatsigStickyExperimentTest {
         initialize(
             mapOf(
                 "exp!" to copyConfig(
-                    expConfig, mapOf("key" to "exp_v4"),
+                    expConfig,
+                    mapOf("key" to "exp_v4"),
                     isUserInExperiment = false,
                     isExperimentActive = true,
                 ),
                 "new_exp!" to copyConfig(
-                    newExpConfig, mapOf("key" to "new_exp_v4"),
+                    newExpConfig,
+                    mapOf("key" to "new_exp_v4"),
                     isUserInExperiment = false,
                     isExperimentActive = true,
                 ),
             ),
             mapOf(
                 "layer!" to copyConfig(
-                    layerConfig, mapOf("key" to "layer_v4"),
+                    layerConfig,
+                    mapOf("key" to "layer_v4"),
                     isUserInExperiment = false,
                     isExperimentActive = true,
                     allocatedExperimentName = "new_exp!",

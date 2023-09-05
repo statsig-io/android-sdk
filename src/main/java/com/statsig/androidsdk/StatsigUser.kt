@@ -96,4 +96,8 @@ data class StatsigUser(
 
         return id
     }
+
+    internal fun toHashString(): String {
+        return Hashing.getHashedString(StatsigUtil.getGson().toJson(this), HashAlgorithm.DJB2)
+    }
 }

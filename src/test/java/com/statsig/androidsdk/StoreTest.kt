@@ -93,10 +93,10 @@ class StoreTest {
     @Test
     fun testCacheById() = runBlocking {
         val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
-        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         store.loadAndResetForUser(userDloomb)
-        store.save(getInitValue("v0", inExperiment = false, active = true), userDloomb.getCacheKey())
+        store.save(getInitValue("v0", inExperiment = false, active = true), userDloomb)
 
         store.loadAndResetForUser(userJkw)
         assertEquals(true, store.checkGate("gate").value)
@@ -145,13 +145,13 @@ class StoreTest {
         store.syncLoadFromLocalStorage()
 
         // save value with no updates
-        store.save(getInitValue("v0", hasUpdates = false), userJkw.getCacheKey())
+        store.save(getInitValue("v0", hasUpdates = false), userJkw)
         store.persistStickyValues()
         exp = store.getExperiment("exp", false)
         assertEquals(EvaluationReason.NetworkNotModified, exp.getEvaluationDetails().reason)
 
         // save some value from "network" and check again
-        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
         store.persistStickyValues()
 
         exp = store.getExperiment("exp", false)
@@ -177,7 +177,7 @@ class StoreTest {
         // re-initialize and check the previously saved sticky value
         store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
         store.syncLoadFromLocalStorage()
-        store.save(getInitValue("v1", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v1", inExperiment = true, active = true), userJkw)
         store.persistStickyValues()
 
         exp = store.getExperiment("exp", true)
@@ -188,7 +188,7 @@ class StoreTest {
     @Test
     fun testConfigNameNotHashed() = runBlocking {
         val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
-        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         val config = store.getExperiment("config", false)
         assertEquals("config", config.getName())
@@ -199,7 +199,7 @@ class StoreTest {
     @Test
     fun testStickyBucketing() = runBlocking {
         val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
-        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         // getting values with keepDeviceValue = false first
         var config = store.getExperiment("config", false)
@@ -212,7 +212,7 @@ class StoreTest {
         assertEquals("v0", nonStickExp.getString("key", ""))
 
         // update values, and then get with flag set to true. All values should update
-        store.save(getInitValue("v1", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v1", inExperiment = true, active = true), userJkw)
 
         config = store.getExperiment("config", true)
         exp = store.getExperiment("exp", true)
@@ -224,7 +224,7 @@ class StoreTest {
         assertEquals("v1", nonStickExp.getString("key", ""))
 
         // update values again. Now some values should be sticky except the non-sticky ones
-        store.save(getInitValue("v2", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v2", inExperiment = true, active = true), userJkw)
 
         config = store.getExperiment("config", true)
         exp = store.getExperiment("exp", true)
@@ -237,7 +237,7 @@ class StoreTest {
 
         // update the experiments so that the user is no longer in experiments, should still be
         // sticky for the right ones
-        store.save(getInitValue("v3", inExperiment = false, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v3", inExperiment = false, active = true), userJkw)
 
         config = store.getExperiment("config", true)
         exp = store.getExperiment("exp", true)
@@ -249,7 +249,7 @@ class StoreTest {
         assertEquals("v3", nonStickExp.getString("key", ""))
 
         // update the experiments to no longer be active, values should update
-        store.save(getInitValue("v4", inExperiment = false, active = false), userJkw.getCacheKey())
+        store.save(getInitValue("v4", inExperiment = false, active = false), userJkw)
 
         config = store.getExperiment("config", true)
         exp = store.getExperiment("exp", true)
@@ -264,12 +264,12 @@ class StoreTest {
     @Test
     fun testInactiveExperimentStickyBehavior() = runBlocking {
         val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
-        store.save(getInitValue("v0", inExperiment = true, active = false), userJkw.getCacheKey())
+        store.save(getInitValue("v0", inExperiment = true, active = false), userJkw)
 
         var exp = store.getExperiment("exp", true)
         assertEquals("v0", exp.getString("key", ""))
 
-        store.save(getInitValue("v1", inExperiment = true, active = false), userJkw.getCacheKey())
+        store.save(getInitValue("v1", inExperiment = true, active = false), userJkw)
 
         exp = store.getExperiment("exp", true)
         assertEquals("v1", exp.getString("key", ""))
@@ -278,7 +278,7 @@ class StoreTest {
     @Test
     fun testStickyBehaviorWhenResettingUser() = runBlocking {
         val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
-        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         // getting values with keepDeviceValue = false first
         var config = store.getExperiment("config", false)
@@ -291,7 +291,7 @@ class StoreTest {
         assertEquals("v0", nonStickExp.getString("key", ""))
 
         // update values, and then get with flag set to true. All values should update
-        store.save(getInitValue("v1", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v1", inExperiment = true, active = true), userJkw)
 
         config = store.getExperiment("config", true)
         exp = store.getExperiment("exp", true)
@@ -304,7 +304,7 @@ class StoreTest {
 
         // reset to a different user. Only device exp should stick
         store.loadAndResetForUser(userTore)
-        store.save(getInitValue("v2", inExperiment = true, active = true), userTore.getCacheKey())
+        store.save(getInitValue("v2", inExperiment = true, active = true), userTore)
 
         config = store.getExperiment("config", true)
         exp = store.getExperiment("exp", true)
@@ -322,7 +322,7 @@ class StoreTest {
         var store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
         store.syncLoadFromLocalStorage()
         val v0Values = getInitValue("v0", inExperiment = true, active = true)
-        store.save(v0Values, userJkw.getCacheKey())
+        store.save(v0Values, userJkw)
         store.persistStickyValues()
 
         var config = store.getExperiment("config", true)
@@ -343,7 +343,7 @@ class StoreTest {
         configs["exp!"] = newConfigUpdatingValue(configs["exp!"]!!, mapOf("key" to "v0_alt"))
         configs["device_exp!"] =
             newConfigUpdatingValue(configs["device_exp!"]!!, mapOf("key" to "v0_alt"))
-        store.save(v0Values, userJkw.getCacheKey())
+        store.save(v0Values, userJkw)
         store.persistStickyValues()
 
         exp = store.getExperiment("exp", true)
@@ -358,7 +358,7 @@ class StoreTest {
         // value for device and only device
         store = Store(TestCoroutineScope(), sharedPrefs, userTore)
         store.syncLoadFromLocalStorage()
-        store.save(getInitValue("v1", inExperiment = true, active = true), userTore.getCacheKey())
+        store.save(getInitValue("v1", inExperiment = true, active = true), userTore)
 
         config = store.getExperiment("config", true)
         exp = store.getExperiment("exp", true)
@@ -372,7 +372,7 @@ class StoreTest {
         // Re-create store with the original user ID, check that sticky values are persisted
         store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
         store.syncLoadFromLocalStorage()
-        store.save(getInitValue("v2", inExperiment = true, active = true), userJkw.getCacheKey())
+        store.save(getInitValue("v2", inExperiment = true, active = true), userJkw)
 
         config = store.getExperiment("config", true)
         exp = store.getExperiment("exp", true)

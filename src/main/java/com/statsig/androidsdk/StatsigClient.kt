@@ -110,9 +110,8 @@ internal class StatsigClient() {
                 )
 
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
-                    val cacheKey = user.getCacheKey()
                     this@StatsigClient.diagnostics.markStart(KeyType.INITIALIZE, StepType.PROCESS)
-                    this@StatsigClient.store.save(initResponse, cacheKey)
+                    this@StatsigClient.store.save(initResponse, user)
                     this@StatsigClient.diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.PROCESS)
                     success = true
                 }
@@ -408,7 +407,6 @@ internal class StatsigClient() {
             Statsig.errorBoundary.captureAsync {
                 val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
 
-                val cacheKey = this@StatsigClient.user.getCacheKey()
                 val initResponse = statsigNetwork.initialize(
                     options.api,
                     sdkKey,
@@ -420,7 +418,7 @@ internal class StatsigClient() {
                     hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
                 )
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
-                    store.save(initResponse, cacheKey)
+                    store.save(initResponse, this@StatsigClient.user)
                 }
                 pollForUpdates()
             }
@@ -571,11 +569,10 @@ internal class StatsigClient() {
             return
         }
         pollingJob?.cancel()
-        val cacheKey = user.getCacheKey()
         val sinceTime = store.getLastUpdateTime(user)
         pollingJob = statsigNetwork.pollForChanges(options.api, sdkKey, user, sinceTime, statsigMetadata).onEach {
             if (it?.hasUpdates == true) {
-                store.save(it, cacheKey)
+                store.save(it, user)
             }
         }.launchIn(statsigScope)
     }

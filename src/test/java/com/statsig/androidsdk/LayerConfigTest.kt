@@ -14,8 +14,7 @@ class LayerConfigTest {
     private lateinit var sharedPrefs: TestSharedPreferences
     private var client: StatsigClient = StatsigClient()
     private lateinit var layer: Layer
-    private val nullUserCacheKey = StatsigUser(null)
-        .getCacheKey()
+    private val nullUser = StatsigUser(null)
 
     @Before
     internal fun setup() = runBlocking {
@@ -152,7 +151,7 @@ class LayerConfigTest {
                     ),
                 ),
             ),
-            nullUserCacheKey,
+            nullUser,
         )
         client.getStore().persistStickyValues()
 
@@ -180,7 +179,7 @@ class LayerConfigTest {
                     ),
                 ),
             ),
-            nullUserCacheKey,
+            nullUser,
         )
 
         initClient()
@@ -208,7 +207,7 @@ class LayerConfigTest {
             ),
         )
 
-        client.getStore().save(updatedLayerResponse, nullUserCacheKey)
+        client.getStore().save(updatedLayerResponse, nullUser)
         client.getStore().persistStickyValues()
 
         config = client.getLayer("allocated_layer", keepDeviceValue = true)
@@ -232,7 +231,7 @@ class LayerConfigTest {
                 ),
                 layerConfigs = updatedLayerResponse.layerConfigs!!,
             ),
-            nullUserCacheKey,
+            nullUser,
         )
         client.getStore().persistStickyValues()
 
@@ -264,7 +263,7 @@ class LayerConfigTest {
             ),
         )
 
-        client.getStore().save(response, nullUserCacheKey)
+        client.getStore().save(response, nullUser)
         client.getStore().persistStickyValues()
 
         config = client.getLayer("allocated_layer", keepDeviceValue = true)
@@ -282,7 +281,7 @@ class LayerConfigTest {
             isExperimentActive = false,
             isUserInExperiment = true,
         )
-        client.getStore().save(response, nullUserCacheKey)
+        client.getStore().save(response, nullUser)
         client.getStore().persistStickyValues()
 
         config = client.getLayer("allocated_layer", keepDeviceValue = true)
@@ -312,7 +311,7 @@ class LayerConfigTest {
                     ),
                 ),
             ),
-            nullUserCacheKey,
+            nullUser,
         )
         client.getStore().persistStickyValues()
 

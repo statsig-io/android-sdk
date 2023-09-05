@@ -26,6 +26,7 @@ private data class DeprecatedStickyUserExperiments(
 private data class Cache(
     @SerializedName("values") var values: InitializeResponse.SuccessfulInitializeResponse,
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments,
+    @SerializedName("userHash") var userHash: String,
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis(),
 )
 
@@ -125,13 +126,18 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
     fun getLastUpdateTime(user: StatsigUser): Long? {
         val cachedValues = cacheById[user.getCacheKey()]
+        if (cachedValues?.userHash != user.toHashString()) {
+            return null
+        }
         return cachedValues?.values?.time
     }
 
-    suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, cacheKey: String) {
+    suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
+        val cacheKey = user.getCacheKey()
         val cache = cacheById[cacheKey] ?: createEmptyCache()
         cache.values = data
         cache.evaluationTime = System.currentTimeMillis()
+        cache.userHash = user.toHashString()
         cacheById[cacheKey] = cache
 
         if (cacheKey == currentUserCacheKey) {
@@ -361,7 +367,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     private fun createEmptyCache(): Cache {
         val emptyInitResponse = InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0)
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
-        return Cache(emptyInitResponse, emptyStickyUserExperiments, System.currentTimeMillis())
+        return Cache(emptyInitResponse, emptyStickyUserExperiments, "", System.currentTimeMillis())
     }
 
     // save and remove sticky values in memory only
