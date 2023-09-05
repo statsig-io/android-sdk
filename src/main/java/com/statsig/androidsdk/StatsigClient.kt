@@ -17,8 +17,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import java.lang.Exception
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
@@ -609,27 +608,50 @@ internal class StatsigClient() {
 
     private inner class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {
         var currentActivity: Activity? = null
+        private var resumed = 0
+        private var paused = 0
+        private var started = 0
+        private var stopped = 0
 
         override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
             currentActivity = activity
         }
 
         override fun onActivityStarted(activity: Activity) {
+            ++started
             currentActivity = activity
         }
 
         override fun onActivityResumed(activity: Activity) {
             currentActivity = activity
+            ++resumed
         }
 
         override fun onActivityPaused(activity: Activity) {
+            ++paused
+            if (!this.isApplicationInForeground()) { // app is entering background
+                this@StatsigClient.statsigScope.launch {
+                    logger.flush()
+                }
+            }
         }
 
         override fun onActivityStopped(activity: Activity) {
+            ++stopped
             currentActivity = null
-            this@StatsigClient.statsigScope.launch {
-                logger.flush()
+            if (!this.isApplicationVisible()) {
+                this@StatsigClient.statsigScope.launch {
+                    logger.flush()
+                }
             }
+        }
+
+        private fun isApplicationVisible(): Boolean {
+            return started > stopped
+        }
+
+        private fun isApplicationInForeground(): Boolean {
+            return resumed > paused
         }
 
         override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
