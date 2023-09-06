@@ -66,7 +66,6 @@ internal class Diagnostics(private var isDisabled: Boolean) {
             ContextType.INITIALIZE -> {
                 if (key == KeyType.INITIALIZE && step == StepType.NETWORK_REQUEST) {
                     marker.attempt = additionalMarker?.attempt
-                    marker.retryLimit = additionalMarker?.retryLimit
                     marker.sdkRegion = additionalMarker?.sdkRegion
                     marker.statusCode = additionalMarker?.statusCode
                 }

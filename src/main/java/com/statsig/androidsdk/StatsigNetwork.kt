@@ -132,7 +132,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
         } catch (e: Exception) {
             Statsig.errorBoundary.logException(e)
-            diagnostics?.markEnd(KeyType.INITIALIZE, false, StepType.NETWORK_REQUEST, Marker(attempt = 1, retryLimit = retries, sdkRegion = null, statusCode = null))
+            diagnostics?.markEnd(KeyType.INITIALIZE, false, StepType.NETWORK_REQUEST, Marker(attempt = 1, sdkRegion = null, statusCode = null))
             when (e) {
                 is SocketTimeoutException, is ConnectException -> {
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
@@ -261,7 +261,7 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     } else {
                         connection.errorStream
                     }
-                    endDiagnostics(diagnostics, contextType, code, connection.headerFields["x-statsig-region"]?.get(0), retryAttempt, retries)
+                    endDiagnostics(diagnostics, contextType, code, connection.headerFields["x-statsig-region"]?.get(0), retryAttempt)
                     when (code) {
                         in 200..299 -> {
                             if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
@@ -301,12 +301,12 @@ private class StatsigNetworkImpl : StatsigNetwork {
         }
     }
 
-    private fun endDiagnostics(diagnostics: Diagnostics?, diagnosticsContext: ContextType, statusCode: Int, sdkRegion: String?, attempt: Int, retryLimit: Int) {
+    private fun endDiagnostics(diagnostics: Diagnostics?, diagnosticsContext: ContextType, statusCode: Int, sdkRegion: String?, attempt: Int) {
         if (diagnostics == null) {
             return
         }
 
-        val marker = Marker(attempt = attempt, retryLimit = retryLimit, sdkRegion = sdkRegion, statusCode = statusCode)
+        val marker = Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode)
         val wasSuccessful = statusCode in 200..299
         diagnostics.markEnd(KeyType.INITIALIZE, wasSuccessful, StepType.NETWORK_REQUEST, marker, overrideContext = diagnosticsContext)
     }

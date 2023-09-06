@@ -18,7 +18,6 @@ data class Marker(
     @SerializedName("sdkRegion") var sdkRegion: String? = null,
     @SerializedName("markerID") var markerID: String? = null,
     @SerializedName("attempt") var attempt: Int? = null,
-    @SerializedName("retryLimit") var retryLimit: Int? = null,
     @SerializedName("isRetry") var isRetry: Boolean? = null,
     @SerializedName("isDelta") var isDelta: Boolean? = null,
     @SerializedName("configName") var configName: String? = null,
