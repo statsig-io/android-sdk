@@ -150,19 +150,16 @@ class ErrorBoundaryTest {
 
     @Test
     fun testCoroutineExceptionHandler() {
-        val callback = object : IStatsigCallback {
-            override fun onStatsigInitialize() {
-                // Generally, we don't expect exceptions from user defined callbacks to be caught
-                // in our error boundary, but until we implement a way to filter them out
-                // this test will use it as a way to test capturing via CoroutineExceptionHandler
-                throw IOException("Thrown from onStatsigInitialize")
-            }
-
-            override fun onStatsigUpdateUser() {}
-        }
+        // Expect exceptions thrown from coroutines without explicit capture statements
+        // are still caught by the ErrorBoundary via the CoroutineExceptionHandler
         try {
             runBlocking {
-                Statsig.client.initializeAsync(app, "client-key", null, callback)
+                coEvery {
+                    Statsig.client.setupAsync(any())
+                } answers {
+                    throw IOException("Example exception in StatsigClient setupAsync")
+                }
+                Statsig.client.initializeAsync(app, "client-key", null)
                 Statsig.shutdown()
             }
         } catch (e: Throwable) {
@@ -170,6 +167,37 @@ class ErrorBoundaryTest {
         }
         verify(
             1,
+            postRequestedFor(urlEqualTo("/v1/sdk_exception")).withHeader(
+                "STATSIG-API-KEY",
+                equalTo("client-key"),
+            ),
+        )
+    }
+
+    @Test
+    fun testExternalException() {
+        // Expect exceptions thrown from user defined callbacks to be caught
+        // by the ErrorBoundary but not logged
+        val callback = object : IStatsigCallback {
+            override fun onStatsigInitialize() {
+                throw IOException("Thrown from onStatsigInitialize")
+            }
+
+            override fun onStatsigUpdateUser() {
+                throw IOException("Thrown from onStatsigUpdateUser")
+            }
+        }
+        try {
+            runBlocking {
+                Statsig.client.initializeAsync(app, "client-key", null, callback)
+                Statsig.client.updateUserAsync(null, callback)
+                Statsig.shutdown()
+            }
+        } catch (e: Throwable) {
+            assertTrue(false) // should not throw
+        }
+        verify(
+            0,
             postRequestedFor(urlEqualTo("/v1/sdk_exception")).withHeader(
                 "STATSIG-API-KEY",
                 equalTo("client-key"),

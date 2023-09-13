@@ -58,9 +58,14 @@ internal class StatsigClient() {
         val normalizedUser = setup(application, sdkKey, user, options)
         statsigScope.launch {
             val initDetails = setupAsync(normalizedUser)
-            // The scope's dispatcher may change in the future. This "withContext" will ensure we keep true to the documentation above.
+            // The scope's dispatcher may change in the future.
+            // This "withContext" will ensure that initialization is complete when the callback is invoked
             withContext(dispatcherProvider.main) {
-                callback?.onStatsigInitialize(initDetails)
+                try {
+                    callback?.onStatsigInitialize(initDetails)
+                } catch (e: Exception) {
+                    throw ExternalException(e.message)
+                }
             }
         }
     }
@@ -87,7 +92,8 @@ internal class StatsigClient() {
         return setupAsync(normalizedUser)
     }
 
-    private suspend fun setupAsync(user: StatsigUser): InitializationDetails {
+    @VisibleForTesting
+    internal suspend fun setupAsync(user: StatsigUser): InitializationDetails {
         return withContext(dispatcherProvider.io) {
             val initStartTime = System.currentTimeMillis()
             return@withContext Statsig.errorBoundary.captureAsync({
@@ -380,7 +386,11 @@ internal class StatsigClient() {
         statsigScope.launch {
             updateUserImpl()
             withContext(dispatcherProvider.main) {
-                callback?.onStatsigUpdateUser()
+                try {
+                    callback?.onStatsigUpdateUser()
+                } catch (e: Exception) {
+                    throw ExternalException(e.message)
+                }
             }
         }
     }

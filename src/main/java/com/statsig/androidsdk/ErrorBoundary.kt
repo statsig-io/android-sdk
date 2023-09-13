@@ -12,6 +12,9 @@ import kotlin.math.floor
 
 const val MAX_DIAGNOSTICS_MARKERS = 30
 const val SAMPLING_RATE = 10_000
+
+internal class ExternalException(message: String? = null) : Exception(message)
+
 internal class ErrorBoundary() {
     internal var urlString = "https://statsigapi.net/v1/sdk_exception"
 
@@ -47,7 +50,9 @@ internal class ErrorBoundary() {
     private fun handleException(exception: Throwable) {
         println("[Statsig]: An unexpected exception occurred.")
         println(exception)
-        this.logException(exception)
+        if (exception !is ExternalException) {
+            this.logException(exception)
+        }
     }
 
     fun getExceptionHandler(): CoroutineExceptionHandler {
@@ -63,8 +68,8 @@ internal class ErrorBoundary() {
             task()
             endMarker(tag, markerID, true, configName)
         } catch (e: Exception) {
-            handleException(e)
             endMarker(tag, markerID, false, configName)
+            handleException(e)
             recover?.let { it() }
         }
     }
