@@ -102,7 +102,7 @@ class ErrorBoundaryTest {
                     app,
                     "client-key",
                     null,
-                    options = StatsigOptions(disableDiagnosticsLogging = true)
+                    options = StatsigOptions(disableDiagnosticsLogging = true),
                 )
                 Statsig.shutdown()
             }
@@ -132,7 +132,7 @@ class ErrorBoundaryTest {
                     app,
                     "client-key",
                     null,
-                    options = StatsigOptions(disableDiagnosticsLogging = true)
+                    options = StatsigOptions(disableDiagnosticsLogging = true),
                 )
                 Statsig.shutdown()
             }

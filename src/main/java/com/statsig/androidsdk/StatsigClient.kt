@@ -44,6 +44,7 @@ internal class StatsigClient() {
 
     @VisibleForTesting
     internal lateinit var statsigNetwork: StatsigNetwork
+
     @VisibleForTesting
     internal lateinit var options: StatsigOptions
 

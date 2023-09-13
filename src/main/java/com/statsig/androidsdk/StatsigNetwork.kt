@@ -16,7 +16,6 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
 
-
 // Constants
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
 private const val POLLING_INTERVAL_MS: Long = 10000
@@ -213,8 +212,13 @@ internal class StatsigNetwork(
                 }
                 var response = client.newCall(request).execute()
                 var code = response.code
-                endDiagnostics(diagnostics, contextType, code,
-                    response.headers["x-statsig-region"], response.headers["attempt"]?.toInt())
+                endDiagnostics(
+                    diagnostics,
+                    contextType,
+                    code,
+                    response.headers["x-statsig-region"],
+                    response.headers["attempt"]?.toInt(),
+                )
                 when (code) {
                     in 200..299 -> {
                         if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {

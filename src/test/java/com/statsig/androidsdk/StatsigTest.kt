@@ -2,7 +2,6 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.gson.Gson
-import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking

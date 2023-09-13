@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject

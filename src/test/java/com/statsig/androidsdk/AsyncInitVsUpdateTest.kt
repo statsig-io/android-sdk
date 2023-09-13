@@ -6,7 +6,6 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.*
-import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test

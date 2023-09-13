@@ -1,9 +1,6 @@
 package com.statsig.androidsdk
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonSerializer
 import com.google.gson.annotations.SerializedName
-
 
 enum class InitializeFailReason {
     CoroutineTimeout,
@@ -35,7 +32,7 @@ internal data class APIFeatureGate(
     @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf(),
 )
 
-internal data class APIDynamicConfig (
+internal data class APIDynamicConfig(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Map<String, Any>,
     @SerializedName("rule_id") val ruleID: String?,

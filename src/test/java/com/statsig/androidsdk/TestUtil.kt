@@ -10,12 +10,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
 import com.google.gson.JsonSerializationContext
 import com.google.gson.JsonSerializer
-import com.google.gson.TypeAdapter
-import com.google.gson.TypeAdapterFactory
-import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
-import com.google.gson.stream.JsonReader
-import com.google.gson.stream.JsonWriter
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,7 +25,6 @@ import org.junit.Assert
 import java.lang.reflect.Type
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestUtil {
@@ -325,7 +319,7 @@ class TestUtil {
             time: Long? = null,
             hasUpdates: Boolean = true,
             onLog: ((LogEventData) -> Unit)? = null,
-            getInitializeResponse: ((InitializeRequestBody) -> InitializeResponse)? = null
+            getInitializeResponse: ((InitializeRequestBody) -> InitializeResponse)? = null,
         ): MockWebServer {
             var server = MockWebServer()
             server.apply {
@@ -341,7 +335,7 @@ class TestUtil {
                                 }
                                 val type = object : TypeToken<MutableMap<String, Any>>() {}.type
                                 val gson = GsonBuilder().registerTypeAdapter(
-                                    type, PolymorphicSerializer()
+                                    type, PolymorphicSerializer(),
                                 ).create()
                                 var stringified = gson.toJson(response)
                                 return MockResponse().setResponseCode(200).setBody(stringified)
@@ -380,7 +374,7 @@ class TestUtil {
             override fun serialize(
                 src: Any?,
                 typeOfSrc: Type?,
-                context: JsonSerializationContext?
+                context: JsonSerializationContext?,
             ): JsonElement {
                 return src.let {
                     if (it is Map<*, *>) {

@@ -7,7 +7,6 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import java.net.HttpURLConnection
 
-
 private val RETRY_CODES: IntArray = intArrayOf(
     HttpURLConnection.HTTP_CLIENT_TIMEOUT,
     HttpURLConnection.HTTP_INTERNAL_ERROR,
@@ -26,7 +25,7 @@ private const val STATSIG_SDK_TYPE_KEY = "STATSIG-SDK-TYPE"
 private const val STATSIG_SDK_VERSION_KEY = "STATSIG-SDK-VERSION"
 private const val ACCEPT_HEADER_KEY = "Accept"
 private const val ACCEPT_HEADER_VALUE = "application/json"
-internal val JSON: MediaType = "application/json; charset=utf-8".toMediaType();
+internal val JSON: MediaType = "application/json; charset=utf-8".toMediaType()
 
 class RequestHeaderInterceptor(private val sdkKey: String) : Interceptor {
     @Throws(Exception::class)

@@ -316,7 +316,7 @@ class LayerExposureTest {
                 // filter out diagnostics data
                 val events = result.events.filter { event -> event.eventName != "statsig::diagnostics" }
                 logs = if (events.isEmpty())null else LogEventData(events as ArrayList<LogEvent>, result.statsigMetadata)
-            }
+            },
         )
         initTime = System.currentTimeMillis()
         TestUtil.startStatsigAndWait(app, user = user, server = server)
