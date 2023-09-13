@@ -70,7 +70,7 @@ internal class StatsigLogger(
             }
             val flushEvents = ArrayList(events)
             events = ConcurrentLinkedQueue()
-            statsigNetwork.apiPostLogs(api, sdkKey, gson.toJson(LogEventData(flushEvents, statsigMetadata)))
+            statsigNetwork.apiPostLogs(api, gson.toJson(LogEventData(flushEvents, statsigMetadata)))
         }
     }
 

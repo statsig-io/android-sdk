@@ -107,7 +107,7 @@ class StoreTest {
 
     @Test
     fun testParsingNumberPrecision() = runBlocking {
-        var network: StatsigNetwork = TestUtil.mockNetwork(
+        var server = TestUtil.mockServer(
             dynamicConfigs = mapOf(
                 "long!" to
                     APIDynamicConfig(
@@ -121,11 +121,11 @@ class StoreTest {
             time = 1621637839,
             hasUpdates = true,
         )
-        TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(), network)
+        TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(), server)
         assertEquals(Long.MAX_VALUE, Statsig.getConfig("long").getLong("key", 0L))
         assertEquals(Double.MIN_VALUE, Statsig.getConfig("double").getDouble("key", 0.0), 0.0)
-        network = TestUtil.mockBrokenNetwork()
-        TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(loadCacheAsync = true), network)
+        server = TestUtil.mockBrokenServer()
+        TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(loadCacheAsync = true), server = server)
         assertEquals(EvaluationReason.Cache, Statsig.getConfig("long").getEvaluationDetails().reason)
         assertEquals(Long.MAX_VALUE, Statsig.getConfig("long").getLong("key", 0L))
         assertEquals(Double.MIN_VALUE, Statsig.getConfig("double").getDouble("key", 0.0), 0.0)
@@ -391,7 +391,7 @@ class StoreTest {
     @Test
     fun testStoreUpdatesOnlyWithUpdatedValues() {
         val networkTime = 123456789L
-        var network: StatsigNetwork = TestUtil.mockNetwork(
+        var server = TestUtil.mockServer(
             dynamicConfigs = mapOf(
                 "test_config!" to APIDynamicConfig(
                     "test_config!",
@@ -403,11 +403,11 @@ class StoreTest {
             hasUpdates = true,
         )
         val user = StatsigUser("123")
-        TestUtil.startStatsigAndWait(app, user, StatsigOptions(), network)
-        coVerify { network.initialize(any(), any(), any(), null, any(), any(), any(), any(), any()) }
+        TestUtil.startStatsigAndWait(app, user, StatsigOptions(), server = server)
+        assertEquals(1, server.requestCount)
         assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
-        network = TestUtil.mockNetwork(
+        TestUtil.mockServer(
             dynamicConfigs = mapOf(
                 "test_config!" to APIDynamicConfig(
                     "test_config!",
@@ -418,9 +418,8 @@ class StoreTest {
             time = networkTime - 1,
             hasUpdates = false,
         )
-        Statsig.client.statsigNetwork = network
         runBlocking { Statsig.updateUser(user) }
-        coVerify { network.initialize(any(), any(), any(), networkTime, any(), any(), any(), any(), any()) }
+        assertEquals(1, server.requestCount)
         assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
     }

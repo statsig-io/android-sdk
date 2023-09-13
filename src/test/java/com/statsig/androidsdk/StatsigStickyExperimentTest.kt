@@ -242,7 +242,7 @@ class StatsigStickyExperimentTest {
     ) = runBlocking {
         TestUtil.startStatsigAndWait(
             app,
-            network = TestUtil.mockNetwork(
+            server = TestUtil.mockServer(
                 featureGates = mapOf(),
                 dynamicConfigs = configs,
                 layerConfigs = layers,

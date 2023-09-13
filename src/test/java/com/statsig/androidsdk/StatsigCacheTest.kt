@@ -58,7 +58,7 @@ class StatsigCacheTest {
 
         assertTrue(client.checkGate("always_on"))
         runBlocking {
-            client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1", "client-test")
+            client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1")
             client.statsigNetwork.addFailedLogRequest("{}")
         }
         val config = client.getConfig("test_config")
@@ -81,11 +81,11 @@ class StatsigCacheTest {
         testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById)).apply()
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions(loadCacheAsync = true))
+        TestUtil.mockServer()
         client = Statsig.client
-        client.statsigNetwork = TestUtil.mockNetwork()
         assertFalse(client.checkGate("always_on"))
         runBlocking {
-            client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1", "client-test")
+            client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1")
             client.statsigNetwork.addFailedLogRequest("{}")
         }
         val config = client.getConfig("test_config")

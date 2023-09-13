@@ -3,16 +3,34 @@ package com.statsig.androidsdk
 import android.app.Application
 import android.content.SharedPreferences
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonArray
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
+import com.google.gson.JsonSerializationContext
+import com.google.gson.JsonSerializer
+import com.google.gson.TypeAdapter
+import com.google.gson.TypeAdapterFactory
+import com.google.gson.annotations.SerializedName
+import com.google.gson.reflect.TypeToken
+import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonWriter
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
+import okhttp3.mockwebserver.Dispatcher
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.RecordedRequest
 import org.junit.Assert
-import java.io.IOException
+import java.lang.reflect.Type
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestUtil {
@@ -198,7 +216,7 @@ class TestUtil {
         }
 
         @JvmName("startStatsigAndWait")
-        internal fun startStatsigAndWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
+        internal fun startStatsigAndWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions(), server: MockWebServer? = null) = runBlocking {
             val countdown = CountDownLatch(1)
             val callback = object : IStatsigCallback {
                 override fun onStatsigInitialize() {
@@ -211,8 +229,8 @@ class TestUtil {
             }
 
             Statsig.client = StatsigClient()
-            if (network != null) {
-                Statsig.client.statsigNetwork = network
+            if (server != null) {
+                useServer(Statsig.client, server)
             }
             Statsig.initializeAsync(app, "client-apikey", user, callback, options)
             countdown.await(1L, TimeUnit.SECONDS)
@@ -235,15 +253,6 @@ class TestUtil {
 
         fun getMockApp(): Application {
             return mockk()
-        }
-
-        @JvmName("captureLogs")
-        internal fun captureLogs(network: StatsigNetwork, onLog: ((LogEventData) -> Unit)? = null) {
-            coEvery {
-                network.apiPostLogs(any(), any(), any())
-            } answers {
-                onLog?.invoke(Gson().fromJson(thirdArg<String>(), LogEventData::class.java))
-            }
         }
 
         fun stubAppFunctions(app: Application): TestSharedPreferences {
@@ -293,66 +302,126 @@ class TestUtil {
             }
         }
 
-        @JvmName("mockBrokenNetwork")
-        internal fun mockBrokenNetwork(): StatsigNetwork {
-            val statsigNetwork = mockk<StatsigNetwork>()
-            coEvery {
-                statsigNetwork.apiRetryFailedLogs(any(), any())
-            } answers {
-                throw IOException("Example exception in StatsigNetwork apiRetryFailedLogs")
+        @JvmName("mockBrokenServer")
+        internal fun mockBrokenServer(): MockWebServer {
+            var server = MockWebServer()
+            server.apply {
+                dispatcher = object : Dispatcher() {
+                    @Throws(InterruptedException::class)
+                    override fun dispatch(request: RecordedRequest): MockResponse {
+                        return MockResponse().setResponseCode(404)
+                    }
+                }
             }
-
-            coEvery {
-                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
-            } answers {
-                throw IOException("Example exception in StatsigNetwork initialize")
-            }
-
-            coEvery {
-                statsigNetwork.addFailedLogRequest(any())
-            } answers {
-                throw IOException("Example exception in StatsigNetwork addFailedLogRequest")
-            }
-
-            coEvery {
-                statsigNetwork.apiPostLogs(any(), any(), any())
-            } answers {
-                throw IOException("Example exception in StatsigNetwork apiPostLogs")
-            }
-            return statsigNetwork
+            useServer(server = server)
+            return server
         }
 
-        @JvmName("mockNetwork")
-        internal fun mockNetwork(
+        @JvmName("mockServer")
+        internal fun mockServer(
             featureGates: Map<String, APIFeatureGate> = dummyFeatureGates,
             dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
             layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
             time: Long? = null,
             hasUpdates: Boolean = true,
-            captureUser: ((StatsigUser) -> Unit)? = null,
-        ): StatsigNetwork {
-            val statsigNetwork = mockk<StatsigNetwork>()
-
-            coEvery {
-                statsigNetwork.apiRetryFailedLogs(any(), any())
-            } returns Unit
-
-            coEvery {
-                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
-            } coAnswers {
-                captureUser?.invoke(thirdArg())
-                makeInitializeResponse(featureGates, dynamicConfigs, layerConfigs, time, hasUpdates)
+            onLog: ((LogEventData) -> Unit)? = null,
+            getInitializeResponse: ((InitializeRequestBody) -> InitializeResponse)? = null
+        ): MockWebServer {
+            var server = MockWebServer()
+            server.apply {
+                dispatcher = object : Dispatcher() {
+                    @Throws(InterruptedException::class)
+                    override fun dispatch(request: RecordedRequest): MockResponse {
+                        when (request.path) {
+                            "/v1/initialize" -> {
+                                val requestBody = request.body.readUtf8()
+                                var response: InitializeResponse = makeInitializeResponse(featureGates, dynamicConfigs, layerConfigs, time, hasUpdates)
+                                if (getInitializeResponse != null) {
+                                    response = getInitializeResponse.invoke(Gson().fromJson(requestBody, InitializeRequestBody::class.java))
+                                }
+                                val type = object : TypeToken<MutableMap<String, Any>>() {}.type
+                                val gson = GsonBuilder().registerTypeAdapter(
+                                    type, PolymorphicSerializer()
+                                ).create()
+                                var stringified = gson.toJson(response)
+                                return MockResponse().setResponseCode(200).setBody(stringified)
+                            }
+                            "/v1/log_event" -> {
+                                val requestBody = request.body.readUtf8()
+                                onLog?.invoke(Gson().fromJson(requestBody, LogEventData::class.java))
+                                return MockResponse().setResponseCode(200)
+                            }
+                        }
+                        return MockResponse().setResponseCode(200)
+                    }
+                }
             }
+            useServer(server = server)
+            return server
+        }
 
-            coEvery {
-                statsigNetwork.addFailedLogRequest(any())
-            } answers {}
+        internal fun mockClientWithServer(client: StatsigClient? = null, server: MockWebServer): StatsigClient {
+            var mockClient: StatsigClient = if (client == null) spyk() else spyk(client)
+            every {
+                mockClient.options
+            } answers {
+                callOriginal().apply { api = server.url("/v1").toString() }
+            }
+            return mockClient
+        }
 
-            coEvery {
-                statsigNetwork.apiPostLogs(any(), any(), any())
-            } answers {}
+        internal fun useServer(client: StatsigClient? = null, server: MockWebServer) {
+            Statsig.client = mockClientWithServer(client ?: Statsig.client, server)
+        }
 
-            return statsigNetwork
+        // Because Gson can't handle serializing polymorphic objects in Java
+        // we need a custom serializer to handle nested object values in APIDynamicConfig
+        internal class PolymorphicSerializer : JsonSerializer<Any> {
+            override fun serialize(
+                src: Any?,
+                typeOfSrc: Type?,
+                context: JsonSerializationContext?
+            ): JsonElement {
+                return src.let {
+                    if (it is Map<*, *>) {
+                        var obj = JsonObject()
+                        for (item in it) {
+                            val key = item.key
+                            val value = item.value
+                            if (key is String) {
+                                obj.add(key, serialize(value, null, null))
+                            }
+                        }
+                        return@let obj
+                    } else if (it is Map<*, *>) {
+                        var obj = JsonObject()
+                        for (item in it) {
+                            val key = item.key
+                            val value = item.value
+                            if (key is String) {
+                                obj.add(key, serialize(value, null, null))
+                            }
+                        }
+                        return@let obj
+                    } else if (it is String) {
+                        return@let JsonPrimitive(it)
+                    } else if (it is Number) {
+                        return@let JsonPrimitive(it)
+                    } else if (it is Boolean) {
+                        return@let JsonPrimitive(it)
+                    } else if (it is Char) {
+                        return@let JsonPrimitive(it)
+                    } else if (it is Array<*>) {
+                        var arr = JsonArray()
+                        for (item in it) {
+                            arr.add(serialize(item, null, null))
+                        }
+                        return@let arr
+                    } else {
+                        return@let JsonPrimitive(it.toString())
+                    }
+                }
+            }
         }
     }
 }

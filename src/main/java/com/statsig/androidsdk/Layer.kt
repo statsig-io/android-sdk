@@ -6,7 +6,7 @@ package com.statsig.androidsdk
 class Layer internal constructor(
     private val client: StatsigClient?,
     private val name: String,
-    private val jsonValue: Map<String, Any>,
+    public val jsonValue: Map<String, Any>,
     private val rule: String,
     private val details: EvaluationDetails,
     private val secondaryExposures: Array<Map<String, String>> = arrayOf(),

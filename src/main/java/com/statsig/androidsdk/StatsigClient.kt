@@ -29,7 +29,6 @@ internal class StatsigClient() {
     private lateinit var user: StatsigUser
     private lateinit var application: Application
     private lateinit var sdkKey: String
-    private lateinit var options: StatsigOptions
     private lateinit var lifecycleListener: StatsigActivityLifecycleListener
     private lateinit var logger: StatsigLogger
     private lateinit var statsigMetadata: StatsigMetadata
@@ -44,7 +43,9 @@ internal class StatsigClient() {
     private val isBootstrapped = AtomicBoolean(false)
 
     @VisibleForTesting
-    internal var statsigNetwork: StatsigNetwork = StatsigNetwork()
+    internal lateinit var statsigNetwork: StatsigNetwork
+    @VisibleForTesting
+    internal lateinit var options: StatsigOptions
 
     fun initializeAsync(
         application: Application,
@@ -98,7 +99,6 @@ internal class StatsigClient() {
                 }
                 val initResponse = statsigNetwork.initialize(
                     this@StatsigClient.options.api,
-                    this@StatsigClient.sdkKey,
                     user,
                     this@StatsigClient.store.getLastUpdateTime(this@StatsigClient.user),
                     this@StatsigClient.statsigMetadata,
@@ -118,7 +118,7 @@ internal class StatsigClient() {
 
                 this@StatsigClient.pollForUpdates()
 
-                this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api, this@StatsigClient.sdkKey)
+                this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api)
                 this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, success)
                 logger.logDiagnostics()
                 InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null)
@@ -156,6 +156,11 @@ internal class StatsigClient() {
 
         exceptionHandler = Statsig.errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
+
+        // Prevent overwriting mocked network in tests
+        if (!this::statsigNetwork.isInitialized) {
+            statsigNetwork = StatsigNetwork(sdkKey)
+        }
 
         lifecycleListener = StatsigActivityLifecycleListener()
         application.registerActivityLifecycleCallbacks(lifecycleListener)
@@ -408,7 +413,6 @@ internal class StatsigClient() {
 
                 val initResponse = statsigNetwork.initialize(
                     options.api,
-                    sdkKey,
                     this@StatsigClient.user,
                     sinceTime,
                     statsigMetadata,
@@ -569,7 +573,7 @@ internal class StatsigClient() {
         }
         pollingJob?.cancel()
         val sinceTime = store.getLastUpdateTime(user)
-        pollingJob = statsigNetwork.pollForChanges(options.api, sdkKey, user, sinceTime, statsigMetadata).onEach {
+        pollingJob = statsigNetwork.pollForChanges(options.api, user, sinceTime, statsigMetadata).onEach {
             if (it?.hasUpdates == true) {
                 store.save(it, user)
             }

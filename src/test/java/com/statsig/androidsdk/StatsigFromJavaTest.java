@@ -16,6 +16,7 @@ import java.util.Map;
 
 import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
+import okhttp3.mockwebserver.MockWebServer;
 
 public class StatsigFromJavaTest {
     private Application app;
@@ -142,27 +143,26 @@ public class StatsigFromJavaTest {
     }
 
     private void start() {
-        StatsigNetwork network = TestUtil.Companion.mockNetwork(
+        MockWebServer server = TestUtil.Companion.mockServer(
                 gates,
                 configs,
                 layers,
                 null,
                 true,
+                new Function1<LogEventData, Unit>() {
+                    @Override
+                    public Unit invoke(LogEventData logEventData) {
+                        logs = logEventData;
+                        return null;
+                    }
+                },
                 null);
-
-        TestUtil.Companion.captureLogs(network, new Function1<LogEventData, Unit>() {
-            @Override
-            public Unit invoke(LogEventData logEventData) {
-                logs = logEventData;
-                return null;
-            }
-        });
 
         TestUtil.Companion.startStatsigAndWait(
                 app,
                 new StatsigUser("dloomb"),
                 new StatsigOptions(),
-                network);
+                server);
     }
 
     private APIFeatureGate makeGate(String name, Boolean value) {

@@ -6,6 +6,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.*
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -45,11 +46,12 @@ class AsyncInitVsUpdateTest {
         testSharedPrefs = TestUtil.stubAppFunctions(app)
         TestUtil.mockStatsigUtil()
 
-        val network = TestUtil.mockNetwork()
+        // Cannot use mockWebServer to mimic network delay. Must mock StatsigNetwork directly.
+        var network = mockk<StatsigNetwork>()
         coEvery {
-            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
+            network.initialize(any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
-            val user = thirdArg<StatsigUser>()
+            val user = secondArg<StatsigUser>()
             getResponseForUser(user)
         }
         Statsig.client = spyk()
@@ -89,8 +91,14 @@ class AsyncInitVsUpdateTest {
             }
         }
 
-        Statsig.initializeAsync(app, "client-key", userA, callback)
-        Statsig.updateUserAsync(userB, callback)
+        var elapsed = kotlin.system.measureTimeMillis {
+            Statsig.initializeAsync(app, "client-key", userA, callback)
+        }
+        print("initializeAsync $elapsed")
+        elapsed = kotlin.system.measureTimeMillis {
+            Statsig.updateUserAsync(userB, callback)
+        }
+        print("updateUserAsync $elapsed")
 
         // Since updateUserAsync has been called, we void values for user_a
         var config = Statsig.getConfig("a_config")

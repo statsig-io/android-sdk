@@ -1,30 +1,21 @@
 package com.statsig.androidsdk
 
 import android.content.SharedPreferences
+import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.ConnectException
-import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
-import java.net.URL
 import java.util.concurrent.TimeUnit
-import kotlin.math.pow
 
-private val RETRY_CODES: IntArray = intArrayOf(
-    HttpURLConnection.HTTP_CLIENT_TIMEOUT,
-    HttpURLConnection.HTTP_INTERNAL_ERROR,
-    HttpURLConnection.HTTP_BAD_GATEWAY,
-    HttpURLConnection.HTTP_UNAVAILABLE,
-    HttpURLConnection.HTTP_GATEWAY_TIMEOUT,
-    522,
-    524,
-    599,
-)
 
 // Constants
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
@@ -41,25 +32,35 @@ private const val HASH = "hash"
 private const val OFFLINE_LOGS_KEY: String = "StatsigNetwork.OFFLINE_LOGS"
 
 // Endpoints
-private const val LOGGING_ENDPOINT: String = "log_event"
-private const val INITIALIZE_ENDPOINT: String = "initialize"
+internal const val LOGGING_ENDPOINT: String = "log_event"
+internal const val INITIALIZE_ENDPOINT: String = "initialize"
 
-// HTTP
-private const val POST = "POST"
-private const val CONTENT_TYPE_HEADER_KEY = "Content-Type"
-private const val CONTENT_TYPE_HEADER_VALUE = "application/json; charset=UTF-8"
-private const val STATSIG_API_HEADER_KEY = "STATSIG-API-KEY"
-private const val STATSIG_CLIENT_TIME_HEADER_KEY = "STATSIG-CLIENT-TIME"
-private const val STATSIG_SDK_TYPE_KEY = "STATSIG-SDK-TYPE"
-private const val STATSIG_SDK_VERSION_KEY = "STATSIG-SDK-VERSION"
-private const val ACCEPT_HEADER_KEY = "Accept"
-private const val ACCEPT_HEADER_VALUE = "application/json"
+internal data class InitializeRequestBody(
+    @SerializedName("user") val user: StatsigUser?,
+    @SerializedName("statsigMetadata") val statsigMetadata: StatsigMetadata,
+    @SerializedName("sinceTime") val sinceTime: Long?,
+    @SerializedName("hash") val hash: HashAlgorithm,
+)
 
-internal interface StatsigNetwork {
+internal class StatsigNetwork(
+    sdkKey: String,
+) {
+    private val gson = StatsigUtil.getGson()
+    private val dispatcherProvider = CoroutineDispatcherProvider()
+    private var sharedPrefs: SharedPreferences? = null
+    private val httpClient: OkHttpClient
+
+    init {
+        val clientBuilder = OkHttpClient.Builder()
+
+        clientBuilder.addInterceptor(RequestHeaderInterceptor(sdkKey))
+        clientBuilder.addInterceptor(ResponseInterceptor())
+
+        httpClient = clientBuilder.build()
+    }
 
     suspend fun initialize(
         api: String,
-        sdkKey: String,
         user: StatsigUser?,
         sinceTime: Long?,
         metadata: StatsigMetadata,
@@ -67,68 +68,31 @@ internal interface StatsigNetwork {
         sharedPrefs: SharedPreferences,
         diagnostics: Diagnostics? = null,
         hashUsed: HashAlgorithm,
-    ): InitializeResponse?
-
-    fun pollForChanges(
-        api: String,
-        sdkKey: String,
-        user: StatsigUser?,
-        sinceTime: Long?,
-        metadata: StatsigMetadata,
-    ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
-
-    suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String)
-
-    suspend fun apiRetryFailedLogs(api: String, sdkKey: String)
-
-    suspend fun addFailedLogRequest(requestBody: String)
-}
-
-internal fun StatsigNetwork(): StatsigNetwork = StatsigNetworkImpl()
-
-private class StatsigNetworkImpl : StatsigNetwork {
-
-    private val gson = StatsigUtil.getGson()
-    private val dispatcherProvider = CoroutineDispatcherProvider()
-    private var sharedPrefs: SharedPreferences? = null
-
-    override suspend fun initialize(
-        api: String,
-        sdkKey: String,
-        user: StatsigUser?,
-        sinceTime: Long?,
-        metadata: StatsigMetadata,
-        initTimeoutMs: Long,
-        sharedPrefs: SharedPreferences,
-        diagnostics: Diagnostics?,
-        hashUsed: HashAlgorithm,
     ): InitializeResponse {
         this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
-            return initializeImpl(api, sdkKey, user, sinceTime, metadata, diagnostics, hashUsed = hashUsed)
+            return initializeImpl(api, user, sinceTime, metadata, diagnostics, hashUsed = hashUsed)
         }
         return withTimeout(initTimeoutMs) {
-            initializeImpl(api, sdkKey, user, sinceTime, metadata, diagnostics, initTimeoutMs.toInt(), hashUsed = hashUsed)
+            initializeImpl(api, user, sinceTime, metadata, diagnostics, initTimeoutMs, hashUsed = hashUsed)
         }
     }
 
     private suspend fun initializeImpl(
         api: String,
-        sdkKey: String,
         user: StatsigUser?,
         sinceTime: Long?,
         metadata: StatsigMetadata,
         diagnostics: Diagnostics?,
-        timeoutMs: Int? = null,
+        timeoutMs: Long? = null,
         hashUsed: HashAlgorithm,
     ): InitializeResponse {
-        val retries = 0
         return try {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
-            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime, HASH to hashUsed)
+            val body = InitializeRequestBody(userCopy, metadataCopy, sinceTime, hashUsed)
             var statusCode: Int? = null
-            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), retries, ContextType.INITIALIZE, diagnostics, timeoutMs) { status: Int? -> statusCode = status }
+            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, gson.toJson(body), ContextType.INITIALIZE, diagnostics, timeoutMs) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
         } catch (e: Exception) {
             Statsig.errorBoundary.logException(e)
@@ -147,9 +111,8 @@ private class StatsigNetworkImpl : StatsigNetwork {
         }
     }
 
-    override fun pollForChanges(
+    fun pollForChanges(
         api: String,
-        sdkKey: String,
         user: StatsigUser?,
         sinceTime: Long?,
         metadata: StatsigMetadata,
@@ -168,28 +131,28 @@ private class StatsigNetworkImpl : StatsigNetwork {
                     HASH to HashAlgorithm.DJB2.value,
                 )
                 try {
-                    emit(postRequest(api, INITIALIZE_ENDPOINT, sdkKey, gson.toJson(body), 0, ContextType.CONFIG_SYNC))
+                    emit(postRequest(api, INITIALIZE_ENDPOINT, gson.toJson(body), ContextType.CONFIG_SYNC))
                 } catch (_: Exception) {}
             }
         }
     }
 
-    override suspend fun apiPostLogs(api: String, sdkKey: String, bodyString: String) {
+    suspend fun apiPostLogs(api: String, bodyString: String) {
         try {
-            postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, sdkKey, bodyString, 3, ContextType.EVENT_LOGGING)
+            postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, bodyString, ContextType.EVENT_LOGGING)
         } catch (_: Exception) {}
     }
 
-    override suspend fun apiRetryFailedLogs(api: String, sdkKey: String) {
+    suspend fun apiRetryFailedLogs(api: String) {
         val savedLogs = getSavedLogs()
         if (savedLogs.isEmpty()) {
             return
         }
         StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
-        savedLogs.map { apiPostLogs(api, sdkKey, it.requestBody) }
+        savedLogs.map { apiPostLogs(api, it.requestBody) }
     }
 
-    override suspend fun addFailedLogRequest(requestBody: String) {
+    suspend fun addFailedLogRequest(requestBody: String) {
         withContext(dispatcherProvider.io) {
             val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
             try {
@@ -226,82 +189,57 @@ private class StatsigNetworkImpl : StatsigNetwork {
     private suspend inline fun <reified T : Any> postRequest(
         api: String,
         endpoint: String,
-        sdkKey: String,
         bodyString: String,
-        retries: Int,
         contextType: ContextType,
         diagnostics: Diagnostics? = null,
-        timeout: Int? = null,
+        timeout: Long? = null,
         crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> },
     ): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
-            var retryAttempt = 1
-            while (isActive) {
-                val url = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
-                val connection: HttpURLConnection = URL(url).openConnection() as HttpURLConnection
+            val url = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
+            diagnostics?.markStart(KeyType.INITIALIZE, StepType.NETWORK_REQUEST, Marker(attempt = 1), contextType)
+            try {
+                var client = httpClient
+                val requestBody: RequestBody = bodyString.toRequestBody(JSON)
+                val request: Request = Request.Builder()
+                    .url(url)
+                    .post(requestBody)
+                    .build()
 
-                connection.requestMethod = POST
                 if (timeout != null) {
-                    connection.connectTimeout = timeout
-                    connection.readTimeout = timeout
+                    client = httpClient.newBuilder()
+                        .callTimeout(timeout, TimeUnit.MILLISECONDS)
+                        .build()
                 }
-                connection.setRequestProperty(CONTENT_TYPE_HEADER_KEY, CONTENT_TYPE_HEADER_VALUE)
-                connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
-                connection.setRequestProperty(STATSIG_SDK_TYPE_KEY, "android-client")
-                connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
-                connection.setRequestProperty(STATSIG_CLIENT_TIME_HEADER_KEY, System.currentTimeMillis().toString())
-                connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
-                diagnostics?.markStart(KeyType.INITIALIZE, StepType.NETWORK_REQUEST, Marker(attempt = retryAttempt), contextType)
-                try {
-                    connection.outputStream.bufferedWriter(Charsets.UTF_8)
-                        .use { it.write(bodyString) }
-                    val code = connection.responseCode
-                    val inputStream = if (code < HttpURLConnection.HTTP_BAD_REQUEST) {
-                        connection.inputStream
-                    } else {
-                        connection.errorStream
-                    }
-                    endDiagnostics(diagnostics, contextType, code, connection.headerFields["x-statsig-region"]?.get(0), retryAttempt)
-                    when (code) {
-                        in 200..299 -> {
-                            if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
-                                return@withContext gson.fromJson("{has_updates: false}", T::class.java)
-                            }
-                            return@withContext inputStream.bufferedReader(Charsets.UTF_8)
-                                .use { gson.fromJson(it, T::class.java) }
+                var response = client.newCall(request).execute()
+                var code = response.code
+                endDiagnostics(diagnostics, contextType, code,
+                    response.headers["x-statsig-region"], response.headers["attempt"]?.toInt())
+                when (code) {
+                    in 200..299 -> {
+                        if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
+                            return@withContext gson.fromJson("{has_updates: false}", T::class.java)
                         }
-                        in RETRY_CODES -> {
-                            if (retries > 0 && retryAttempt++ < retries) {
-                                // Don't return, just allow the loop to happen
-                                delay(100.0.pow(retryAttempt + 1).toLong())
-                            } else if (endpoint == LOGGING_ENDPOINT) {
-                                addFailedLogRequest(bodyString)
-                                callback(code)
-                                return@withContext null
-                            } else {
-                                callback(code)
-                                return@withContext null
-                            }
-                        }
-                        else -> {
-                            callback(code)
-                            return@withContext null
-                        }
+                        return@withContext gson.fromJson(response.body?.string(), T::class.java)
                     }
-                } catch (e: Exception) {
-                    if (endpoint == LOGGING_ENDPOINT) {
-                        addFailedLogRequest(bodyString)
+                    else -> {
+                        if (endpoint == LOGGING_ENDPOINT) {
+                            addFailedLogRequest(bodyString)
+                        }
+                        callback(code)
+                        return@withContext null
                     }
-                    throw e
-                } finally {
-                    connection.disconnect()
                 }
+            } catch (e: Exception) {
+                if (endpoint == LOGGING_ENDPOINT) {
+                    addFailedLogRequest(bodyString)
+                }
+                throw e
             }
-            return@withContext null
         }
     }
 
-    private fun endDiagnostics(diagnostics: Diagnostics?, diagnosticsContext: ContextType, statusCode: Int, sdkRegion: String?, attempt: Int) {
+    private fun endDiagnostics(diagnostics: Diagnostics?, diagnosticsContext: ContextType, statusCode: Int, sdkRegion: String?, attempt: Int?) {
         if (diagnostics == null) {
             return
         }

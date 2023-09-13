@@ -31,10 +31,8 @@ class StatsigOverridesTest {
             app = mockk()
             TestUtil.stubAppFunctions(app)
 
-            val statsigNetwork = TestUtil.mockNetwork()
-
             Statsig.client = StatsigClient()
-            Statsig.client.statsigNetwork = statsigNetwork
+            TestUtil.mockServer()
 
             Statsig.initialize(app, "test-key")
         }

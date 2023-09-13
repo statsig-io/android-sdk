@@ -320,11 +320,7 @@ class LayerConfigTest {
     }
 
     private fun initClient() = runBlocking {
-        val statsigNetwork = TestUtil.mockNetwork()
-
-        client = StatsigClient()
-        client.statsigNetwork = statsigNetwork
-
+        client = TestUtil.mockClientWithServer(client, TestUtil.mockServer())
         client.initialize(app, "test-key")
     }
 }
