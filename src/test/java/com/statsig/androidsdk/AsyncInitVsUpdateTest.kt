@@ -90,14 +90,8 @@ class AsyncInitVsUpdateTest {
             }
         }
 
-        var elapsed = kotlin.system.measureTimeMillis {
-            Statsig.initializeAsync(app, "client-key", userA, callback)
-        }
-        print("initializeAsync $elapsed")
-        elapsed = kotlin.system.measureTimeMillis {
-            Statsig.updateUserAsync(userB, callback)
-        }
-        print("updateUserAsync $elapsed")
+        Statsig.initializeAsync(app, "client-key", userA, callback)
+        Statsig.updateUserAsync(userB, callback)
 
         // Since updateUserAsync has been called, we void values for user_a
         var config = Statsig.getConfig("a_config")

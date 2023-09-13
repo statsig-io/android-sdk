@@ -111,7 +111,7 @@ internal class ErrorBoundary() {
 
             val clientBuilder = OkHttpClient.Builder()
 
-            clientBuilder.addInterceptor(RequestHeaderInterceptor(apiKey!!))
+            clientBuilder.addInterceptor(RequestHeaderInterceptor(apiKey ?: ""))
             clientBuilder.addInterceptor(ResponseInterceptor())
 
             val httpClient = clientBuilder.build()
