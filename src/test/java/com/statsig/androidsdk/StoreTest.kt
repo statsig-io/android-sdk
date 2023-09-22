@@ -86,6 +86,7 @@ class StoreTest {
             layerConfigs = null,
             hasUpdates = hasUpdates,
             time = 1621637839,
+            derivedFields = mapOf(),
         )
     }
 

@@ -206,6 +206,7 @@ class TestUtil {
                 layerConfigs = layerConfigs,
                 hasUpdates = hasUpdates,
                 time = time ?: 1621637839,
+                derivedFields = mapOf(),
             )
         }
 

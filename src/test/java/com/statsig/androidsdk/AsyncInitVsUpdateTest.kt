@@ -48,7 +48,7 @@ class AsyncInitVsUpdateTest {
         // Cannot use mockWebServer to mimic network delay. Must mock StatsigNetwork directly.
         var network = mockk<StatsigNetwork>()
         coEvery {
-            network.initialize(any(), any(), any(), any(), any(), any(), any(), any())
+            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
             val user = secondArg<StatsigUser>()
             getResponseForUser(user)

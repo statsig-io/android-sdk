@@ -132,6 +132,14 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         return cachedValues?.values?.time
     }
 
+    fun getPreviousDerivedFields(user: StatsigUser): Map<String, String> {
+        val cachedValues = cacheById[user.getCacheKey()]
+        if (cachedValues?.userHash != user.toHashString()) {
+            return mapOf()
+        }
+        return cachedValues?.values?.derivedFields ?: mapOf()
+    }
+
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
         val cacheKey = user.getCacheKey()
         val cache = cacheById[cacheKey] ?: createEmptyCache()
@@ -365,7 +373,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     private fun createEmptyCache(): Cache {
-        val emptyInitResponse = InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0)
+        val emptyInitResponse = InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0, mapOf())
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
         return Cache(emptyInitResponse, emptyStickyUserExperiments, "", System.currentTimeMillis())
     }

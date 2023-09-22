@@ -22,6 +22,7 @@ sealed class InitializeResponse {
         @SerializedName("has_updates") val hasUpdates: Boolean,
         @SerializedName("hash_used") val hashUsed: HashAlgorithm? = null,
         @SerializedName("time") val time: Long,
+        @SerializedName("derived_fields") val derivedFields: Map<String, String>?,
     ) : InitializeResponse()
 }
 

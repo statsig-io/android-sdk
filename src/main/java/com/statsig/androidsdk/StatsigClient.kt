@@ -113,6 +113,7 @@ internal class StatsigClient() {
                     this@StatsigClient.getSharedPrefs(),
                     this@StatsigClient.diagnostics,
                     if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
+                    this@StatsigClient.store.getPreviousDerivedFields(this@StatsigClient.user),
                 )
 
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
@@ -421,6 +422,7 @@ internal class StatsigClient() {
         withContext(dispatcherProvider.io) {
             Statsig.errorBoundary.captureAsync {
                 val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
+                val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
 
                 val initResponse = statsigNetwork.initialize(
                     options.api,
@@ -430,6 +432,7 @@ internal class StatsigClient() {
                     options.initTimeoutMs,
                     getSharedPrefs(),
                     hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
+                    previousDerivedFields = previousDerivedFields,
                 )
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
                     store.save(initResponse, this@StatsigClient.user)

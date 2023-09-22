@@ -39,6 +39,7 @@ internal data class InitializeRequestBody(
     @SerializedName("statsigMetadata") val statsigMetadata: StatsigMetadata,
     @SerializedName("sinceTime") val sinceTime: Long?,
     @SerializedName("hash") val hash: HashAlgorithm,
+    @SerializedName("previousDerivedFields") val previousDerivedFields: Map<String, String>,
 )
 
 internal class StatsigNetwork(
@@ -67,13 +68,14 @@ internal class StatsigNetwork(
         sharedPrefs: SharedPreferences,
         diagnostics: Diagnostics? = null,
         hashUsed: HashAlgorithm,
+        previousDerivedFields: Map<String, String>,
     ): InitializeResponse {
         this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
-            return initializeImpl(api, user, sinceTime, metadata, diagnostics, hashUsed = hashUsed)
+            return initializeImpl(api, user, sinceTime, metadata, diagnostics, hashUsed = hashUsed, previousDerivedFields = previousDerivedFields)
         }
         return withTimeout(initTimeoutMs) {
-            initializeImpl(api, user, sinceTime, metadata, diagnostics, initTimeoutMs, hashUsed = hashUsed)
+            initializeImpl(api, user, sinceTime, metadata, diagnostics, initTimeoutMs, hashUsed = hashUsed, previousDerivedFields = previousDerivedFields)
         }
     }
 
@@ -85,11 +87,12 @@ internal class StatsigNetwork(
         diagnostics: Diagnostics?,
         timeoutMs: Long? = null,
         hashUsed: HashAlgorithm,
+        previousDerivedFields: Map<String, String>,
     ): InitializeResponse {
         return try {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
-            val body = InitializeRequestBody(userCopy, metadataCopy, sinceTime, hashUsed)
+            val body = InitializeRequestBody(userCopy, metadataCopy, sinceTime, hashUsed, previousDerivedFields)
             var statusCode: Int? = null
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, gson.toJson(body), ContextType.INITIALIZE, diagnostics, timeoutMs) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)

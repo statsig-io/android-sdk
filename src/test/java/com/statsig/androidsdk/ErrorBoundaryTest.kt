@@ -94,7 +94,7 @@ class ErrorBoundaryTest {
             runBlocking {
                 Statsig.client.statsigNetwork = mockk()
                 coEvery {
-                    Statsig.client.statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any())
+                    Statsig.client.statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
                 } answers {
                     throw IOException("Example exception in StatsigNetwork initialize")
                 }
@@ -124,7 +124,7 @@ class ErrorBoundaryTest {
             runBlocking {
                 Statsig.client.statsigNetwork = mockk()
                 coEvery {
-                    Statsig.client.statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any())
+                    Statsig.client.statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
                 } answers {
                     throw IOException("Example exception in StatsigNetwork initialize")
                 }
