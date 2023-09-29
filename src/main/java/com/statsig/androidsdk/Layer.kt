@@ -6,21 +6,42 @@ package com.statsig.androidsdk
 class Layer internal constructor(
     private val client: StatsigClient?,
     private val name: String,
-    public val jsonValue: Map<String, Any>,
-    private val rule: String,
     private val details: EvaluationDetails,
+    public val jsonValue: Map<String, Any> = mapOf(),
+    private val rule: String = "",
+    private val groupName: String? = null,
     private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
     private val undelegatedSecondaryExposures: Array<Map<String, String>> = arrayOf(),
     private val isUserInExperiment: Boolean = false,
     private val isExperimentActive: Boolean = false,
     private val isDeviceBased: Boolean = false,
-    private val allocatedExperimentName: String = "",
+    private val allocatedExperimentName: String? = null,
     private val explicitParameters: Set<String>? = null,
 ) {
+    internal constructor(
+        client: StatsigClient?,
+        layerName: String,
+        apiDynamicConfig: APIDynamicConfig,
+        evalDetails: EvaluationDetails,
+    ) : this(
+        client,
+        layerName,
+        evalDetails,
+        apiDynamicConfig.value,
+        apiDynamicConfig.ruleID,
+        apiDynamicConfig.groupName,
+        apiDynamicConfig.secondaryExposures,
+        apiDynamicConfig.undelegatedSecondaryExposures,
+        apiDynamicConfig.isUserInExperiment,
+        apiDynamicConfig.isExperimentActive,
+        apiDynamicConfig.isDeviceBased,
+        apiDynamicConfig.allocatedExperimentName,
+        apiDynamicConfig.explicitParameters?.toSet(),
+    )
 
     companion object {
         fun getUninitialized(name: String): Layer {
-            return Layer(null, name, mapOf(), "", EvaluationDetails(EvaluationReason.Uninitialized))
+            return Layer(null, name, EvaluationDetails(EvaluationReason.Uninitialized))
         }
     }
 
@@ -112,9 +133,10 @@ class Layer internal constructor(
         return when (val value = get(key, null as Map<String, Any>?, jsonValue)) {
             is Map<String, Any> -> DynamicConfig(
                 key,
+                this.details,
                 value,
                 this.rule,
-                this.details,
+                this.groupName,
             )
             else -> null
         }
@@ -136,8 +158,12 @@ class Layer internal constructor(
         return this.details
     }
 
-    internal fun getRuleID(): String {
+    fun getRuleID(): String {
         return this.rule
+    }
+
+    fun getGroupName(): String? {
+        return this.groupName
     }
 
     internal fun getSecondaryExposures(): Array<Map<String, String>> {

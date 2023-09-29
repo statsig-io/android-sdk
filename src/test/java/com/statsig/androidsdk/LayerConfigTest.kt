@@ -30,9 +30,9 @@ class LayerConfigTest {
         layer = Layer(
             client,
             "a_layer",
+            EvaluationDetails(EvaluationReason.Network),
             TestUtil.getConfigValueMap(),
             "default",
-            EvaluationDetails(EvaluationReason.Network),
         )
 
         TestUtil.startStatsigAndWait(app)
@@ -48,12 +48,13 @@ class LayerConfigTest {
     @Test
     fun testDummy() {
         val dummyConfig =
-            Layer(client, "", mapOf(), "", EvaluationDetails(EvaluationReason.Unrecognized))
+            Layer(client, "", EvaluationDetails(EvaluationReason.Unrecognized))
         assertEquals("provided default", dummyConfig.getString("test", "provided default"))
         assertEquals(true, dummyConfig.getBoolean("test", true))
         assertEquals(12, dummyConfig.getInt("test", 12))
         assertEquals("hello world", dummyConfig.getString("test", "hello world"))
         assertEquals("", dummyConfig.getRuleID())
+        assertNull(dummyConfig.getGroupName())
         assertNull(dummyConfig.getString("test", null))
         assertNull(dummyConfig.getConfig("nested"))
         assertNull(dummyConfig.getString("testnodefault", null))
@@ -67,9 +68,9 @@ class LayerConfigTest {
         val emptyConfig = Layer(
             client,
             "test_config",
+            EvaluationDetails(EvaluationReason.Uninitialized),
             mapOf(),
             "default",
-            EvaluationDetails(EvaluationReason.Uninitialized),
         )
 
         assertEquals("provided default", emptyConfig.getString("test", "provided default"))
@@ -80,6 +81,7 @@ class LayerConfigTest {
         @Suppress("UNCHECKED_CAST")
         assertArrayEquals(arr, emptyConfig.getArray("test_config", arr as Array<Any>))
         assertEquals("default", emptyConfig.getRuleID())
+        assertNull(emptyConfig.getGroupName())
         assertNull(emptyConfig.getConfig("nested"))
         assertNull(emptyConfig.getString("testnodefault", null))
         assertNull(emptyConfig.getArray("testnodefault", null))
@@ -224,6 +226,7 @@ class LayerConfigTest {
                         "layer_exp!",
                         mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                         "exp_rule",
+                        "exp_group",
                         arrayOf(),
                         isExperimentActive = false,
                         isUserInExperiment = true,
@@ -277,6 +280,7 @@ class LayerConfigTest {
             "layer_exp!",
             mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
             "exp_rule",
+            "exp_group",
             arrayOf(),
             isExperimentActive = false,
             isUserInExperiment = true,

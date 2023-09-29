@@ -12,21 +12,22 @@ class DynamicConfigTest {
     internal fun setup() {
         dc = DynamicConfig(
             "test_config",
+            EvaluationDetails(EvaluationReason.Network),
             TestUtil.getConfigValueMap(),
             "default",
-            EvaluationDetails(EvaluationReason.Network),
         )
     }
 
     @Test
     fun testDummy() {
-        val dummyConfig = DynamicConfig("", mapOf(), "", EvaluationDetails(EvaluationReason.Unrecognized))
+        val dummyConfig = DynamicConfig("", EvaluationDetails(EvaluationReason.Unrecognized))
         assertEquals("provided default", dummyConfig.getString("test", "provided default"))
         assertEquals(true, dummyConfig.getBoolean("test", true))
         assertEquals(12, dummyConfig.getInt("test", 12))
         assertEquals("hello world", dummyConfig.getString("test", "hello world"))
         assertEquals(0, dummyConfig.getValue().size)
         assertEquals("", dummyConfig.getRuleID())
+        assertNull(dummyConfig.getGroupName())
         assertNull(dummyConfig.getString("test", null))
         assertNull(dummyConfig.getConfig("nested"))
         assertNull(dummyConfig.getString("testnodefault", null))
@@ -39,9 +40,9 @@ class DynamicConfigTest {
     fun testEmpty() {
         val emptyConfig = DynamicConfig(
             "test_config",
+            EvaluationDetails(EvaluationReason.Uninitialized),
             mapOf(),
             "default",
-            EvaluationDetails(EvaluationReason.Uninitialized),
         )
 
         assertEquals("provided default", emptyConfig.getString("test", "provided default"))
@@ -52,6 +53,7 @@ class DynamicConfigTest {
         @Suppress("UNCHECKED_CAST")
         assertArrayEquals(arr, emptyConfig.getArray("test_config", arr as Array<Any>))
         assertEquals("default", emptyConfig.getRuleID())
+        assertNull(emptyConfig.getGroupName())
         assertNull(emptyConfig.getConfig("nested"))
         assertNull(emptyConfig.getString("testnodefault", null))
         assertNull(emptyConfig.getArray("testnodefault", null))

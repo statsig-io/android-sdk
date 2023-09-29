@@ -176,8 +176,8 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
         val hashName = Hashing.getHashedString(gateName, currentCache.values.hashUsed)
         val gate = currentCache.values.featureGates?.get(hashName)
-            ?: return FeatureGate(gateName, getEvaluationDetails(false), false, "")
-        return FeatureGate(gate.name, getEvaluationDetails(true), gate.value, gate.ruleID, gate.secondaryExposures)
+            ?: return FeatureGate(gateName, getEvaluationDetails(false))
+        return FeatureGate(gate, getEvaluationDetails(true))
     }
 
     fun getConfig(configName: String): DynamicConfig {
@@ -185,9 +185,9 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         if (overrideValue != null) {
             return DynamicConfig(
                 configName,
+                getEvaluationDetails(false, EvaluationReason.LocalOverride),
                 overrideValue,
                 "override",
-                getEvaluationDetails(false, EvaluationReason.LocalOverride),
             )
         }
 
@@ -212,9 +212,9 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         if (overrideValue != null) {
             return DynamicConfig(
                 experimentName,
+                getEvaluationDetails(false, EvaluationReason.LocalOverride),
                 overrideValue,
                 "override",
-                getEvaluationDetails(false, EvaluationReason.LocalOverride),
             )
         }
 
@@ -235,9 +235,9 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             return Layer(
                 null,
                 layerName,
+                getEvaluationDetails(false, EvaluationReason.LocalOverride),
                 overrideValue,
                 "override",
-                getEvaluationDetails(false, EvaluationReason.LocalOverride),
             )
         }
 
@@ -245,20 +245,11 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
         val details = getEvaluationDetails(latestValue != null)
         val finalValue = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, details, true)
-        return Layer(
-            client,
-            layerName,
-            finalValue?.value ?: mapOf(),
-            finalValue?.ruleID ?: "",
-            details,
-            finalValue?.secondaryExposures ?: arrayOf(),
-            finalValue?.undelegatedSecondaryExposures ?: arrayOf(),
-            finalValue?.isUserInExperiment ?: false,
-            finalValue?.isExperimentActive ?: false,
-            finalValue?.isDeviceBased ?: false,
-            finalValue?.allocatedExperimentName ?: "",
-            finalValue?.explicitParameters?.toSet(),
-        )
+        return if (finalValue != null) {
+            Layer(client, layerName, finalValue, details)
+        } else {
+            Layer(client, layerName, details)
+        }
     }
 
     internal fun getEvaluationDetails(valueExists: Boolean, reasonOverride: EvaluationReason? = null): EvaluationDetails {
@@ -358,17 +349,11 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     private fun hydrateDynamicConfig(name: String, details: EvaluationDetails, config: APIDynamicConfig?): DynamicConfig {
-        return DynamicConfig(
-            name,
-            config?.value ?: mapOf(),
-            config?.ruleID ?: "",
-            details,
-            config?.secondaryExposures ?: arrayOf(),
-            config?.isUserInExperiment ?: false,
-            config?.isExperimentActive ?: false,
-            config?.isDeviceBased ?: false,
-            config?.allocatedExperimentName ?: "",
-        )
+        return if (config != null) {
+            DynamicConfig(name, config, details)
+        } else {
+            DynamicConfig(name, details)
+        }
     }
 
     private fun createEmptyCache(): Cache {

@@ -30,13 +30,15 @@ internal data class APIFeatureGate(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Boolean = false,
     @SerializedName("rule_id") val ruleID: String = "",
+    @SerializedName("group_name") val groupName: String? = null,
     @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf(),
 )
 
 internal data class APIDynamicConfig(
     @SerializedName("name") val name: String,
     @SerializedName("value") val value: Map<String, Any>,
-    @SerializedName("rule_id") val ruleID: String?,
+    @SerializedName("rule_id") val ruleID: String = "",
+    @SerializedName("group_name") val groupName: String? = null,
     @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf(),
     @SerializedName("undelegated_secondary_exposures") val undelegatedSecondaryExposures: Array<Map<String, String>> = arrayOf(),
     @SerializedName("is_device_based") val isDeviceBased: Boolean = false,
@@ -51,5 +53,18 @@ internal data class FeatureGate(
     val details: EvaluationDetails,
     val value: Boolean = false,
     val ruleID: String = "",
+    val groupName: String? = null,
     val secondaryExposures: Array<Map<String, String>> = arrayOf(),
-)
+) {
+    constructor(
+        apiFeatureGate: APIFeatureGate,
+        evalDetails: EvaluationDetails,
+    ) : this(
+        apiFeatureGate.name,
+        evalDetails,
+        apiFeatureGate.value,
+        apiFeatureGate.ruleID,
+        apiFeatureGate.groupName,
+        apiFeatureGate.secondaryExposures,
+    )
+}

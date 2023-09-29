@@ -89,6 +89,7 @@ class TestUtil {
                     "always_on!",
                     true,
                     "always_on_rule_id",
+                    "always_on_group",
                     arrayOf(
                         mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"),
                         mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2"),
@@ -98,14 +99,16 @@ class TestUtil {
                 APIFeatureGate(
                     "always_off!",
                     false,
-                    "always_on_rule_id",
+                    "always_off_rule_id",
+                    "always_off_group",
                     arrayOf(),
                 ),
             "always_on_v2!" to
                 APIFeatureGate(
-                    "always_off!",
+                    "always_on_v2!",
                     true,
                     "always_on_v2_rule_id",
+                    "always_on_v2_group",
                     arrayOf(),
                 ),
         )
@@ -115,18 +118,21 @@ class TestUtil {
                 "test_config!",
                 mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                 "default",
+                null,
                 arrayOf(mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1")),
             ),
             "exp!" to APIDynamicConfig(
                 "exp!",
                 mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                 "exp_rule",
+                "exp_group",
                 arrayOf(),
             ),
             "layer_exp!" to APIDynamicConfig(
                 "layer_exp!",
                 mutableMapOf("string" to "test", "number" to 42),
                 "exp_rule",
+                "exp_group",
                 arrayOf(),
                 isExperimentActive = true,
                 isUserInExperiment = true,
@@ -135,6 +141,7 @@ class TestUtil {
                 "other_layer_exp!",
                 mutableMapOf("string" to "other_test", "number" to 7742, "otherNumber" to 8817),
                 "exp_rule",
+                "exp_group",
                 arrayOf(),
                 isExperimentActive = true,
                 isUserInExperiment = true,

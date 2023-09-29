@@ -5,19 +5,36 @@ package com.statsig.androidsdk
  */
 class DynamicConfig(
     private val name: String,
-    private val jsonValue: Map<String, Any>,
-    private val rule: String,
     private val details: EvaluationDetails,
+    private val jsonValue: Map<String, Any> = mapOf(),
+    private val rule: String = "",
+    private val groupName: String? = null,
     private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
     private val isUserInExperiment: Boolean = false,
     private val isExperimentActive: Boolean = false,
     private val isDeviceBased: Boolean = false,
-    private val allocatedExperimentName: String = "",
+    private val allocatedExperimentName: String? = null,
 ) {
+    internal constructor(
+        configName: String,
+        apiDynamicConfig: APIDynamicConfig,
+        evalDetails: EvaluationDetails,
+    ) : this(
+        configName,
+        evalDetails,
+        apiDynamicConfig.value,
+        apiDynamicConfig.ruleID,
+        apiDynamicConfig.groupName,
+        apiDynamicConfig.secondaryExposures,
+        apiDynamicConfig.isUserInExperiment,
+        apiDynamicConfig.isExperimentActive,
+        apiDynamicConfig.isDeviceBased,
+        apiDynamicConfig.allocatedExperimentName,
+    )
 
     internal companion object {
         fun getUninitialized(name: String): DynamicConfig {
-            return DynamicConfig(name, mapOf(), "", EvaluationDetails(EvaluationReason.Uninitialized))
+            return DynamicConfig(name, EvaluationDetails(EvaluationReason.Uninitialized))
         }
     }
 
@@ -139,9 +156,10 @@ class DynamicConfig(
                     null -> null
                     else -> DynamicConfig(
                         key,
+                        this.details,
                         valueTyped,
                         this.rule,
-                        this.details,
+                        this.groupName,
                     )
                 }
             else -> null
@@ -173,8 +191,12 @@ class DynamicConfig(
         return this.details
     }
 
-    internal fun getRuleID(): String {
+    fun getRuleID(): String {
         return this.rule
+    }
+
+    fun getGroupName(): String? {
+        return this.groupName
     }
 
     internal fun getSecondaryExposures(): Array<Map<String, String>> {

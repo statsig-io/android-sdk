@@ -171,6 +171,7 @@ public class StatsigFromJavaTest {
                 name,
                 value,
                 "default",
+                null,
                 new Map[]{});
     }
 
@@ -179,6 +180,7 @@ public class StatsigFromJavaTest {
                 name,
                 values,
                 "default",
+                null,
                 new Map[]{},
                 new Map[]{},
                 false,

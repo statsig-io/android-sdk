@@ -81,17 +81,21 @@ class StatsigTest {
             config.getString("otherNumber", "default string instead"),
         )
         assertEquals("default", config.getRuleID())
+        assertNull(config.getGroupName())
 
         val configNoExposure = client.getConfigWithExposureLoggingDisabled("a_different_config")
         assertEquals("fallback", configNoExposure.getString("string", "fallback"))
 
         val invalidConfig = client.getConfig("not_a_valid_config")
         assertEquals("", invalidConfig.getRuleID())
+        assertNull(config.getGroupName())
         assertEquals("not_a_valid_config", invalidConfig.getName())
 
         val exp = client.getExperiment("exp")
         assertEquals("exp", exp.getName())
         assertEquals(42, exp.getInt("number", 0))
+        assertEquals("exp_rule", exp.getRuleID())
+        assertEquals("exp_group", exp.getGroupName())
         val expNoExposure = client.getExperimentWithExposureLoggingDisabled("exp_other")
         assertEquals("exp_other", expNoExposure.getName())
         assertEquals(0, expNoExposure.getInt("number", 0))

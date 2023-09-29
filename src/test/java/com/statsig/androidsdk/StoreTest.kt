@@ -42,7 +42,16 @@ class StoreTest {
     ): InitializeResponse.SuccessfulInitializeResponse {
         return InitializeResponse.SuccessfulInitializeResponse(
             featureGates =
-            mutableMapOf("gate!" to APIFeatureGate("gate", inExperiment, "id", arrayOf())),
+            mutableMapOf(
+                "gate!" to
+                    APIFeatureGate(
+                        "gate",
+                        inExperiment,
+                        "id",
+                        null,
+                        arrayOf(),
+                    ),
+            ),
             configs =
             mutableMapOf(
                 "config!" to
@@ -50,6 +59,7 @@ class StoreTest {
                         "config!",
                         mutableMapOf("key" to value),
                         "id",
+                        null,
                         arrayOf(),
                     ),
                 "exp!" to
@@ -57,6 +67,7 @@ class StoreTest {
                         "exp!",
                         mutableMapOf("key" to value),
                         "id",
+                        null,
                         arrayOf(),
                         isDeviceBased = false,
                         isUserInExperiment = inExperiment,
@@ -67,6 +78,7 @@ class StoreTest {
                         "device_exp!",
                         mutableMapOf("key" to value),
                         "id",
+                        null,
                         arrayOf(),
                         isDeviceBased = true,
                         isUserInExperiment = inExperiment,
@@ -77,6 +89,7 @@ class StoreTest {
                         "non_stick_exp!",
                         mutableMapOf("key" to value),
                         "id",
+                        null,
                         arrayOf(),
                         isDeviceBased = false,
                         isUserInExperiment = inExperiment,
@@ -114,9 +127,17 @@ class StoreTest {
                         "long!",
                         mutableMapOf("key" to Long.MAX_VALUE),
                         "id",
+                        null,
                         arrayOf(),
                     ),
-                "double!" to APIDynamicConfig("double!", mutableMapOf("key" to Double.MIN_VALUE), "id", arrayOf()),
+                "double!" to
+                    APIDynamicConfig(
+                        "double!",
+                        mutableMapOf("key" to Double.MIN_VALUE),
+                        "id",
+                        null,
+                        arrayOf(),
+                    ),
             ),
             time = 1621637839,
             hasUpdates = true,
@@ -432,6 +453,7 @@ class StoreTest {
             config.name,
             newValue,
             config.ruleID,
+            config.groupName,
             config.secondaryExposures,
             isDeviceBased = config.isDeviceBased,
             isUserInExperiment = config.isUserInExperiment,
