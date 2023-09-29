@@ -319,6 +319,7 @@ class TestUtil {
             layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
             time: Long? = null,
             hasUpdates: Boolean = true,
+            responseCode: Int = 200,
             onLog: ((LogEventData) -> Unit)? = null,
             getInitializeResponse: ((InitializeRequestBody) -> InitializeResponse)? = null,
         ): MockWebServer {
@@ -336,18 +337,19 @@ class TestUtil {
                                 }
                                 val type = object : TypeToken<MutableMap<String, Any>>() {}.type
                                 val gson = GsonBuilder().registerTypeAdapter(
-                                    type, PolymorphicSerializer(),
+                                    type,
+                                    PolymorphicSerializer(),
                                 ).create()
                                 var stringified = gson.toJson(response)
-                                return MockResponse().setResponseCode(200).setBody(stringified)
+                                return MockResponse().setResponseCode(responseCode).setBody(stringified)
                             }
                             "/v1/log_event" -> {
                                 val requestBody = request.body.readUtf8()
                                 onLog?.invoke(Gson().fromJson(requestBody, LogEventData::class.java))
-                                return MockResponse().setResponseCode(200)
+                                return MockResponse().setResponseCode(responseCode)
                             }
                         }
-                        return MockResponse().setResponseCode(200)
+                        return MockResponse().setResponseCode(responseCode)
                     }
                 }
             }

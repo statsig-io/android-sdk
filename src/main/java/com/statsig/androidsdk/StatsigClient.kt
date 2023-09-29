@@ -643,6 +643,9 @@ internal class StatsigClient() {
         override fun onActivityResumed(activity: Activity) {
             currentActivity = activity
             ++resumed
+            this@StatsigClient.statsigScope.launch {
+                this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api)
+            }
         }
 
         override fun onActivityPaused(activity: Activity) {

@@ -149,6 +149,7 @@ public class StatsigFromJavaTest {
                 layers,
                 null,
                 true,
+                200,
                 new Function1<LogEventData, Unit>() {
                     @Override
                     public Unit invoke(LogEventData logEventData) {
