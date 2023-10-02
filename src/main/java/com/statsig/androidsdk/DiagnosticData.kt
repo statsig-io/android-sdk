@@ -21,7 +21,15 @@ data class Marker(
     @SerializedName("isRetry") var isRetry: Boolean? = null,
     @SerializedName("isDelta") var isDelta: Boolean? = null,
     @SerializedName("configName") var configName: String? = null,
-)
+    @SerializedName("evaluationDetails") var evaluationDetails: EvaluationDetails? = null,
+    @SerializedName("error") var error: ErrorMessage? = null,
+) {
+    data class ErrorMessage(
+        @SerializedName("message") val message: String? = null,
+        @SerializedName("name") val name: String? = null,
+        @SerializedName("code") val code: String? = null,
+    )
+}
 
 enum class ContextType {
     @SerializedName("initialize")

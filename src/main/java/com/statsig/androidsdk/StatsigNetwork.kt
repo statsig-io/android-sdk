@@ -98,7 +98,7 @@ internal class StatsigNetwork(
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
         } catch (e: Exception) {
             Statsig.errorBoundary.logException(e)
-            diagnostics?.markEnd(KeyType.INITIALIZE, false, StepType.NETWORK_REQUEST, Marker(attempt = 1, sdkRegion = null, statusCode = null))
+            this.endDiagnostics(diagnostics, ContextType.INITIALIZE, null, null, 1, Marker.ErrorMessage(e.message.toString(), e.javaClass.name, e.javaClass.name))
             when (e) {
                 is SocketTimeoutException, is ConnectException -> {
                     return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
@@ -221,6 +221,7 @@ internal class StatsigNetwork(
                     code,
                     response.headers["x-statsig-region"],
                     response.headers["attempt"]?.toInt(),
+                    if (code in 200..299) null else Marker.ErrorMessage(response.message, code.toString()),
                 )
                 when (code) {
                     in 200..299 -> {
@@ -246,13 +247,13 @@ internal class StatsigNetwork(
         }
     }
 
-    private fun endDiagnostics(diagnostics: Diagnostics?, diagnosticsContext: ContextType, statusCode: Int, sdkRegion: String?, attempt: Int?) {
+    private fun endDiagnostics(diagnostics: Diagnostics?, diagnosticsContext: ContextType, statusCode: Int?, sdkRegion: String?, attempt: Int?, error: Marker.ErrorMessage? = null) {
         if (diagnostics == null) {
             return
         }
-
-        val marker = Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode)
+        val marker = Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode, error = error)
         val wasSuccessful = statusCode in 200..299
+
         diagnostics.markEnd(KeyType.INITIALIZE, wasSuccessful, StepType.NETWORK_REQUEST, marker, overrideContext = diagnosticsContext)
     }
 }

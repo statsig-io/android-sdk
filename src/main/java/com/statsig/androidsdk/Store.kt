@@ -90,7 +90,6 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             }
         }
         currentCache = loadCacheForCurrentUser()
-        reason = EvaluationReason.Cache
     }
 
     fun loadAndResetForUser(user: StatsigUser) {
@@ -262,7 +261,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         )
     }
 
-    private fun getEvaluationDetails(valueExists: Boolean, reasonOverride: EvaluationReason? = null): EvaluationDetails {
+    internal fun getEvaluationDetails(valueExists: Boolean, reasonOverride: EvaluationReason? = null): EvaluationDetails {
         return if (valueExists) {
             EvaluationDetails(this.reason, currentCache.evaluationTime ?: System.currentTimeMillis())
         } else {

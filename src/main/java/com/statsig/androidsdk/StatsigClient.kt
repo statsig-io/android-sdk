@@ -127,12 +127,17 @@ internal class StatsigClient() {
                 this@StatsigClient.pollForUpdates()
 
                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api)
-                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, success)
+                this@StatsigClient.diagnostics.markEnd(
+                    KeyType.OVERALL,
+                    success,
+                    additionalMarker =
+                    Marker(evaluationDetails = store.getEvaluationDetails(success), error = if (initResponse is InitializeResponse.FailedInitializeResponse) Diagnostics.formatFailedResponse(initResponse) else null),
+                )
                 logger.logDiagnostics()
                 InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null)
             }, { e: Exception ->
                 val duration = System.currentTimeMillis() - initStartTime
-                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false)
+                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false, additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e.javaClass.name}: ${e.message}")))
                 logger.logDiagnostics()
                 InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e))
             })

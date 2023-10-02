@@ -2,6 +2,11 @@ package com.statsig.androidsdk
 
 const val NANO_IN_MS = 1_000_000.0
 internal class Diagnostics(private var isDisabled: Boolean) {
+    companion object {
+        fun formatFailedResponse(failResponse: InitializeResponse.FailedInitializeResponse): Marker.ErrorMessage {
+            return Marker.ErrorMessage("${failResponse.reason} : ${failResponse.exception?.javaClass} : ${failResponse.exception?.message}")
+        }
+    }
     var diagnosticsContext: ContextType = ContextType.INITIALIZE
     private var defaultMaxMarkers: Int = 30
 
@@ -64,11 +69,11 @@ internal class Diagnostics(private var isDisabled: Boolean) {
         val marker = Marker(key = key, action = ActionType.END, timestamp = System.nanoTime() / NANO_IN_MS, success = success, step = step)
         when (context) {
             ContextType.INITIALIZE -> {
-                if (key == KeyType.INITIALIZE && step == StepType.NETWORK_REQUEST) {
-                    marker.attempt = additionalMarker?.attempt
-                    marker.sdkRegion = additionalMarker?.sdkRegion
-                    marker.statusCode = additionalMarker?.statusCode
-                }
+                marker.evaluationDetails = additionalMarker?.evaluationDetails
+                marker.attempt = additionalMarker?.attempt
+                marker.sdkRegion = additionalMarker?.sdkRegion
+                marker.statusCode = additionalMarker?.statusCode
+                marker.error = additionalMarker?.error
             }
 
             ContextType.API_CALL -> {
