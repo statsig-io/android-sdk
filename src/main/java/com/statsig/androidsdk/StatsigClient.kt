@@ -161,7 +161,10 @@ internal class StatsigClient() {
         val normalizedUser = normalizeUser(user)
         val initializeValues = options.initializeValues
         this.user = normalizedUser
-
+        // Prevent overwriting mocked network in tests
+        if (!this::statsigNetwork.isInitialized) {
+            statsigNetwork = StatsigNetwork(sdkKey)
+        }
         statsigMetadata = StatsigMetadata()
         Statsig.errorBoundary.setMetadata(statsigMetadata)
         Statsig.errorBoundary.setDiagnostics(diagnostics)
@@ -169,11 +172,6 @@ internal class StatsigClient() {
 
         exceptionHandler = Statsig.errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
-
-        // Prevent overwriting mocked network in tests
-        if (!this::statsigNetwork.isInitialized) {
-            statsigNetwork = StatsigNetwork(sdkKey)
-        }
 
         lifecycleListener = StatsigActivityLifecycleListener()
         application.registerActivityLifecycleCallbacks(lifecycleListener)

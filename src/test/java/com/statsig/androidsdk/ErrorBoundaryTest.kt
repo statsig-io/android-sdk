@@ -3,7 +3,6 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.junit.WireMockRule
-import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
@@ -29,8 +28,9 @@ class ErrorBoundaryTest {
         app = mockk()
         TestUtil.mockDispatchers()
         TestUtil.stubAppFunctions(app)
+        val network = TestUtil.mockBrokenNetwork()
         Statsig.client = StatsigClient()
-        TestUtil.mockBrokenServer()
+        Statsig.client.statsigNetwork = network
         Statsig.errorBoundary = boundary
     }
 
@@ -92,18 +92,7 @@ class ErrorBoundaryTest {
     fun testInitializeIsCaptured() {
         try {
             runBlocking {
-                Statsig.client.statsigNetwork = mockk()
-                coEvery {
-                    Statsig.client.statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
-                } answers {
-                    throw IOException("Example exception in StatsigNetwork initialize")
-                }
-                Statsig.client.initialize(
-                    app,
-                    "client-key",
-                    null,
-                    options = StatsigOptions(disableDiagnosticsLogging = true),
-                )
+                Statsig.client.initialize(app, "client-key", null)
                 Statsig.shutdown()
             }
         } catch (e: Throwable) {
@@ -122,18 +111,7 @@ class ErrorBoundaryTest {
     fun testInitializeAsyncIsCaptured() {
         try {
             runBlocking {
-                Statsig.client.statsigNetwork = mockk()
-                coEvery {
-                    Statsig.client.statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
-                } answers {
-                    throw IOException("Example exception in StatsigNetwork initialize")
-                }
-                Statsig.client.initializeAsync(
-                    app,
-                    "client-key",
-                    null,
-                    options = StatsigOptions(disableDiagnosticsLogging = true),
-                )
+                Statsig.client.initializeAsync(app, "client-key", null)
                 Statsig.shutdown()
             }
         } catch (e: Throwable) {
@@ -154,11 +132,6 @@ class ErrorBoundaryTest {
         // are still caught by the ErrorBoundary via the CoroutineExceptionHandler
         try {
             runBlocking {
-                coEvery {
-                    Statsig.client.setupAsync(any())
-                } answers {
-                    throw IOException("Example exception in StatsigClient setupAsync")
-                }
                 Statsig.client.initializeAsync(app, "client-key", null)
                 Statsig.shutdown()
             }
@@ -187,6 +160,7 @@ class ErrorBoundaryTest {
                 throw IOException("Thrown from onStatsigUpdateUser")
             }
         }
+        Statsig.client.statsigNetwork = TestUtil.mockNetwork()
         try {
             runBlocking {
                 Statsig.client.initializeAsync(app, "client-key", null, callback)

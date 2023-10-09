@@ -2,11 +2,9 @@ package com.statsig.androidsdk
 
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineExceptionHandler
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.DataOutputStream
 import java.lang.RuntimeException
+import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.floor
 
@@ -114,19 +112,15 @@ internal class ErrorBoundary() {
             )
             val postData = Gson().toJson(body)
 
-            val clientBuilder = OkHttpClient.Builder()
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("STATSIG-API-KEY", apiKey)
+            conn.useCaches = false
 
-            clientBuilder.addInterceptor(RequestHeaderInterceptor(apiKey ?: ""))
-            clientBuilder.addInterceptor(ResponseInterceptor())
-
-            val httpClient = clientBuilder.build()
-
-            val requestBody: RequestBody = postData.toRequestBody(JSON)
-            val request: Request = Request.Builder()
-                .url(url)
-                .post(requestBody)
-                .build()
-            httpClient.newCall(request).execute()
+            DataOutputStream(conn.outputStream).use { it.writeBytes(postData) }
+            conn.responseCode // triggers request
         } catch (e: Exception) {
             // noop
         }

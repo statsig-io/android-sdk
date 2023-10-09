@@ -45,8 +45,7 @@ class AsyncInitVsUpdateTest {
         testSharedPrefs = TestUtil.stubAppFunctions(app)
         TestUtil.mockStatsigUtil()
 
-        // Cannot use mockWebServer to mimic network delay. Must mock StatsigNetwork directly.
-        var network = mockk<StatsigNetwork>()
+        val network = TestUtil.mockNetwork()
         coEvery {
             network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {

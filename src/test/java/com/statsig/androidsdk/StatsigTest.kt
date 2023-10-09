@@ -2,10 +2,10 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.gson.Gson
+import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -17,8 +17,9 @@ class StatsigTest {
 
     private lateinit var app: Application
     private var flushedLogs: String = ""
+    private var initUser: StatsigUser? = null
     private var client: StatsigClient = StatsigClient()
-    private lateinit var server: MockWebServer
+    private lateinit var network: StatsigNetwork
     private lateinit var testSharedPrefs: TestSharedPreferences
     private val gson = Gson()
 
@@ -31,9 +32,15 @@ class StatsigTest {
 
         TestUtil.mockStatsigUtil()
 
-        server = TestUtil.mockServer(onLog = {
-            flushedLogs = gson.toJson(it)
+        network = TestUtil.mockNetwork(captureUser = { user ->
+            initUser = user
         })
+
+        coEvery {
+            network.apiPostLogs(any(), any())
+        } answers {
+            flushedLogs = secondArg()
+        }
     }
 
     @After
@@ -63,9 +70,13 @@ class StatsigTest {
         val now = System.currentTimeMillis()
         user.customIDs = mapOf("random_id" to "abcde")
 
-        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "custom_stable_id"), server = server)
+        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "custom_stable_id"), network = network)
         client = Statsig.client
 
+        assertEquals(
+            Gson().toJson(initUser?.customIDs),
+            Gson().toJson(mapOf("random_id" to "abcde")),
+        )
         assertTrue(client.checkGate("always_on"))
         assertTrue(client.checkGateWithExposureLoggingDisabled("always_on_v2"))
         assertFalse(client.checkGateWithExposureLoggingDisabled("a_different_gate"))
@@ -240,23 +251,30 @@ class StatsigTest {
             }
         }
 
-        TestUtil.useServer(Statsig.client, TestUtil.mockServer())
+        var user: StatsigUser? = null
+        Statsig.client.statsigNetwork = TestUtil.mockNetwork(captureUser = {
+            user = it
+        })
         Statsig.initializeAsync(app, "client-sdkkey", StatsigUser("jkw"), callback)
 
         countdown.await(1L, TimeUnit.SECONDS)
         countdown = CountDownLatch(1)
 
         assertTrue(Statsig.client.isInitialized())
+        assertEquals("jkw", user?.userID)
 
         Statsig.shutdown()
 
         assertFalse(Statsig.client.isInitialized())
 
-        TestUtil.useServer(Statsig.client, TestUtil.mockServer())
+        Statsig.client.statsigNetwork = TestUtil.mockNetwork(captureUser = {
+            user = it
+        })
         Statsig.initializeAsync(app, "client-sdkkey", StatsigUser("dloomb"), callback)
 
         countdown.await(1L, TimeUnit.SECONDS)
 
+        assertEquals("dloomb", user?.userID)
         return@runBlocking
     }
 }

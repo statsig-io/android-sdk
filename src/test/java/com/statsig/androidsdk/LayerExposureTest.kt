@@ -310,15 +310,16 @@ class LayerExposureTest {
     }
 
     private fun start(layers: Map<String, APIDynamicConfig>, user: StatsigUser = StatsigUser(userID = "jkw")) {
-        val server = TestUtil.mockServer(
+        val network = TestUtil.mockNetwork(
             layerConfigs = layers,
-            onLog = { result ->
-                // filter out diagnostics data
-                val events = result.events.filter { event -> event.eventName != "statsig::diagnostics" }
-                logs = if (events.isEmpty())null else LogEventData(events as ArrayList<LogEvent>, result.statsigMetadata)
-            },
         )
+
+        TestUtil.captureLogs(network) { result ->
+            // filter out diagnostics data
+            val events = result.events.filter { event -> event.eventName != "statsig::diagnostics" }
+            logs = if (events.isEmpty())null else LogEventData(events as ArrayList<LogEvent>, result.statsigMetadata)
+        }
         initTime = System.currentTimeMillis()
-        TestUtil.startStatsigAndWait(app, user = user, server = server)
+        TestUtil.startStatsigAndWait(app, user = user, network = network)
     }
 }

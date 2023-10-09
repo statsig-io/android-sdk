@@ -7,7 +7,7 @@ class Layer internal constructor(
     private val client: StatsigClient?,
     private val name: String,
     private val details: EvaluationDetails,
-    public val jsonValue: Map<String, Any> = mapOf(),
+    private val jsonValue: Map<String, Any> = mapOf(),
     private val rule: String = "",
     private val groupName: String? = null,
     private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
