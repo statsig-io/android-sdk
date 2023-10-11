@@ -35,6 +35,8 @@ internal class Store(
     private val sharedPrefs: SharedPreferences,
     user: StatsigUser,
 ) {
+    var reason: EvaluationReason
+
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var currentUserCacheKey: String
@@ -42,7 +44,6 @@ internal class Store(
     private var currentCache: Cache
     private var stickyDeviceExperiments: ConcurrentHashMap<String, APIDynamicConfig>
     private var localOverrides: StatsigOverrides
-    private var reason: EvaluationReason
 
     init {
         currentUserCacheKey = user.getCacheKey()
@@ -360,6 +361,10 @@ internal class Store(
 
     fun getCurrentCacheValuesAndEvaluationReason(): ExternalInitializeResponse {
         return ExternalInitializeResponse(gson.toJson(currentCache.values), getEvaluationDetails(true))
+    }
+
+    fun getCurrentValuesAsString(): String {
+        return gson.toJson(currentCache.values)
     }
 
     private fun hydrateDynamicConfig(

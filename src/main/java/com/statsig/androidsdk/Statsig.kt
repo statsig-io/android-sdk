@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.Context
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -488,6 +489,12 @@ object Statsig {
             result = client.getStore().getAllOverrides()
         })
         return result ?: StatsigOverrides.empty()
+    }
+
+    fun openDebugView(context: Context) {
+        errorBoundary.capture({
+            client.openDebugView(context)
+        })
     }
 
     private fun enforceInitialized(functionName: String) {

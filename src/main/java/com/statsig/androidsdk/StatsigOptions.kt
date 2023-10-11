@@ -50,4 +50,19 @@ class StatsigOptions(
     fun getEnvironment(): MutableMap<String, String>? {
         return environment
     }
+
+    internal fun toMap(): Map<String, Any?> {
+        return mapOf(
+            "api" to api,
+            "disableCurrentActivityLogging" to disableCurrentActivityLogging,
+            "disableDiagnosticsLogging" to disableDiagnosticsLogging,
+            "initTimeoutMs" to initTimeoutMs,
+            "enableAutoValueUpdate" to enableAutoValueUpdate,
+            "overrideStableID" to overrideStableID,
+            "loadCacheAsync" to loadCacheAsync,
+            "initializeValues" to initializeValues,
+            "disableHashing" to disableHashing,
+            "environment" to environment,
+        )
+    }
 }

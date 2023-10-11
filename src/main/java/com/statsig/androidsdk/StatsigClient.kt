@@ -534,6 +534,17 @@ internal class StatsigClient() {
         logLayerParameterExposure(layer, parameterName, isManual = true)
     }
 
+    fun openDebugView(context: Context) {
+        val currentValues = store.getCurrentValuesAsString()
+        val map = mapOf(
+            "values" to currentValues,
+            "evalReason" to store.reason,
+            "user" to user.getCopyForEvaluation(),
+            "options" to options.toMap(),
+        )
+        DebugView.show(context, sdkKey, map)
+    }
+
     internal fun getStore(): Store {
         return store
     }
