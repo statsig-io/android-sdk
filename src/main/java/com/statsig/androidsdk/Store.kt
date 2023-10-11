@@ -30,7 +30,11 @@ private data class Cache(
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis(),
 )
 
-internal class Store(private val statsigScope: CoroutineScope, private val sharedPrefs: SharedPreferences, user: StatsigUser) {
+internal class Store(
+    private val statsigScope: CoroutineScope,
+    private val sharedPrefs: SharedPreferences,
+    user: StatsigUser,
+) {
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var currentUserCacheKey: String
@@ -252,17 +256,27 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         }
     }
 
-    internal fun getEvaluationDetails(valueExists: Boolean, reasonOverride: EvaluationReason? = null): EvaluationDetails {
-        return if (valueExists) {
-            EvaluationDetails(this.reason, currentCache.evaluationTime ?: System.currentTimeMillis())
-        } else {
-            val actualReason = reasonOverride ?: if (this.reason == EvaluationReason.Uninitialized) {
-                EvaluationReason.Uninitialized
-            } else {
-                EvaluationReason.Unrecognized
-            }
-            EvaluationDetails(actualReason, System.currentTimeMillis())
+    internal fun getGlobalEvaluationDetails(): EvaluationDetails {
+        return EvaluationDetails(this.reason, currentCache.evaluationTime ?: System.currentTimeMillis())
+    }
+
+    internal fun getEvaluationDetails(
+        valueExists: Boolean,
+        reasonOverride: EvaluationReason? = null,
+    ): EvaluationDetails {
+        if (valueExists) {
+            return getGlobalEvaluationDetails()
         }
+
+        var reason = EvaluationReason.Unrecognized
+        if (this.reason == EvaluationReason.Uninitialized) {
+            reason = EvaluationReason.Uninitialized
+        }
+
+        return EvaluationDetails(
+            reason = reasonOverride ?: reason,
+            time = System.currentTimeMillis(),
+        )
     }
 
     // Sticky Logic: https://gist.github.com/daniel-statsig/3d8dfc9bdee531cffc96901c1a06a402
@@ -348,7 +362,11 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         return ExternalInitializeResponse(gson.toJson(currentCache.values), getEvaluationDetails(true))
     }
 
-    private fun hydrateDynamicConfig(name: String, details: EvaluationDetails, config: APIDynamicConfig?): DynamicConfig {
+    private fun hydrateDynamicConfig(
+        name: String,
+        details: EvaluationDetails,
+        config: APIDynamicConfig?,
+    ): DynamicConfig {
         return if (config != null) {
             DynamicConfig(name, config, details)
         } else {
@@ -357,7 +375,8 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     private fun createEmptyCache(): Cache {
-        val emptyInitResponse = InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0, mapOf())
+        val emptyInitResponse =
+            InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0, mapOf())
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
         return Cache(emptyInitResponse, emptyStickyUserExperiments, "", System.currentTimeMillis())
     }
@@ -394,6 +413,10 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
     suspend fun persistStickyValues() {
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, gson.toJson(cacheById))
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY, gson.toJson(stickyDeviceExperiments))
+        StatsigUtil.saveStringToSharedPrefs(
+            sharedPrefs,
+            STICKY_DEVICE_EXPERIMENTS_KEY,
+            gson.toJson(stickyDeviceExperiments),
+        )
     }
 }

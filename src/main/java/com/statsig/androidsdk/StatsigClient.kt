@@ -131,7 +131,7 @@ internal class StatsigClient() {
                     KeyType.OVERALL,
                     success,
                     additionalMarker =
-                    Marker(evaluationDetails = store.getEvaluationDetails(success), error = if (initResponse is InitializeResponse.FailedInitializeResponse) Diagnostics.formatFailedResponse(initResponse) else null),
+                    Marker(evaluationDetails = store.getGlobalEvaluationDetails(), error = if (initResponse is InitializeResponse.FailedInitializeResponse) Diagnostics.formatFailedResponse(initResponse) else null),
                 )
                 logger.logDiagnostics()
                 InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null)

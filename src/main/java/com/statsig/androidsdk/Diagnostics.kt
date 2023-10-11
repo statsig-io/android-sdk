@@ -4,7 +4,9 @@ const val NANO_IN_MS = 1_000_000.0
 internal class Diagnostics(private var isDisabled: Boolean) {
     companion object {
         fun formatFailedResponse(failResponse: InitializeResponse.FailedInitializeResponse): Marker.ErrorMessage {
-            return Marker.ErrorMessage("${failResponse.reason} : ${failResponse.exception?.javaClass} : ${failResponse.exception?.message}")
+            val name = failResponse.exception?.javaClass?.toString() ?: "unknown"
+            val message = "${failResponse.reason} : ${failResponse.exception?.message}"
+            return Marker.ErrorMessage(message = message, name = name)
         }
     }
     var diagnosticsContext: ContextType = ContextType.INITIALIZE
