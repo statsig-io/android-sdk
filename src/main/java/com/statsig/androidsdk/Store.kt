@@ -367,6 +367,10 @@ internal class Store(
         return gson.toJson(currentCache.values)
     }
 
+    fun getCachedInitializationResponse(): InitializeResponse.SuccessfulInitializeResponse {
+        return currentCache.values
+    }
+
     private fun hydrateDynamicConfig(
         name: String,
         details: EvaluationDetails,

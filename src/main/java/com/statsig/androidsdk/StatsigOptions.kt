@@ -64,6 +64,12 @@ class StatsigOptions(
      */
     @SerializedName("initializeValues") var initializeValues: Map<String, Any>? = null,
     /**
+     By default, initialize send Network request and use network response for evaluation.
+     * Setting this value to true will initialize without sending network request, and initialize
+     * SDK from cache values for user.
+     * */
+    @SerializedName("initializeOffline") var initializeOffline: Boolean = false,
+    /**
      * When disabled, the SDK will not hash gate/config/experiment names, instead they will be readable as plain text.
      * Note: This requires special authorization from Statsig
      */

@@ -104,19 +104,27 @@ internal class StatsigClient() {
                 if (this@StatsigClient.options.loadCacheAsync) {
                     this@StatsigClient.store.syncLoadFromLocalStorage()
                 }
-                val initResponse = statsigNetwork.initialize(
-                    this@StatsigClient.options.api,
-                    user,
-                    this@StatsigClient.store.getLastUpdateTime(this@StatsigClient.user),
-                    this@StatsigClient.statsigMetadata,
-                    this@StatsigClient.options.initTimeoutMs,
-                    this@StatsigClient.getSharedPrefs(),
-                    this@StatsigClient.diagnostics,
-                    if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
-                    this@StatsigClient.store.getPreviousDerivedFields(this@StatsigClient.user),
-                )
+                val initResponse = if (this@StatsigClient.options.initializeOffline) {
+                    val cacheResponse = store.getCachedInitializationResponse()
+                    if (cacheResponse != null) {
+                        success = true
+                    }
+                    cacheResponse
+                } else {
+                    statsigNetwork.initialize(
+                        this@StatsigClient.options.api,
+                        user,
+                        this@StatsigClient.store.getLastUpdateTime(this@StatsigClient.user),
+                        this@StatsigClient.statsigMetadata,
+                        this@StatsigClient.options.initTimeoutMs,
+                        this@StatsigClient.getSharedPrefs(),
+                        this@StatsigClient.diagnostics,
+                        if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
+                        this@StatsigClient.store.getPreviousDerivedFields(this@StatsigClient.user),
+                    )
+                }
 
-                if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
+                if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates && !options.initializeOffline) {
                     this@StatsigClient.diagnostics.markStart(KeyType.INITIALIZE, StepType.PROCESS)
                     this@StatsigClient.store.save(initResponse, user)
                     this@StatsigClient.diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.PROCESS)
