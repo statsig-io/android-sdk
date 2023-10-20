@@ -85,9 +85,9 @@ internal interface StatsigNetwork {
     suspend fun addFailedLogRequest(requestBody: String)
 }
 
-internal fun StatsigNetwork(sdkKey: String): StatsigNetwork = StatsigNetworkImpl(sdkKey)
+internal fun StatsigNetwork(sdkKey: String, errorBoundary: ErrorBoundary): StatsigNetwork = StatsigNetworkImpl(sdkKey, errorBoundary)
 
-private class StatsigNetworkImpl(private val sdkKey: String) : StatsigNetwork {
+private class StatsigNetworkImpl(private val sdkKey: String, private val errorBoundary: ErrorBoundary) : StatsigNetwork {
 
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
@@ -132,7 +132,7 @@ private class StatsigNetworkImpl(private val sdkKey: String) : StatsigNetwork {
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, gson.toJson(body), retries, ContextType.INITIALIZE, diagnostics, timeoutMs) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
         } catch (e: Exception) {
-            Statsig.errorBoundary.logException(e)
+            errorBoundary.logException(e)
             this.endDiagnostics(diagnostics, ContextType.INITIALIZE, null, null, 1, Marker.ErrorMessage(e.message.toString(), e.javaClass.name, e.javaClass.name))
             when (e) {
                 is SocketTimeoutException, is ConnectException -> {

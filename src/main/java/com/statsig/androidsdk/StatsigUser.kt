@@ -86,7 +86,8 @@ data class StatsigUser(
         return userCopy
     }
 
-    internal fun getCacheKey(): String {
+    @Deprecated("Deprecating cache key on ids", ReplaceWith("getCacheKeyWithSDKKey"))
+    internal fun getCacheKeyDEPRECATED(): String {
         var id = userID ?: STATSIG_NULL_USER
         val customIds = customIDs ?: return id
 
@@ -95,6 +96,15 @@ data class StatsigUser(
         }
 
         return id
+    }
+
+    internal fun getCacheKeyWithSDKKey(sdkKey: String): String {
+        var id = userID ?: STATSIG_NULL_USER
+
+        for ((k, v) in customIDs ?: mapOf()) {
+            id = "$id$k:$v"
+        }
+        return "$id:$sdkKey"
     }
 
     internal fun toHashString(): String {

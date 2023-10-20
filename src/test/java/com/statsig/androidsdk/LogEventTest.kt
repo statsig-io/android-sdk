@@ -47,7 +47,7 @@ class LogEventTest {
     @Test
     fun testRetryOnAppForegrounded() {
         runBlocking {
-            Statsig.client.statsigNetwork = StatsigNetwork("client-apikey")
+            Statsig.client.statsigNetwork = StatsigNetwork("client-apikey", Statsig.client.errorBoundary)
             Statsig.logEvent("viewCartIcon")
             Statsig.logEvent("clickCartIcon")
             Statsig.logEvent("viewCart")
@@ -66,7 +66,7 @@ class LogEventTest {
     }
 
     private fun mockAppOnPause() {
-        val network = spyk(StatsigNetwork("client-apikey"))
+        val network = spyk(StatsigNetwork("client-apikey", Statsig.client.errorBoundary))
         coEvery {
             network.apiPostLogs(any(), any())
         } answers {

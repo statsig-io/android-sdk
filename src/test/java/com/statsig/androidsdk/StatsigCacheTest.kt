@@ -59,7 +59,6 @@ class StatsigCacheTest {
         assertTrue(client.checkGate("always_on"))
         runBlocking {
             client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1")
-            client.statsigNetwork.addFailedLogRequest("{}")
         }
         val config = client.getConfig("test_config")
         assertEquals("test", config.getString("string", "fallback"))
@@ -91,8 +90,8 @@ class StatsigCacheTest {
         val config = client.getConfig("test_config")
         assertEquals("fallback", config.getString("string", "fallback"))
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
-
         runBlocking {
+            Statsig.client.shutdown()
             Statsig.client.initialize(app, "client-test", user, StatsigOptions(loadCacheAsync = true))
         }
         assertTrue(client.checkGate("always_on"))

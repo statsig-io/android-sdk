@@ -31,7 +31,7 @@ class ErrorBoundaryTest {
         val network = TestUtil.mockBrokenNetwork()
         Statsig.client = StatsigClient()
         Statsig.client.statsigNetwork = network
-        Statsig.errorBoundary = boundary
+        Statsig.client.errorBoundary = boundary
     }
 
     @After

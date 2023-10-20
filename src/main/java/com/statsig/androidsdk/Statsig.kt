@@ -28,7 +28,6 @@ object Statsig {
 
     @VisibleForTesting
     internal var client: StatsigClient = StatsigClient()
-    internal var errorBoundary = ErrorBoundary()
 
     /**
      * Initializes the SDK for the given user.  Initialization is complete when the callback
@@ -52,13 +51,7 @@ object Statsig {
         callback: IStatsigCallback? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        if (client.isInitialized()) {
-            return
-        }
-        errorBoundary.setKey(sdkKey)
-        errorBoundary.capture({
-            client.initializeAsync(application, sdkKey, user, callback, options)
-        })
+        client.initializeAsync(application, sdkKey, user, callback, options)
     }
 
     /**
@@ -81,14 +74,7 @@ object Statsig {
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
     ): InitializationDetails? {
-        if (client.isInitialized()) {
-            return null
-        }
-
-        errorBoundary.setKey(sdkKey)
-        return errorBoundary.captureAsync({
-            return@captureAsync client.initialize(application, sdkKey, user, options)
-        })
+        return client.initialize(application, sdkKey, user, options)
     }
 
     /**
@@ -100,13 +86,7 @@ object Statsig {
      */
     @JvmStatic
     fun checkGate(gateName: String): Boolean {
-        val functionName = "checkGate"
-        enforceInitialized(functionName)
-        var result = false
-        errorBoundary.capture({
-            result = client.checkGate(gateName)
-        }, tag = functionName, configName = gateName)
-        return result
+        return client.checkGate(gateName)
     }
 
     /**
@@ -118,12 +98,7 @@ object Statsig {
      */
     @JvmStatic
     fun checkGateWithExposureLoggingDisabled(gateName: String): Boolean {
-        enforceInitialized("checkGateWithExposureLoggingDisabled")
-        var result = false
-        errorBoundary.capture({
-            result = client.checkGateWithExposureLoggingDisabled(gateName)
-        })
-        return result
+        return client.checkGateWithExposureLoggingDisabled(gateName)
     }
 
     /**
@@ -135,13 +110,7 @@ object Statsig {
      */
     @JvmStatic
     fun getConfig(configName: String): DynamicConfig {
-        val functionName = "getConfig"
-        enforceInitialized(functionName)
-        var result: DynamicConfig? = null
-        errorBoundary.capture({
-            result = client.getConfig(configName)
-        }, tag = functionName, configName = configName)
-        return result ?: DynamicConfig.getUninitialized(configName)
+        return client.getConfig(configName)
     }
 
     /**
@@ -153,12 +122,7 @@ object Statsig {
      */
     @JvmStatic
     fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig {
-        enforceInitialized("getConfigWithExposureLoggingDisabled")
-        var result: DynamicConfig? = null
-        errorBoundary.capture({
-            result = client.getConfigWithExposureLoggingDisabled(configName)
-        })
-        return result ?: DynamicConfig.getUninitialized(configName)
+        return client.getConfigWithExposureLoggingDisabled(configName)
     }
 
     /**
@@ -172,13 +136,7 @@ object Statsig {
     @JvmOverloads
     @JvmStatic
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
-        val functionName = "getExperiment"
-        enforceInitialized(functionName)
-        var result: DynamicConfig? = null
-        errorBoundary.capture({
-            result = client.getExperiment(experimentName, keepDeviceValue)
-        }, tag = functionName, configName = experimentName)
-        return result ?: DynamicConfig.getUninitialized(experimentName)
+        return client.getExperiment(experimentName, keepDeviceValue)
     }
 
     /**
@@ -195,12 +153,7 @@ object Statsig {
         experimentName: String,
         keepDeviceValue: Boolean = false,
     ): DynamicConfig {
-        enforceInitialized("getExperimentWithExposureLoggingDisabled")
-        var result: DynamicConfig? = null
-        errorBoundary.capture({
-            result = client.getExperimentWithExposureLoggingDisabled(experimentName, keepDeviceValue)
-        })
-        return result ?: DynamicConfig.getUninitialized(experimentName)
+        return client.getExperimentWithExposureLoggingDisabled(experimentName, keepDeviceValue)
     }
 
     /**
@@ -214,13 +167,7 @@ object Statsig {
     @JvmOverloads
     @JvmStatic
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
-        val functionName = "getLayer"
-        enforceInitialized(functionName)
-        var result: Layer? = null
-        errorBoundary.capture({
-            result = client.getLayer(layerName, keepDeviceValue)
-        }, tag = functionName, configName = layerName)
-        return result ?: Layer.getUninitialized(layerName)
+        return client.getLayer(layerName, keepDeviceValue)
     }
 
     /**
@@ -237,12 +184,7 @@ object Statsig {
         layerName: String,
         keepDeviceValue: Boolean = false,
     ): Layer {
-        enforceInitialized("getLayerWithExposureLoggingDisabled")
-        var result: Layer? = null
-        errorBoundary.capture({
-            result = client.getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue)
-        })
-        return result ?: Layer.getUninitialized(layerName)
+        return client.getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue)
     }
 
     /**
@@ -252,10 +194,7 @@ object Statsig {
      */
     @JvmStatic
     fun manuallyLogGateExposure(gateName: String) {
-        enforceInitialized("manuallyLogGateExposure")
-        errorBoundary.capture({
-            client.logManualGateExposure(gateName)
-        })
+        client.manuallyLogGateExposure(gateName)
     }
 
     /**
@@ -265,10 +204,7 @@ object Statsig {
      */
     @JvmStatic
     fun manuallyLogConfigExposure(configName: String) {
-        enforceInitialized("manuallyLogConfigExposure")
-        errorBoundary.capture({
-            client.logManualConfigExposure(configName)
-        })
+        client.manuallyLogConfigExposure(configName)
     }
 
     /**
@@ -278,10 +214,7 @@ object Statsig {
      */
     @JvmStatic
     fun manuallyLogExperimentExposure(experimentName: String, keepDeviceValue: Boolean = false) {
-        enforceInitialized("manuallyLogExperimentExposure")
-        errorBoundary.capture({
-            client.logManualExperimentExposure(experimentName, keepDeviceValue)
-        })
+        client.manuallyLogExperimentExposure(experimentName, keepDeviceValue)
     }
 
     /**
@@ -292,10 +225,7 @@ object Statsig {
      */
     @JvmStatic
     fun manuallyLogLayerParameterExposure(layerName: String, parameterName: String, keepDeviceValue: Boolean = false) {
-        enforceInitialized("manuallyLogLayerParameterExposure")
-        errorBoundary.capture({
-            client.logManualLayerExposure(layerName, parameterName, keepDeviceValue)
-        })
+        client.manuallyLogLayerParameterExposure(layerName, parameterName, keepDeviceValue)
     }
 
     /**
@@ -308,10 +238,7 @@ object Statsig {
     @JvmOverloads
     @JvmStatic
     fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
-        enforceInitialized("logEvent")
-        errorBoundary.capture({
-            client.logEvent(eventName, value, metadata)
-        })
+        client.logEvent(eventName, value, metadata)
     }
 
     /**
@@ -324,10 +251,7 @@ object Statsig {
     @JvmOverloads
     @JvmStatic
     fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
-        enforceInitialized("logEvent")
-        errorBoundary.capture({
-            client.logEvent(eventName, value, metadata)
-        })
+        client.logEvent(eventName, value, metadata)
     }
 
     /**
@@ -338,10 +262,7 @@ object Statsig {
      */
     @JvmStatic
     fun logEvent(eventName: String, metadata: Map<String, String>) {
-        enforceInitialized("logEvent")
-        errorBoundary.capture({
-            client.logEvent(eventName, null, metadata)
-        })
+        client.logEvent(eventName, null, metadata)
     }
 
     /**
@@ -356,10 +277,7 @@ object Statsig {
      */
     @JvmStatic
     fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
-        enforceInitialized("updateUserAsync")
-        errorBoundary.capture({
-            client.updateUserAsync(user, callback)
-        })
+        client.updateUserAsync(user, callback)
     }
 
     /**
@@ -371,10 +289,7 @@ object Statsig {
      */
     @JvmSynthetic // Hide this from Java files
     suspend fun updateUser(user: StatsigUser?) {
-        enforceInitialized("updateUser")
-        errorBoundary.captureAsync({
-            client.updateUser(user)
-        })
+        client.updateUser(user)
     }
 
     /**
@@ -382,21 +297,13 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     fun getInitializeResponseJson(): ExternalInitializeResponse {
-        var result: ExternalInitializeResponse? = null
-        enforceInitialized("getInitializeResponseJson")
-        errorBoundary.capture({
-            result = client.getInitializeResponseJson()
-        }, tag = "getInitializeResponseJson")
-        return result ?: ExternalInitializeResponse.getUninitialized()
+        return client.getInitializeResponseJson()
     }
 
     @JvmSynthetic
     suspend fun shutdownSuspend() {
-        enforceInitialized("shutdownSuspend")
-        errorBoundary.captureAsync({
-            client.shutdownSuspend()
-            client = StatsigClient()
-        })
+        client.shutdownSuspend()
+        client = StatsigClient()
     }
 
     /**
@@ -418,12 +325,7 @@ object Statsig {
      */
     @JvmStatic
     fun getStableID(): String {
-        enforceInitialized("getStableID")
-        var result: String = ""
-        errorBoundary.capture({
-            result = client.getStableID()
-        })
-        return result
+        return client.getStableID()
     }
 
     /**
@@ -432,9 +334,7 @@ object Statsig {
      */
     @JvmStatic
     fun overrideGate(gateName: String, value: Boolean) {
-        errorBoundary.capture({
-            client.overrideGate(gateName, value)
-        })
+        client.overrideGate(gateName, value)
     }
 
     /**
@@ -443,9 +343,7 @@ object Statsig {
      */
     @JvmStatic
     fun overrideConfig(configName: String, value: Map<String, Any>) {
-        errorBoundary.capture({
-            client.overrideConfig(configName, value)
-        })
+        client.overrideConfig(configName, value)
     }
 
     /**
@@ -454,9 +352,7 @@ object Statsig {
      */
     @JvmStatic
     fun overrideLayer(layerName: String, value: Map<String, Any>) {
-        errorBoundary.capture({
-            client.overrideLayer(layerName, value)
-        })
+        client.overrideLayer(layerName, value)
     }
 
     /**
@@ -464,9 +360,7 @@ object Statsig {
      */
     @JvmStatic
     fun removeOverride(name: String) {
-        errorBoundary.capture({
-            client.removeOverride(name)
-        })
+        client.removeOverride(name)
     }
 
     /**
@@ -474,9 +368,7 @@ object Statsig {
      */
     @JvmStatic
     fun removeAllOverrides() {
-        errorBoundary.capture({
-            client.removeAllOverrides()
-        })
+        client.removeAllOverrides()
     }
 
     /**
@@ -484,17 +376,11 @@ object Statsig {
      */
     @JvmStatic
     fun getAllOverrides(): StatsigOverrides {
-        var result: StatsigOverrides? = null
-        errorBoundary.capture({
-            result = client.getStore().getAllOverrides()
-        })
-        return result ?: StatsigOverrides.empty()
+        return client.getAllOverrides()
     }
 
     fun openDebugView(context: Context) {
-        errorBoundary.capture({
-            client.openDebugView(context)
-        })
+        client.openDebugView(context)
     }
 
     private fun enforceInitialized(functionName: String) {

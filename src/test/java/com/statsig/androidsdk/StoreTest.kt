@@ -106,7 +106,7 @@ class StoreTest {
 
     @Test
     fun testCacheById() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
+        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey")
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         store.loadAndResetForUser(userDloomb)
@@ -156,7 +156,7 @@ class StoreTest {
     @Test
     fun testEvaluationReasons() = runBlocking {
         val sharedPrefs = TestSharedPreferences()
-        var store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
+        var store = Store(TestCoroutineScope(), sharedPrefs, userJkw, "client-apikey")
 
         // check before there is any value
         var exp = store.getExperiment("exp", false)
@@ -184,7 +184,7 @@ class StoreTest {
 
         // re-initialize store, and check before any "network" value is saved
         Thread.sleep(1000) // wait 1 sec before reinitializing so that we can check the evaluation time in details has not advanced
-        store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
+        store = Store(TestCoroutineScope(), sharedPrefs, userJkw, "client-apikey")
         store.syncLoadFromLocalStorage()
         exp = store.getExperiment(
             "exp",
@@ -197,7 +197,7 @@ class StoreTest {
         assertEquals(time, exp.getEvaluationDetails().time)
 
         // re-initialize and check the previously saved sticky value
-        store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
+        store = Store(TestCoroutineScope(), sharedPrefs, userJkw, "client-apikey")
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v1", inExperiment = true, active = true), userJkw)
         store.persistStickyValues()
@@ -209,7 +209,7 @@ class StoreTest {
 
     @Test
     fun testConfigNameNotHashed() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
+        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey")
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         val config = store.getExperiment("config", false)
@@ -220,7 +220,7 @@ class StoreTest {
 
     @Test
     fun testStickyBucketing() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
+        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey")
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         // getting values with keepDeviceValue = false first
@@ -285,7 +285,7 @@ class StoreTest {
 
     @Test
     fun testInactiveExperimentStickyBehavior() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
+        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey")
         store.save(getInitValue("v0", inExperiment = true, active = false), userJkw)
 
         var exp = store.getExperiment("exp", true)
@@ -299,7 +299,7 @@ class StoreTest {
 
     @Test
     fun testStickyBehaviorWhenResettingUser() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw)
+        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey")
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         // getting values with keepDeviceValue = false first
@@ -341,7 +341,7 @@ class StoreTest {
     @Test
     fun testStickyBehaviorAcrossSessions() = runBlocking {
         val sharedPrefs = TestSharedPreferences()
-        var store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
+        var store = Store(TestCoroutineScope(), sharedPrefs, userJkw, "client-apikey")
         store.syncLoadFromLocalStorage()
         val v0Values = getInitValue("v0", inExperiment = true, active = true)
         store.save(v0Values, userJkw)
@@ -358,7 +358,7 @@ class StoreTest {
         assertEquals("v0", nonStickExp.getString("key", ""))
 
         // Reinitialize, same user ID, should keep sticky values
-        store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
+        store = Store(TestCoroutineScope(), sharedPrefs, userJkw, "client-apikey")
         store.syncLoadFromLocalStorage()
         val configs = v0Values.configs as MutableMap<String, APIDynamicConfig>
 
@@ -378,7 +378,7 @@ class StoreTest {
 
         // Re-create store with a different user ID, update the values, user should still get sticky
         // value for device and only device
-        store = Store(TestCoroutineScope(), sharedPrefs, userTore)
+        store = Store(TestCoroutineScope(), sharedPrefs, userTore, "client-apikey")
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v1", inExperiment = true, active = true), userTore)
 
@@ -392,7 +392,7 @@ class StoreTest {
         assertEquals("v1", nonStickExp.getString("key", ""))
 
         // Re-create store with the original user ID, check that sticky values are persisted
-        store = Store(TestCoroutineScope(), sharedPrefs, userJkw)
+        store = Store(TestCoroutineScope(), sharedPrefs, userJkw, "client-apikey")
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v2", inExperiment = true, active = true), userJkw)
 
@@ -411,7 +411,7 @@ class StoreTest {
     }
 
     @Test
-    fun testStoreUpdatesOnlyWithUpdatedValues() {
+    fun testStoreUpdatesOnlyWithUpdatedValues() = runBlocking {
         val networkTime = 123456789L
         var network: StatsigNetwork = TestUtil.mockNetwork(
             dynamicConfigs = mapOf(

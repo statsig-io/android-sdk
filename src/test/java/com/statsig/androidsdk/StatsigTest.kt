@@ -3,7 +3,9 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.google.gson.Gson
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.spyk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -51,17 +53,13 @@ class StatsigTest {
     @Test
     fun testInitializeBadInput() = runBlocking {
         client = StatsigClient()
-
-        try {
-            client.initialize(
-                app,
-                "secret-111aaa",
-                null,
-            )
-
-            fail("Statsig.initialize() did not fail for a non client/test key")
-        } catch (expectedException: java.lang.IllegalArgumentException) {
-        }
+        client.errorBoundary = spyk(client.errorBoundary)
+        client.initialize(
+            app,
+            "secret-111aaa",
+            null,
+        )
+        coVerify { client.errorBoundary.logException(any()) }
     }
 
     @Test
@@ -120,10 +118,10 @@ class StatsigTest {
         client.getConfig("test_config")
         client.getExperiment("exp")
 
-        client.logManualGateExposure("nonexistent_gate")
-        client.logManualExperimentExposure("nonexistent_exp", false)
-        client.logManualConfigExposure("nonexistent_config")
-        client.logManualLayerExposure("nonexistent_layer", "param", false)
+        client.manuallyLogGateExposure("nonexistent_gate")
+        client.manuallyLogExperimentExposure("nonexistent_exp", false)
+        client.manuallyLogConfigExposure("nonexistent_config")
+        client.manuallyLogLayerParameterExposure("nonexistent_layer", "param", false)
 
         client.shutdown()
 
@@ -131,7 +129,6 @@ class StatsigTest {
         assertEquals(14, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
-        assertEquals("custom_stable_id", client.getStableID())
         assertEquals("Android", parsedLogs.statsigMetadata.systemName)
         assertEquals("Android", parsedLogs.statsigMetadata.deviceOS)
         // validate diagnostics

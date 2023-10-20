@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.setMain
@@ -22,6 +23,7 @@ class TestUtil {
         fun mockDispatchers() {
             Dispatchers.setMain(dispatcher)
             mockkConstructor(CoroutineDispatcherProvider::class)
+            mockkConstructor(MainCoroutineDispatcher::class)
             every {
                 anyConstructed<CoroutineDispatcherProvider>().io
             } returns dispatcher
@@ -239,6 +241,13 @@ class TestUtil {
             )
             setupMethod.isAccessible = true
             setupMethod.invoke(Statsig.client, app, "client-test", user, options)
+        }
+
+        internal fun startStatsigClientAndWait(app: Application, client: StatsigClient, sdkKey: String, user: StatsigUser, options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
+            if (network != null) {
+                client.statsigNetwork = network
+            }
+            client.initialize(app, sdkKey, user, options)
         }
 
         fun getMockApp(): Application {

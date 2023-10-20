@@ -10,6 +10,7 @@ import android.os.Bundle
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.launchIn
@@ -23,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
 
-internal class StatsigClient() {
+class StatsigClient() {
 
     private lateinit var store: Store
     private lateinit var user: StatsigUser
@@ -36,11 +37,13 @@ internal class StatsigClient() {
     private lateinit var statsigScope: CoroutineScope
     private lateinit var diagnostics: Diagnostics
 
+    internal var errorBoundary = ErrorBoundary()
+
     private var pollingJob: Job? = null
-    private val statsigJob = SupervisorJob()
-    private val dispatcherProvider = CoroutineDispatcherProvider()
+    private var statsigJob = SupervisorJob()
+    private var dispatcherProvider = CoroutineDispatcherProvider()
     private var initialized = AtomicBoolean(false)
-    private val isBootstrapped = AtomicBoolean(false)
+    private var isBootstrapped = AtomicBoolean(false)
 
     @VisibleForTesting
     internal lateinit var statsigNetwork: StatsigNetwork
@@ -48,6 +51,19 @@ internal class StatsigClient() {
     @VisibleForTesting
     internal lateinit var options: StatsigOptions
 
+    /**
+     * Initializes the SDK for the given user.  Initialization is complete when the callback
+     * is invoked
+     * @param application - the Android application Statsig is operating in
+     * @param sdkKey - a client or test SDK Key from the Statsig console
+     * @param user - the user to associate with feature gate checks, config fetches, and logging
+     * @param callback - a callback to execute when initialization is complete
+     * @param options - advanced SDK setup
+     * Checking Gates/Configs before initialization calls back will return default values
+     * Logging Events before initialization will drop those events
+     * Susequent calls to initialize will be ignored.  To switch the user or update user values,
+     * use updateUser()
+     */
     fun initializeAsync(
         application: Application,
         sdkKey: String,
@@ -55,19 +71,25 @@ internal class StatsigClient() {
         callback: IStatsigCallback? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        val normalizedUser = setup(application, sdkKey, user, options)
-        statsigScope.launch {
-            val initDetails = setupAsync(normalizedUser)
-            // The scope's dispatcher may change in the future.
-            // This "withContext" will ensure that initialization is complete when the callback is invoked
-            withContext(dispatcherProvider.main) {
-                try {
-                    callback?.onStatsigInitialize(initDetails)
-                } catch (e: Exception) {
-                    throw ExternalException(e.message)
+        if (isInitialized()) {
+            return
+        }
+        errorBoundary.setKey(sdkKey)
+        errorBoundary.capture({
+            val normalizedUser = setup(application, sdkKey, user, options)
+            statsigScope.launch {
+                val initDetails = setupAsync(normalizedUser)
+                // The scope's dispatcher may change in the future.
+                // This "withContext" will ensure that initialization is complete when the callback is invoked
+                withContext(dispatcherProvider.main) {
+                    try {
+                        callback?.onStatsigInitialize(initDetails)
+                    } catch (e: Exception) {
+                        throw ExternalException(e.message)
+                    }
                 }
             }
-        }
+        })
     }
 
     /**
@@ -87,16 +109,463 @@ internal class StatsigClient() {
         sdkKey: String,
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
-    ): InitializationDetails {
-        val normalizedUser = setup(application, sdkKey, user, options)
-        return setupAsync(normalizedUser)
+    ): InitializationDetails? {
+        if (this@StatsigClient.isInitialized()) {
+            return null
+        }
+        errorBoundary.setKey(sdkKey)
+        return errorBoundary.captureAsync {
+            val normalizedUser = setup(application, sdkKey, user, options)
+            val response = setupAsync(normalizedUser)
+            return@captureAsync response
+        }
+    }
+
+    /**
+     * Check the value of a Feature Gate configured in the Statsig console for the initialized
+     * user
+     * @param gateName the name of the feature gate to check
+     * @return the value of the gate for the initialized user, or false if not found
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun checkGate(gateName: String): Boolean {
+        val functionName = "checkGate"
+        enforceInitialized(functionName)
+        var result = false
+        errorBoundary.capture({
+            val gate = store.checkGate(gateName)
+            result = gate.value
+            logExposure(gateName, gate)
+        }, tag = functionName, configName = gateName)
+        return result
+    }
+
+    /**
+     * Check the value of a Feature Gate configured in the Statsig console for the initialized
+     * user, but do not log an exposure
+     * @param gateName the name of the feature gate to check
+     * @return the value of the gate for the initialized user, or false if not found
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun checkGateWithExposureLoggingDisabled(gateName: String): Boolean {
+        val functionName = "checkGateWithExposureLoggingDisabled"
+        enforceInitialized(functionName)
+        var result = false
+        errorBoundary.capture({
+            val gate = store.checkGate(gateName)
+            result = gate.value
+        }, tag = functionName, configName = gateName)
+        return result
+    }
+
+    /**
+     * Check the value of a Dynamic Config configured in the Statsig console for the initialized
+     * user
+     * @param configName the name of the Dynamic Config to check
+     * @return the Dynamic Config the initialized user
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getConfig(configName: String): DynamicConfig {
+        val functionName = "getConfig"
+        enforceInitialized(functionName)
+        var result: DynamicConfig? = null
+        errorBoundary.capture({
+            result = store.getConfig(configName)
+            logExposure(configName, result!!)
+        }, tag = functionName, configName = configName)
+        return result ?: DynamicConfig.getUninitialized(configName)
+    }
+
+    /**
+     * Check the value of a Dynamic Config configured in the Statsig console for the initialized
+     * user, but do not log an exposure
+     * @param configName the name of the Dynamic Config to check
+     * @return the Dynamic Config the initialized user
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig {
+        val functionName = "getConfigWithExposureLoggingDisabled"
+        enforceInitialized(functionName)
+        var result: DynamicConfig? = null
+        errorBoundary.capture({
+            result = store.getConfig(configName)
+        }, tag = functionName, configName = configName)
+        return result ?: DynamicConfig.getUninitialized(configName)
+    }
+
+    /**
+     * Check the value of an Experiment configured in the Statsig console for the initialized
+     * user
+     * @param experimentName the name of the Experiment to check
+     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of the experiment
+     * @return the Dynamic Config backing the experiment
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
+        val functionName = "getExperiment"
+        enforceInitialized(functionName)
+        var res: DynamicConfig? = null
+        errorBoundary.capture({
+            res = store.getExperiment(experimentName, keepDeviceValue)
+            updateStickyValues()
+            logExposure(experimentName, res!!)
+        }, tag = functionName, configName = experimentName)
+
+        return res ?: DynamicConfig.getUninitialized(experimentName)
+    }
+
+    /**
+     * Check the value of an Experiment configured in the Statsig console for the initialized
+     * user, but do not log an exposure
+     * @param experimentName the name of the Experiment to check
+     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of the experiment
+     * @return the Dynamic Config backing the experiment
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getExperimentWithExposureLoggingDisabled(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
+        val functionName = "getExperimentWithExposureLoggingDisabled"
+        enforceInitialized(functionName)
+        var exp: DynamicConfig? = null
+        errorBoundary.capture({
+            exp = store.getExperiment(experimentName, keepDeviceValue)
+            updateStickyValues()
+        }, configName = experimentName, tag = functionName)
+        return exp ?: DynamicConfig.getUninitialized(experimentName)
+    }
+
+    /**
+     * Check the value of an Layer configured in the Statsig console for the initialized
+     * user
+     * @param layerName the name of the Layer to check
+     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of any active experiments
+     * @return the current layer values as a Layer object
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
+        val functionName = "getLayer"
+        enforceInitialized(functionName)
+        var layer: Layer? = null
+        errorBoundary.capture({
+            layer = store.getLayer(this, layerName, keepDeviceValue)
+            updateStickyValues()
+        }, tag = functionName, configName = layerName)
+
+        return layer ?: Layer.getUninitialized(layerName)
+    }
+
+    /**
+     * Check the value of a Layer configured in the Statsig console for the initialized
+     * user, but never log exposures from this Layer
+     * @param layerName the name of the Layer to check
+     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of any active experiments
+     * @return the current layer values as a Layer object
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getLayerWithExposureLoggingDisabled(layerName: String, keepDeviceValue: Boolean = false): Layer {
+        val functionName = "getLayerWithExposureLoggingDisabled"
+        enforceInitialized(functionName)
+        var layer: Layer? = null
+        errorBoundary.capture({
+            layer = store.getLayer(null, layerName, keepDeviceValue)
+            updateStickyValues()
+        }, tag = functionName, configName = layerName)
+
+        return layer ?: Layer.getUninitialized(layerName)
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param value an optional value assocaited with the event, for aggregations/analysis
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
+        val functionName = "logEvent"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            val event = LogEvent(eventName)
+            event.value = value
+            event.metadata = metadata
+            event.user = user
+
+            if (!options.disableCurrentActivityLogging) {
+                val className = lifecycleListener.currentActivity?.javaClass?.simpleName
+                if (className != null) {
+                    event.statsigMetadata = mapOf("currentPage" to className)
+                }
+            }
+            statsigScope.launch {
+                logger.log(event)
+            }
+        }, tag = functionName)
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param value an optional value assocaited with the event
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
+        val functionName = "logEvent"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            val event = LogEvent(eventName)
+            event.value = value
+            event.metadata = metadata
+            event.user = user
+            statsigScope.launch {
+                logger.log(event)
+            }
+        }, tag = functionName)
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun logEvent(eventName: String, metadata: Map<String, String>) {
+        val functionName = "logEvent"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            val event = LogEvent(eventName)
+            event.value = null
+            event.metadata = metadata
+            event.user = user
+            statsigScope.launch {
+                logger.log(event)
+            }
+        }, tag = functionName)
+    }
+
+    /**
+     * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
+     * user with additional properties.
+     * Will make network call in a separate coroutine.
+     * But fetch cached values from memory synchronously.
+     *
+     * @param user the updated user
+     * @param callback a callback to invoke upon update completion. Before this callback is
+     * invoked, checking Gates will return false, getting Configs will return null, and
+     * Log Events will be dropped
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
+        val functionName = "updateUserAsync"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            updateUserCache(user)
+            statsigScope.launch {
+                updateUserImpl()
+                withContext(dispatcherProvider.main) {
+                    try {
+                        callback?.onStatsigUpdateUser()
+                    } catch (e: Exception) {
+                        throw ExternalException(e.message)
+                    }
+                }
+            }
+        }, tag = functionName)
+    }
+
+    /**
+     * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
+     * user with additional properties
+     *
+     * @param user the updated user
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    suspend fun updateUser(user: StatsigUser?) {
+        enforceInitialized("updateUser")
+        errorBoundary.captureAsync {
+            updateUserCache(user)
+            updateUserImpl()
+        }
+    }
+
+    /**
+     * @return Initialize response currently being used in JSON and evaluation details
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun getInitializeResponseJson(): ExternalInitializeResponse {
+        val functionName = "getInitializeResponseJson"
+        var result: ExternalInitializeResponse? = null
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            result = store.getCurrentCacheValuesAndEvaluationReason()
+        }, tag = functionName)
+        return result ?: ExternalInitializeResponse.getUninitialized()
+    }
+
+    suspend fun shutdownSuspend() {
+        enforceInitialized("shutdownSuspend")
+        errorBoundary.captureAsync {
+            shutdownImpl()
+        }
+    }
+
+    /**
+     * Informs the Statsig SDK that the client is shutting down to complete cleanup saving state
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun shutdown() {
+        enforceInitialized("shutdown")
+        runBlocking {
+            withContext(Dispatchers.Main.immediate) {
+                shutdownSuspend()
+            }
+        }
+    }
+
+    /**
+     * @param gateName the name of the gate you want to override
+     * @param value the result to be returned when checkGate is called
+     */
+    fun overrideGate(gateName: String, value: Boolean) {
+        errorBoundary.capture({
+            this.store.overrideGate(gateName, value)
+            statsigScope.launch {
+                this@StatsigClient.store.saveOverridesToLocalStorage()
+            }
+        }, tag = "overrideGate")
+    }
+
+    /**
+     * @param configName the name of the config or experiment you want to override
+     * @param value the resulting values to be returned when getConfig or getExperiment is called
+     */
+    fun overrideConfig(configName: String, value: Map<String, Any>) {
+        errorBoundary.capture({
+            this.store.overrideConfig(configName, value)
+            statsigScope.launch {
+                this@StatsigClient.store.saveOverridesToLocalStorage()
+            }
+        }, tag = "overrideConfig")
+    }
+
+    /**
+     * @param layerName the name of the layer you want to override
+     * @param value the resulting values to be returned in a Layer object when getLayer is called
+     */
+    fun overrideLayer(configName: String, value: Map<String, Any>) {
+        errorBoundary.capture({
+            this.store.overrideLayer(configName, value)
+            statsigScope.launch {
+                this@StatsigClient.store.saveOverridesToLocalStorage()
+            }
+        }, tag = "overrideLayer")
+    }
+
+    /**
+     * @param name the name of the overridden gate, config or experiment you want to clear an override from
+     */
+    fun removeOverride(name: String) {
+        errorBoundary.capture({
+            this.store.removeOverride(name)
+            statsigScope.launch {
+                this@StatsigClient.store.saveOverridesToLocalStorage()
+            }
+        })
+    }
+
+    /**
+     * Throw away all overridden values
+     */
+    fun removeAllOverrides() {
+        errorBoundary.capture({
+            this.store.removeAllOverrides()
+            statsigScope.launch {
+                this@StatsigClient.store.saveOverridesToLocalStorage()
+            }
+        })
+    }
+
+    /**
+     * @return the current Statsig stableID
+     * Null prior to completion of async initialization
+     */
+    fun getStableID(): String {
+        val functionName = "getStableID"
+        enforceInitialized(functionName)
+        var result = ""
+        errorBoundary.capture({
+            result = statsigMetadata.stableID ?: ""
+        }, tag = "getStableID")
+        return result
+    }
+
+    /**
+     * Log an exposure for a given config
+     * @param configName the name of the config to log an exposure for
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun manuallyLogGateExposure(gateName: String) {
+        val functionName = "logManualGateExposure"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            val gate = store.checkGate(gateName)
+            logExposure(gateName, gate, isManual = true)
+        }, tag = functionName, configName = gateName)
+    }
+
+    fun manuallyLogConfigExposure(configName: String) {
+        val functionName = "logManualConfigExposure"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            val config = store.getConfig(configName)
+            logExposure(configName, config, isManual = true)
+        }, tag = functionName, configName = configName)
+    }
+
+    /**
+     * Log an exposure for a given experiment
+     * @param experimentName the name of the experiment to log an exposure for
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun manuallyLogExperimentExposure(configName: String, keepDeviceValue: Boolean) {
+        val functionName = "logManualExperimentExposure"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            val exp = store.getExperiment(configName, keepDeviceValue)
+            logExposure(configName, exp, isManual = true)
+        }, tag = functionName, configName = configName)
+    }
+
+    /**
+     * Log an exposure for a given parameter in a given layer
+     * @param layerName the relevant layer
+     * @param parameterName the specific parameter
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    fun manuallyLogLayerParameterExposure(layerName: String, parameterName: String, keepDeviceValue: Boolean) {
+        val functionName = "logManualLayerExposure"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            val layer = store.getLayer(null, layerName, keepDeviceValue)
+            logLayerParameterExposure(layer, parameterName, isManual = true)
+        }, configName = layerName, tag = functionName)
+    }
+
+    /**
+     * @return the overrides that are currently applied
+     */
+    fun getAllOverrides(): StatsigOverrides {
+        var result: StatsigOverrides? = null
+        errorBoundary.capture({
+            result = getStore().getAllOverrides()
+        })
+        return result ?: StatsigOverrides.empty()
     }
 
     @VisibleForTesting
     internal suspend fun setupAsync(user: StatsigUser): InitializationDetails {
         return withContext(dispatcherProvider.io) {
             val initStartTime = System.currentTimeMillis()
-            return@withContext Statsig.errorBoundary.captureAsync({
+            return@withContext errorBoundary.captureAsync({
                 if (this@StatsigClient.isBootstrapped.get()) {
                     return@captureAsync InitializationDetails(System.currentTimeMillis() - initStartTime, true, null)
                 }
@@ -171,14 +640,14 @@ internal class StatsigClient() {
         this.user = normalizedUser
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
-            statsigNetwork = StatsigNetwork(sdkKey)
+            statsigNetwork = StatsigNetwork(sdkKey, errorBoundary)
         }
         statsigMetadata = StatsigMetadata()
-        Statsig.errorBoundary.setMetadata(statsigMetadata)
-        Statsig.errorBoundary.setDiagnostics(diagnostics)
+        errorBoundary.setMetadata(statsigMetadata)
+        errorBoundary.setDiagnostics(diagnostics)
         populateStatsigMetadata()
 
-        exceptionHandler = Statsig.errorBoundary.getExceptionHandler()
+        exceptionHandler = errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
 
         lifecycleListener = StatsigActivityLifecycleListener()
@@ -192,7 +661,7 @@ internal class StatsigClient() {
             normalizedUser,
             diagnostics,
         )
-        store = Store(statsigScope, getSharedPrefs(), normalizedUser)
+        store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey)
 
         if (options.overrideStableID == null) {
             val stableID = getLocalStorageStableID()
@@ -212,90 +681,41 @@ internal class StatsigClient() {
         return normalizedUser
     }
 
-    /**
-     * Check the value of a Feature Gate configured in the Statsig console for the initialized
-     * user
-     * @param gateName the name of the feature gate to check
-     * @return the value of the gate for the initialized user, or false if not found
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun checkGate(gateName: String): Boolean {
-        enforceInitialized("checkGate")
-        val gate = store.checkGate(gateName)
-        logExposure(gateName, gate)
-        return gate.value
+    private fun updateUserCache(user: StatsigUser?) {
+        errorBoundary.capture({
+            enforceInitialized("updateUser")
+            logger.onUpdateUser()
+            pollingJob?.cancel()
+            this@StatsigClient.user = normalizeUser(user)
+            store.loadAndResetForUser(this@StatsigClient.user)
+        })
     }
 
-    fun checkGateWithExposureLoggingDisabled(gateName: String): Boolean {
-        enforceInitialized("checkGateWithExposureLoggingDisabled")
-        return store.checkGate(gateName).value
+    private suspend fun updateUserImpl() {
+        withContext(dispatcherProvider.io) {
+            errorBoundary.captureAsync {
+                val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
+                val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
+
+                val initResponse = statsigNetwork.initialize(
+                    options.api,
+                    this@StatsigClient.user,
+                    sinceTime,
+                    statsigMetadata,
+                    options.initTimeoutMs,
+                    getSharedPrefs(),
+                    hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
+                    previousDerivedFields = previousDerivedFields,
+                )
+                if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
+                    store.save(initResponse, this@StatsigClient.user)
+                }
+                pollForUpdates()
+            }
+        }
     }
 
-    /**
-     * Check the value of a Dynamic Config configured in the Statsig console for the initialized
-     * user
-     * @param configName the name of the Dynamic Config to check
-     * @return the Dynamic Config the initialized user
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun getConfig(configName: String): DynamicConfig {
-        enforceInitialized("getConfig")
-        val res = store.getConfig(configName)
-        logExposure(configName, res)
-        return res
-    }
-
-    fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig {
-        enforceInitialized("getConfigWithExposureLoggingDisabled")
-        return store.getConfig(configName)
-    }
-
-    /**
-     * Check the value of an Experiment configured in the Statsig console for the initialized
-     * user
-     * @param experimentName the name of the Experiment to check
-     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of the experiment
-     * @return the Dynamic Config backing the experiment
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
-        enforceInitialized("getExperiment")
-        val res = store.getExperiment(experimentName, keepDeviceValue)
-        updateStickyValues()
-        logExposure(experimentName, res)
-        return res
-    }
-
-    fun getExperimentWithExposureLoggingDisabled(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
-        enforceInitialized("getExperimentWithExposureLoggingDisabled")
-        val exp = store.getExperiment(experimentName, keepDeviceValue)
-        updateStickyValues()
-        return exp
-    }
-
-    /**
-     * Check the value of an Layer configured in the Statsig console for the initialized
-     * user
-     * @param layerName the name of the Layer to check
-     * @param keepDeviceValue whether the value returned should be kept for the user on the device for the duration of any active experiments
-     * @return the current layer values as a Layer object
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
-        enforceInitialized("getLayer")
-        val layer = store.getLayer(this, layerName, keepDeviceValue)
-        updateStickyValues()
-        return layer
-    }
-
-    fun getLayerWithExposureLoggingDisabled(layerName: String, keepDeviceValue: Boolean = false): Layer {
-        enforceInitialized("getLayer")
-        val layer = store.getLayer(null, layerName, keepDeviceValue)
-        updateStickyValues()
-        return layer
-    }
-
-    fun logLayerParameterExposure(layer: Layer, parameterName: String, isManual: Boolean = false) {
+    internal fun logLayerParameterExposure(layer: Layer, parameterName: String, isManual: Boolean = false) {
         if (!isInitialized()) {
             return
         }
@@ -319,238 +739,6 @@ internal class StatsigClient() {
             layer.getEvaluationDetails(),
             isManual,
         )
-    }
-
-    /**
-     * Log an event to Statsig for the current user
-     * @param eventName the name of the event to track
-     * @param value an optional value assocaited with the event, for aggregations/analysis
-     * @param metadata an optional map of metadata associated with the event
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
-        enforceInitialized("logEvent")
-        val event = LogEvent(eventName)
-        event.value = value
-        event.metadata = metadata
-        event.user = user
-
-        if (!options.disableCurrentActivityLogging) {
-            val className = lifecycleListener.currentActivity?.javaClass?.simpleName
-            if (className != null) {
-                event.statsigMetadata = mapOf("currentPage" to className)
-            }
-        }
-        statsigScope.launch {
-            logger.log(event)
-        }
-    }
-
-    /**
-     * Log an event to Statsig for the current user
-     * @param eventName the name of the event to track
-     * @param value an optional value assocaited with the event
-     * @param metadata an optional map of metadata associated with the event
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
-        enforceInitialized("logEvent")
-        val event = LogEvent(eventName)
-        event.value = value
-        event.metadata = metadata
-        event.user = user
-        statsigScope.launch {
-            logger.log(event)
-        }
-    }
-
-    /**
-     * Log an event to Statsig for the current user
-     * @param eventName the name of the event to track
-     * @param metadata an optional map of metadata associated with the event
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun logEvent(eventName: String, metadata: Map<String, String>) {
-        enforceInitialized("logEvent")
-        val event = LogEvent(eventName)
-        event.value = null
-        event.metadata = metadata
-        event.user = user
-        statsigScope.launch {
-            logger.log(event)
-        }
-    }
-
-    /**
-     * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
-     * user with additional properties.
-     * Will make network call in a separate coroutine.
-     * But fetch cached values from memory synchronously.
-     *
-     * @param user the updated user
-     * @param callback a callback to invoke upon update completion. Before this callback is
-     * invoked, checking Gates will return false, getting Configs will return null, and
-     * Log Events will be dropped
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
-        updateUserCache(user)
-        statsigScope.launch {
-            updateUserImpl()
-            withContext(dispatcherProvider.main) {
-                try {
-                    callback?.onStatsigUpdateUser()
-                } catch (e: Exception) {
-                    throw ExternalException(e.message)
-                }
-            }
-        }
-    }
-
-    /**
-     * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
-     * user with additional properties
-     *
-     * @param user the updated user
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    suspend fun updateUser(user: StatsigUser?) {
-        updateUserCache(user)
-        updateUserImpl()
-    }
-
-    private fun updateUserCache(user: StatsigUser?) {
-        Statsig.errorBoundary.capture({
-            enforceInitialized("updateUser")
-            logger.onUpdateUser()
-            pollingJob?.cancel()
-            this@StatsigClient.user = normalizeUser(user)
-            store.loadAndResetForUser(this@StatsigClient.user)
-        })
-    }
-
-    private suspend fun updateUserImpl() {
-        withContext(dispatcherProvider.io) {
-            Statsig.errorBoundary.captureAsync {
-                val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
-                val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
-
-                val initResponse = statsigNetwork.initialize(
-                    options.api,
-                    this@StatsigClient.user,
-                    sinceTime,
-                    statsigMetadata,
-                    options.initTimeoutMs,
-                    getSharedPrefs(),
-                    hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
-                    previousDerivedFields = previousDerivedFields,
-                )
-                if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
-                    store.save(initResponse, this@StatsigClient.user)
-                }
-                pollForUpdates()
-            }
-        }
-    }
-
-    fun getInitializeResponseJson(): ExternalInitializeResponse? {
-        return store.getCurrentCacheValuesAndEvaluationReason()
-    }
-
-    suspend fun shutdownSuspend() {
-        enforceInitialized("shutdown")
-        pollingJob?.cancel()
-        logger.shutdown()
-    }
-
-    /**
-     * Informs the Statsig SDK that the client is shutting down to complete cleanup saving state
-     * @throws IllegalStateException if the SDK has not been initialized
-     */
-    fun shutdown() {
-        runBlocking {
-            withContext(dispatcherProvider.main) {
-                shutdownSuspend()
-            }
-        }
-    }
-
-    fun overrideGate(gateName: String, value: Boolean) {
-        this.store.overrideGate(gateName, value)
-        statsigScope.launch {
-            this@StatsigClient.store.saveOverridesToLocalStorage()
-        }
-    }
-
-    fun overrideConfig(configName: String, value: Map<String, Any>) {
-        this.store.overrideConfig(configName, value)
-        statsigScope.launch {
-            this@StatsigClient.store.saveOverridesToLocalStorage()
-        }
-    }
-
-    fun overrideLayer(configName: String, value: Map<String, Any>) {
-        this.store.overrideLayer(configName, value)
-        statsigScope.launch {
-            this@StatsigClient.store.saveOverridesToLocalStorage()
-        }
-    }
-
-    fun removeOverride(name: String) {
-        this.store.removeOverride(name)
-        statsigScope.launch {
-            this@StatsigClient.store.saveOverridesToLocalStorage()
-        }
-    }
-
-    fun removeAllOverrides() {
-        this.store.removeAllOverrides()
-        statsigScope.launch {
-            this@StatsigClient.store.saveOverridesToLocalStorage()
-        }
-    }
-
-    /**
-     * @return the current Statsig stableID
-     * Null prior to completion of async initialization
-     */
-    fun getStableID(): String {
-        return statsigMetadata.stableID ?: ""
-    }
-
-    fun logManualGateExposure(gateName: String) {
-        enforceInitialized("logManualGateExposure")
-        val gate = store.checkGate(gateName)
-        logExposure(gateName, gate, isManual = true)
-    }
-
-    fun logManualConfigExposure(configName: String) {
-        enforceInitialized("logManualConfigExposure")
-        val config = store.getConfig(configName)
-        logExposure(configName, config, isManual = true)
-    }
-
-    fun logManualExperimentExposure(configName: String, keepDeviceValue: Boolean) {
-        enforceInitialized("logManualExperimentExposure")
-        val exp = store.getExperiment(configName, keepDeviceValue)
-        logExposure(configName, exp, isManual = true)
-    }
-
-    fun logManualLayerExposure(layerName: String, parameterName: String, keepDeviceValue: Boolean) {
-        enforceInitialized("logManualLayerExposure")
-        val layer = store.getLayer(null, layerName, keepDeviceValue)
-        logLayerParameterExposure(layer, parameterName, isManual = true)
-    }
-
-    fun openDebugView(context: Context) {
-        val currentValues = store.getCurrentValuesAsString()
-        val map = mapOf(
-            "values" to currentValues,
-            "evalReason" to store.reason,
-            "user" to user.getCopyForEvaluation(),
-            "options" to options.toMap(),
-        )
-        DebugView.show(context, sdkKey, map)
     }
 
     internal fun getStore(): Store {
@@ -644,6 +832,28 @@ internal class StatsigClient() {
 
     internal suspend fun saveStringToSharedPrefs(key: String, value: String) {
         StatsigUtil.saveStringToSharedPrefs(getSharedPrefs(), key, value)
+    }
+
+    internal fun openDebugView(context: Context) {
+        errorBoundary.capture({
+            val currentValues = store.getCurrentValuesAsString()
+            val map = mapOf(
+                "values" to currentValues,
+                "evalReason" to store.reason,
+                "user" to user.getCopyForEvaluation(),
+                "options" to options.toMap(),
+            )
+            DebugView.show(context, sdkKey, map)
+        })
+    }
+
+    private suspend fun shutdownImpl() {
+        pollingJob?.cancel()
+        logger.shutdown()
+        initialized = AtomicBoolean()
+        isBootstrapped = AtomicBoolean()
+        errorBoundary = ErrorBoundary()
+        statsigJob = SupervisorJob()
     }
 
     private inner class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {

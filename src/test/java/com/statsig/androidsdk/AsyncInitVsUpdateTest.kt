@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse {
     return withContext(Dispatchers.IO) {
         val isUserA = user.userID == "user-a"
-        delay(if (isUserA) 0 else 500)
+        delay(if (isUserA) 0 else 2000)
         TestUtil.makeInitializeResponse(
             mapOf(),
             mapOf(
@@ -98,14 +98,14 @@ class AsyncInitVsUpdateTest {
         assertEquals("default", value)
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
 
-        didInitializeUserA.await(1, TimeUnit.SECONDS)
+        didInitializeUserA.await(3, TimeUnit.SECONDS)
 
         config = Statsig.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("default", value)
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
 
-        didInitializeUserB.await(1, TimeUnit.SECONDS)
+        didInitializeUserB.await(5, TimeUnit.SECONDS)
 
         value = Statsig.getConfig("a_config").getString("key", "default")
         assertEquals("user_b_value", value)
@@ -160,14 +160,13 @@ class AsyncInitVsUpdateTest {
         assertEquals("user_b_value_cache", value)
         assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
 
-        didInitializeUserA.await(1, TimeUnit.SECONDS)
-
+        didInitializeUserA.await(2, TimeUnit.SECONDS)
         config = Statsig.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("user_b_value_cache", value)
         assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
 
-        didInitializeUserB.await(1, TimeUnit.SECONDS)
+        didInitializeUserB.await(3, TimeUnit.SECONDS)
 
         config = Statsig.getConfig("a_config")
         value = config.getString("key", "default")

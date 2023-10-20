@@ -42,7 +42,7 @@ class StatsigOfflineInitializationTest {
     @Test
     fun testInitializeOffline() = runBlocking {
         // Initialize async offline
-        Statsig.client.initializeAsync(app, "client-key", user, options = StatsigOptions(initializeOffline = true), callback = InitializeCallback(initializeCountdown))
+        Statsig.client.initializeAsync(app, "client-apikey", user, options = StatsigOptions(initializeOffline = true), callback = InitializeCallback(initializeCountdown))
         initializeCountdown.await()
         var config = Statsig.client.getConfig("test_config")
         assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)
@@ -51,7 +51,7 @@ class StatsigOfflineInitializationTest {
         Statsig.shutdown()
         // Initialize offline
         Statsig.client.statsigNetwork = mockNetwork()
-        Statsig.client.initialize(app, "client-key", user, StatsigOptions(initializeOffline = true))
+        Statsig.client.initialize(app, "client-apikey", user, StatsigOptions(initializeOffline = true))
         config = Statsig.client.getConfig("test_config")
         assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)
         assert(config.getString("string", "DEFAULT") == "test")
@@ -83,7 +83,7 @@ class StatsigOfflineInitializationTest {
     @Test
     fun testInitializeOfflineAndUpdateUser() = runBlocking {
         // Initialize async offline
-        Statsig.client.initializeAsync(app, "client-key", user, options = StatsigOptions(initializeOffline = true), callback = InitializeCallback(initializeCountdown))
+        Statsig.client.initializeAsync(app, "client-apikey", user, options = StatsigOptions(initializeOffline = true), callback = InitializeCallback(initializeCountdown))
         initializeCountdown.await()
         var config = Statsig.client.getConfig("test_config")
         assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)

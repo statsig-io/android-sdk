@@ -30,23 +30,23 @@ private data class Cache(
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis(),
 )
 
-internal class Store(
-    private val statsigScope: CoroutineScope,
-    private val sharedPrefs: SharedPreferences,
-    user: StatsigUser,
-) {
+internal class Store(private val statsigScope: CoroutineScope, private val sharedPrefs: SharedPreferences, user: StatsigUser, private val sdkKey: String) {
     var reason: EvaluationReason
 
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
-    private var currentUserCacheKey: String
+
+    // Migrating to caching on SDK Key and user ids (Custom IDS + user id)
+    private var currentUserCacheKeyDeprecated: String
+    private var currentUserCacheKeyV2: String
     private var cacheById: ConcurrentHashMap<String, Cache>
     private var currentCache: Cache
     private var stickyDeviceExperiments: ConcurrentHashMap<String, APIDynamicConfig>
     private var localOverrides: StatsigOverrides
 
     init {
-        currentUserCacheKey = user.getCacheKey()
+        currentUserCacheKeyDeprecated = user.getCacheKeyDEPRECATED()
+        currentUserCacheKeyV2 = user.getCacheKeyWithSDKKey(this.sdkKey)
         cacheById = ConcurrentHashMap()
         currentCache = createEmptyCache()
         stickyDeviceExperiments = ConcurrentHashMap()
@@ -58,7 +58,6 @@ internal class Store(
         val cachedResponse = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
         val cachedDeviceValues = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
         val cachedLocalOverrides = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
-
         if (cachedResponse != null) {
             val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
             try {
@@ -99,7 +98,8 @@ internal class Store(
 
     fun loadAndResetForUser(user: StatsigUser) {
         reason = EvaluationReason.Uninitialized
-        currentUserCacheKey = user.getCacheKey()
+        currentUserCacheKeyDeprecated = user.getCacheKeyDEPRECATED()
+        currentUserCacheKeyV2 = user.getCacheKeyWithSDKKey(this.sdkKey)
         currentCache = loadCacheForCurrentUser()
     }
 
@@ -112,14 +112,14 @@ internal class Store(
                 gson.toJson(initializeValues),
                 InitializeResponse.SuccessfulInitializeResponse::class.java,
             )
-            cacheById[currentUserCacheKey] = currentCache
+            cacheById[currentUserCacheKeyV2] = currentCache
         } catch (e: Exception) {
             // Do Nothing
         }
     }
 
     private fun loadCacheForCurrentUser(): Cache {
-        val cachedValues = cacheById[currentUserCacheKey]
+        var cachedValues = cacheById[currentUserCacheKeyV2] ?: cacheById[currentUserCacheKeyDeprecated]
         return if (cachedValues != null) {
             reason = EvaluationReason.Cache
             cachedValues
@@ -129,7 +129,7 @@ internal class Store(
     }
 
     fun getLastUpdateTime(user: StatsigUser): Long? {
-        val cachedValues = cacheById[user.getCacheKey()]
+        var cachedValues = cacheById[user.getCacheKeyWithSDKKey(this.sdkKey)] ?: cacheById[user.getCacheKeyDEPRECATED()]
         if (cachedValues?.userHash != user.toHashString()) {
             return null
         }
@@ -137,7 +137,7 @@ internal class Store(
     }
 
     fun getPreviousDerivedFields(user: StatsigUser): Map<String, String> {
-        val cachedValues = cacheById[user.getCacheKey()]
+        var cachedValues = cacheById[user.getCacheKeyWithSDKKey(this.sdkKey)] ?: cacheById[user.getCacheKeyDEPRECATED()]
         if (cachedValues?.userHash != user.toHashString()) {
             return mapOf()
         }
@@ -145,26 +145,30 @@ internal class Store(
     }
 
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
-        val cacheKey = user.getCacheKey()
+        val cacheKey = user.getCacheKeyWithSDKKey(this.sdkKey)
         val cache = cacheById[cacheKey] ?: createEmptyCache()
         cache.values = data
         cache.evaluationTime = System.currentTimeMillis()
         cache.userHash = user.toHashString()
         cacheById[cacheKey] = cache
 
-        if (cacheKey == currentUserCacheKey) {
+        if (cacheKey == currentUserCacheKeyV2) {
             currentCache = cache
             reason = if (data.hasUpdates) EvaluationReason.Network else EvaluationReason.NetworkNotModified
         }
+
+        // Drop out cache entry with deprecated cache key
+        cacheById.remove(user.getCacheKeyDEPRECATED())
 
         var cacheString = gson.toJson(cacheById)
 
         // Drop out other users if the cache is getting too big
         if ((cacheString.length / 1024) > 1024/*1 MB*/ && cacheById.size > 1) {
             cacheById = ConcurrentHashMap()
-            cacheById[currentUserCacheKey] = currentCache
+            cacheById[currentUserCacheKeyV2] = currentCache
             cacheString = gson.toJson(cacheById)
         }
+
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, cacheString)
     }
 

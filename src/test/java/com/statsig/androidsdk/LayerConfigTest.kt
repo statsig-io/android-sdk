@@ -183,7 +183,7 @@ class LayerConfigTest {
             ),
             nullUser,
         )
-
+        client.shutdown()
         initClient()
         config = client.getLayer("allocated_layer", keepDeviceValue = true)
         assertEquals("test", config.getString("string", "ERR"))
