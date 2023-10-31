@@ -561,6 +561,19 @@ class StatsigClient() {
         return result ?: StatsigOverrides.empty()
     }
 
+    fun openDebugView(context: Context) {
+        errorBoundary.capture({
+            val currentValues = store.getCurrentValuesAsString()
+            val map = mapOf(
+                "values" to currentValues,
+                "evalReason" to store.reason,
+                "user" to user.getCopyForEvaluation(),
+                "options" to options.toMap(),
+            )
+            DebugView.show(context, sdkKey, map)
+        })
+    }
+
     @VisibleForTesting
     internal suspend fun setupAsync(user: StatsigUser): InitializationDetails {
         return withContext(dispatcherProvider.io) {
@@ -832,19 +845,6 @@ class StatsigClient() {
 
     internal suspend fun saveStringToSharedPrefs(key: String, value: String) {
         StatsigUtil.saveStringToSharedPrefs(getSharedPrefs(), key, value)
-    }
-
-    internal fun openDebugView(context: Context) {
-        errorBoundary.capture({
-            val currentValues = store.getCurrentValuesAsString()
-            val map = mapOf(
-                "values" to currentValues,
-                "evalReason" to store.reason,
-                "user" to user.getCopyForEvaluation(),
-                "options" to options.toMap(),
-            )
-            DebugView.show(context, sdkKey, map)
-        })
     }
 
     private suspend fun shutdownImpl() {
