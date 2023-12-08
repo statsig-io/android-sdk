@@ -14,6 +14,7 @@ import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPInputStream
 import kotlin.math.pow
 
 private val RETRY_CODES: IntArray = intArrayOf(
@@ -252,6 +253,8 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
                     connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
                     connection.setRequestProperty(STATSIG_CLIENT_TIME_HEADER_KEY, System.currentTimeMillis().toString())
                     connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
+                    connection.setRequestProperty("Accept-Encoding", "gzip")
+
                     diagnostics?.markStart(KeyType.INITIALIZE, StepType.NETWORK_REQUEST, Marker(attempt = retryAttempt), contextType)
 
                     connection.outputStream.bufferedWriter(Charsets.UTF_8)
@@ -276,7 +279,14 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
                             if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
                                 return@withContext gson.fromJson("{has_updates: false}", T::class.java)
                             }
-                            return@withContext inputStream.bufferedReader(Charsets.UTF_8)
+                            val encoding = connection.getHeaderField("Content-Encoding")
+
+                            var stream = inputStream
+                            if (encoding != null && encoding.equals("gzip")) {
+                                stream = GZIPInputStream(stream)
+                            }
+
+                            return@withContext stream.bufferedReader(Charsets.UTF_8)
                                 .use { gson.fromJson(it, T::class.java) }
                         }
                         in RETRY_CODES -> {
