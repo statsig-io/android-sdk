@@ -56,9 +56,10 @@ class LogEventTest {
             Thread.sleep(500)
             assert(logEventRequests.size == 1)
             assert(StatsigUtil.getFromSharedPrefs(testSharedPrefs, "StatsigNetwork.OFFLINE_LOGS")!!.isNotEmpty())
-            assert(logEventRequests[0].events[0].eventName == "viewCartIcon")
-            assert(logEventRequests[0].events[1].eventName == "clickCartIcon")
-            assert(logEventRequests[0].events[2].eventName == "viewCart")
+            assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
+            assert(logEventRequests[0].events[1].eventName == "viewCartIcon")
+            assert(logEventRequests[0].events[2].eventName == "clickCartIcon")
+            assert(logEventRequests[0].events[3].eventName == "viewCart")
             mockAppOnResume()
             Thread.sleep(500)
             coVerify { network.apiRetryFailedLogs(any()) }

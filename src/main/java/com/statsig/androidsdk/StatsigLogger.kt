@@ -184,9 +184,6 @@ internal class StatsigLogger(
      * Diagnostics
      * */
     fun logDiagnostics() {
-        if (diagnostics.getIsDisabled()) {
-            return
-        }
         val markers = diagnostics.getMarkers()
         if (markers.isEmpty()) {
             return

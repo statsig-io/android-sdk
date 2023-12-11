@@ -36,10 +36,10 @@ internal class Diagnostics(private var isDisabled: Boolean) {
     }
 
     fun markStart(key: KeyType, step: StepType? = null, additionalMarker: Marker? = null, overrideContext: ContextType? = null): Boolean {
-        if (this.isDisabled) {
+        val context = overrideContext ?: this.diagnosticsContext
+        if (this.isDisabled && context === ContextType.API_CALL) {
             return false
         }
-        val context = overrideContext ?: this.diagnosticsContext
         if (this.getMaxMarkers(context) < (this.markers[context]?.size ?: 0)
         ) {
             return false
@@ -61,10 +61,10 @@ internal class Diagnostics(private var isDisabled: Boolean) {
     }
 
     fun markEnd(key: KeyType, success: Boolean, step: StepType? = null, additionalMarker: Marker? = null, overrideContext: ContextType? = null): Boolean {
-        if (this.isDisabled) {
+        val context = overrideContext ?: this.diagnosticsContext
+        if (this.isDisabled && context === ContextType.API_CALL) {
             return false
         }
-        val context = overrideContext ?: this.diagnosticsContext
         if (this.getMaxMarkers(context) < (this.markers[context]?.size ?: 0)) {
             return false
         }
