@@ -21,6 +21,7 @@ class StatsigCacheTest {
         TestUtil.mockDispatchers()
 
         app = mockk()
+        TestUtil.mockNetworkConnectivityService(app)
         testSharedPrefs = TestUtil.stubAppFunctions(app)
 
         mockkObject(Hashing)

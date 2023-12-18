@@ -693,7 +693,7 @@ class StatsigClient() : LifecycleEventListener {
         this.user = normalizedUser
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
-            statsigNetwork = StatsigNetwork(sdkKey, errorBoundary)
+            statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary)
         }
         statsigMetadata = StatsigMetadata()
         errorBoundary.setMetadata(statsigMetadata)

@@ -25,6 +25,7 @@ class LogEventTest {
             TestUtil.mockStatsigUtil()
             TestUtil.mockDispatchers()
             app = mockk()
+            TestUtil.mockNetworkConnectivityService(app)
             activity = mockk()
             testSharedPrefs = TestUtil.stubAppFunctions(app)
             Statsig.client = StatsigClient()
@@ -47,7 +48,7 @@ class LogEventTest {
     @Test
     fun testRetryOnAppForegrounded() {
         runBlocking {
-            Statsig.client.statsigNetwork = StatsigNetwork("client-apikey", Statsig.client.errorBoundary)
+            Statsig.client.statsigNetwork = StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary)
             Statsig.logEvent("viewCartIcon")
             Statsig.logEvent("clickCartIcon")
             Statsig.logEvent("viewCart")
@@ -67,7 +68,7 @@ class LogEventTest {
     }
 
     private fun mockAppOnPause() {
-        val network = spyk(StatsigNetwork("client-apikey", Statsig.client.errorBoundary))
+        val network = spyk(StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary))
         coEvery {
             network.apiPostLogs(any(), any())
         } answers {

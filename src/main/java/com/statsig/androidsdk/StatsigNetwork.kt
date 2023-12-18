@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -86,13 +87,22 @@ internal interface StatsigNetwork {
     suspend fun addFailedLogRequest(requestBody: String)
 }
 
-internal fun StatsigNetwork(sdkKey: String, errorBoundary: ErrorBoundary): StatsigNetwork = StatsigNetworkImpl(sdkKey, errorBoundary)
+internal fun StatsigNetwork(
+    context: Context,
+    sdkKey: String,
+    errorBoundary: ErrorBoundary,
+): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary)
 
-private class StatsigNetworkImpl(private val sdkKey: String, private val errorBoundary: ErrorBoundary) : StatsigNetwork {
+private class StatsigNetworkImpl(
+    context: Context,
+    private val sdkKey: String,
+    private val errorBoundary: ErrorBoundary,
+) : StatsigNetwork {
 
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var sharedPrefs: SharedPreferences? = null
+    private val connectivityListener = StatsigNetworkConnectivityListener(context)
 
     override suspend fun initialize(
         api: String,
@@ -107,10 +117,27 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
     ): InitializeResponse {
         this.sharedPrefs = sharedPrefs
         if (initTimeoutMs == 0L) {
-            return initializeImpl(api, user, sinceTime, metadata, diagnostics, hashUsed = hashUsed, previousDerivedFields = previousDerivedFields)
+            return initializeImpl(
+                api,
+                user,
+                sinceTime,
+                metadata,
+                diagnostics,
+                hashUsed = hashUsed,
+                previousDerivedFields = previousDerivedFields,
+            )
         }
         return withTimeout(initTimeoutMs) {
-            initializeImpl(api, user, sinceTime, metadata, diagnostics, initTimeoutMs.toInt(), hashUsed = hashUsed, previousDerivedFields = previousDerivedFields)
+            initializeImpl(
+                api,
+                user,
+                sinceTime,
+                metadata,
+                diagnostics,
+                initTimeoutMs.toInt(),
+                hashUsed = hashUsed,
+                previousDerivedFields = previousDerivedFields,
+            )
         }
     }
 
@@ -128,22 +155,61 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
         return try {
             val userCopy = user?.getCopyForEvaluation()
             val metadataCopy = metadata.copy()
-            val body = mapOf(USER to userCopy, STATSIG_METADATA to metadataCopy, SINCE_TIME to sinceTime, HASH to hashUsed, PREVIOUS_DERIVED_FIELDS to previousDerivedFields)
+            val body = mapOf(
+                USER to userCopy,
+                STATSIG_METADATA to metadataCopy,
+                SINCE_TIME to sinceTime,
+                HASH to hashUsed,
+                PREVIOUS_DERIVED_FIELDS to previousDerivedFields,
+            )
             var statusCode: Int? = null
-            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(api, INITIALIZE_ENDPOINT, gson.toJson(body), retries, ContextType.INITIALIZE, diagnostics, timeoutMs) { status: Int? -> statusCode = status }
-            response ?: InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkError, null, statusCode)
+            val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(
+                api,
+                INITIALIZE_ENDPOINT,
+                gson.toJson(body),
+                retries,
+                ContextType.INITIALIZE,
+                diagnostics,
+                timeoutMs,
+            ) { status: Int? -> statusCode = status }
+            response ?: InitializeResponse.FailedInitializeResponse(
+                InitializeFailReason.NetworkError,
+                null,
+                statusCode,
+            )
         } catch (e: Exception) {
-            errorBoundary.logException(e)
-            this.endDiagnostics(diagnostics, ContextType.INITIALIZE, null, null, 1, Marker.ErrorMessage(e.message.toString(), e.javaClass.name, e.javaClass.name))
+            if (connectivityListener.isNetworkAvailable()) {
+                errorBoundary.logException(e)
+            }
+
+            this.endDiagnostics(
+                diagnostics,
+                ContextType.INITIALIZE,
+                null,
+                null,
+                1,
+                Marker.ErrorMessage(e.message.toString(), e.javaClass.name, e.javaClass.name),
+            )
             when (e) {
                 is SocketTimeoutException, is ConnectException -> {
-                    return InitializeResponse.FailedInitializeResponse(InitializeFailReason.NetworkTimeout, e)
+                    return InitializeResponse.FailedInitializeResponse(
+                        InitializeFailReason.NetworkTimeout,
+                        e,
+                    )
                 }
+
                 is TimeoutCancellationException -> {
-                    return InitializeResponse.FailedInitializeResponse(InitializeFailReason.CoroutineTimeout, e)
+                    return InitializeResponse.FailedInitializeResponse(
+                        InitializeFailReason.CoroutineTimeout,
+                        e,
+                    )
                 }
+
                 else -> {
-                    return InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e)
+                    return InitializeResponse.FailedInitializeResponse(
+                        InitializeFailReason.InternalError,
+                        e,
+                    )
                 }
             }
         }
@@ -169,16 +235,32 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
                     HASH to HashAlgorithm.DJB2.value,
                 )
                 try {
-                    emit(postRequest(api, INITIALIZE_ENDPOINT, gson.toJson(body), 0, ContextType.CONFIG_SYNC))
-                } catch (_: Exception) {}
+                    emit(
+                        postRequest(
+                            api,
+                            INITIALIZE_ENDPOINT,
+                            gson.toJson(body),
+                            0,
+                            ContextType.CONFIG_SYNC,
+                        ),
+                    )
+                } catch (_: Exception) {
+                }
             }
         }
     }
 
     override suspend fun apiPostLogs(api: String, bodyString: String) {
         try {
-            postRequest<LogEventResponse>(api, LOGGING_ENDPOINT, bodyString, 3, ContextType.EVENT_LOGGING)
-        } catch (_: Exception) {}
+            postRequest<LogEventResponse>(
+                api,
+                LOGGING_ENDPOINT,
+                bodyString,
+                3,
+                ContextType.EVENT_LOGGING,
+            )
+        } catch (_: Exception) {
+        }
     }
 
     override suspend fun apiRetryFailedLogs(api: String) {
@@ -192,10 +274,15 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
 
     override suspend fun addFailedLogRequest(requestBody: String) {
         withContext(dispatcherProvider.io) {
-            val savedLogs = getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
+            val savedLogs =
+                getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
             try {
                 // savedLogs wont be concurrently modified as it is read from storage and only used here
-                StatsigUtil.saveStringToSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY, gson.toJson(StatsigPendingRequests(savedLogs)))
+                StatsigUtil.saveStringToSharedPrefs(
+                    sharedPrefs,
+                    OFFLINE_LOGS_KEY,
+                    gson.toJson(StatsigPendingRequests(savedLogs)),
+                )
             } catch (_: Exception) {
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
             }
@@ -204,7 +291,8 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
 
     private suspend fun getSavedLogs(): List<StatsigOfflineRequest> {
         return withContext(dispatcherProvider.io) {
-            val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY) ?: return@withContext arrayListOf()
+            val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
+                ?: return@withContext arrayListOf()
 
             return@withContext try {
                 val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
@@ -239,23 +327,39 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
             var connection: HttpURLConnection? = null
             try {
                 while (isActive) {
-                    val url = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
-                    connection = URL(url).openConnection() as HttpURLConnection
+                    val urlStr = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
+                    val url = URL(urlStr)
+                    connection = url.openConnection() as HttpURLConnection
+
+                    if (url.protocol == "http") {
+                        connection.doOutput = true
+                    }
 
                     connection.requestMethod = POST
                     if (timeout != null) {
                         connection.connectTimeout = timeout
                         connection.readTimeout = timeout
                     }
-                    connection.setRequestProperty(CONTENT_TYPE_HEADER_KEY, CONTENT_TYPE_HEADER_VALUE)
+                    connection.setRequestProperty(
+                        CONTENT_TYPE_HEADER_KEY,
+                        CONTENT_TYPE_HEADER_VALUE,
+                    )
                     connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
                     connection.setRequestProperty(STATSIG_SDK_TYPE_KEY, "android-client")
                     connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
-                    connection.setRequestProperty(STATSIG_CLIENT_TIME_HEADER_KEY, System.currentTimeMillis().toString())
+                    connection.setRequestProperty(
+                        STATSIG_CLIENT_TIME_HEADER_KEY,
+                        System.currentTimeMillis().toString(),
+                    )
                     connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
                     connection.setRequestProperty("Accept-Encoding", "gzip")
 
-                    diagnostics?.markStart(KeyType.INITIALIZE, StepType.NETWORK_REQUEST, Marker(attempt = retryAttempt), contextType)
+                    diagnostics?.markStart(
+                        KeyType.INITIALIZE,
+                        StepType.NETWORK_REQUEST,
+                        Marker(attempt = retryAttempt),
+                        contextType,
+                    )
 
                     connection.outputStream.bufferedWriter(Charsets.UTF_8)
                         .use { it.write(bodyString) }
@@ -266,18 +370,29 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
                         connection.errorStream
                     }
 
-                    var errorMarker = if (code >= HttpURLConnection.HTTP_BAD_REQUEST) {
-                        val errorMessage = inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
+                    val errorMarker = if (code >= HttpURLConnection.HTTP_BAD_REQUEST) {
+                        val errorMessage =
+                            inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
                         Marker.ErrorMessage(errorMessage, code.toString(), null)
                     } else {
                         null
                     }
 
-                    endDiagnostics(diagnostics, contextType, code, connection.headerFields["x-statsig-region"]?.get(0), retryAttempt, errorMarker)
+                    endDiagnostics(
+                        diagnostics,
+                        contextType,
+                        code,
+                        connection.headerFields["x-statsig-region"]?.get(0),
+                        retryAttempt,
+                        errorMarker,
+                    )
                     when (code) {
                         in 200..299 -> {
                             if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
-                                return@withContext gson.fromJson("{has_updates: false}", T::class.java)
+                                return@withContext gson.fromJson(
+                                    "{has_updates: false}",
+                                    T::class.java,
+                                )
                             }
                             val encoding = connection.getHeaderField("Content-Encoding")
 
@@ -289,6 +404,7 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
                             return@withContext stream.bufferedReader(Charsets.UTF_8)
                                 .use { gson.fromJson(it, T::class.java) }
                         }
+
                         in RETRY_CODES -> {
                             if (retries > 0 && retryAttempt++ < retries) {
                                 // Don't return, just allow the loop to happen
@@ -302,6 +418,7 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
                                 return@withContext null
                             }
                         }
+
                         else -> {
                             callback(code)
                             return@withContext null
@@ -321,13 +438,27 @@ private class StatsigNetworkImpl(private val sdkKey: String, private val errorBo
         }
     }
 
-    private fun endDiagnostics(diagnostics: Diagnostics?, diagnosticsContext: ContextType, statusCode: Int?, sdkRegion: String?, attempt: Int?, error: Marker.ErrorMessage? = null) {
+    private fun endDiagnostics(
+        diagnostics: Diagnostics?,
+        diagnosticsContext: ContextType,
+        statusCode: Int?,
+        sdkRegion: String?,
+        attempt: Int?,
+        error: Marker.ErrorMessage? = null,
+    ) {
         if (diagnostics == null) {
             return
         }
-        val marker = Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode, error = error)
+        val marker =
+            Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode, error = error)
         val wasSuccessful = statusCode in 200..299
 
-        diagnostics.markEnd(KeyType.INITIALIZE, wasSuccessful, StepType.NETWORK_REQUEST, marker, overrideContext = diagnosticsContext)
+        diagnostics.markEnd(
+            KeyType.INITIALIZE,
+            wasSuccessful,
+            StepType.NETWORK_REQUEST,
+            marker,
+            overrideContext = diagnosticsContext,
+        )
     }
 }

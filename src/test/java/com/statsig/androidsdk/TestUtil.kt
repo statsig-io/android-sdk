@@ -1,7 +1,10 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.Context
 import android.content.SharedPreferences
+import android.net.ConnectivityManager
+import android.net.NetworkInfo
 import com.google.gson.Gson
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -69,38 +72,45 @@ class TestUtil {
             }
             """.trimIndent()
             val gson = StatsigUtil.getGson()
+
             @Suppress("UNCHECKED_CAST")
-            return gson.fromJson(string, Map::class.java) as Map<String, Any>
+            return gson.fromJson(
+                string,
+                Map::class.java,
+            ) as Map<String, Any>
         }
 
         private val dummyFeatureGates = mapOf(
-            "always_on!" to
-                APIFeatureGate(
-                    "always_on!",
-                    true,
-                    "always_on_rule_id",
-                    "always_on_group",
-                    arrayOf(
-                        mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"),
-                        mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2"),
+            "always_on!" to APIFeatureGate(
+                "always_on!",
+                true,
+                "always_on_rule_id",
+                "always_on_group",
+                arrayOf(
+                    mapOf(
+                        "gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1",
+                    ),
+                    mapOf(
+                        "gate" to "dependent_gate_2",
+                        "gateValue" to "true",
+                        "ruleID" to "rule_id_2",
                     ),
                 ),
-            "always_off!" to
-                APIFeatureGate(
-                    "always_off!",
-                    false,
-                    "always_off_rule_id",
-                    "always_off_group",
-                    arrayOf(),
-                ),
-            "always_on_v2!" to
-                APIFeatureGate(
-                    "always_on_v2!",
-                    true,
-                    "always_on_v2_rule_id",
-                    "always_on_v2_group",
-                    arrayOf(),
-                ),
+            ),
+            "always_off!" to APIFeatureGate(
+                "always_off!",
+                false,
+                "always_off_rule_id",
+                "always_off_group",
+                arrayOf(),
+            ),
+            "always_on_v2!" to APIFeatureGate(
+                "always_on_v2!",
+                true,
+                "always_on_v2_rule_id",
+                "always_on_v2_group",
+                arrayOf(),
+            ),
         )
 
         private val dummyDynamicConfigs = mapOf(
@@ -109,7 +119,11 @@ class TestUtil {
                 mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                 "default",
                 null,
-                arrayOf(mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1")),
+                arrayOf(
+                    mapOf(
+                        "gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1",
+                    ),
+                ),
             ),
             "exp!" to APIDynamicConfig(
                 "exp!",
@@ -208,7 +222,12 @@ class TestUtil {
         }
 
         @JvmName("startStatsigAndWait")
-        internal fun startStatsigAndWait(app: Application, user: StatsigUser = StatsigUser("jkw"), options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
+        internal fun startStatsigAndWait(
+            app: Application,
+            user: StatsigUser = StatsigUser("jkw"),
+            options: StatsigOptions = StatsigOptions(),
+            network: StatsigNetwork? = null,
+        ) = runBlocking {
             val countdown = CountDownLatch(1)
             val callback = object : IStatsigCallback {
                 override fun onStatsigInitialize() {
@@ -229,7 +248,11 @@ class TestUtil {
         }
 
         @JvmName("startStatsigAndDontWait")
-        internal fun startStatsigAndDontWait(app: Application, user: StatsigUser, options: StatsigOptions) {
+        internal fun startStatsigAndDontWait(
+            app: Application,
+            user: StatsigUser,
+            options: StatsigOptions,
+        ) {
             Statsig.client = StatsigClient()
 
             val setupMethod = Statsig.client.javaClass.getDeclaredMethod(
@@ -243,7 +266,14 @@ class TestUtil {
             setupMethod.invoke(Statsig.client, app, "client-test", user, options)
         }
 
-        internal fun startStatsigClientAndWait(app: Application, client: StatsigClient, sdkKey: String, user: StatsigUser, options: StatsigOptions = StatsigOptions(), network: StatsigNetwork? = null) = runBlocking {
+        internal fun startStatsigClientAndWait(
+            app: Application,
+            client: StatsigClient,
+            sdkKey: String,
+            user: StatsigUser,
+            options: StatsigOptions = StatsigOptions(),
+            network: StatsigNetwork? = null,
+        ) = runBlocking {
             if (network != null) {
                 client.statsigNetwork = network
             }
@@ -301,7 +331,8 @@ class TestUtil {
             coEvery {
                 StatsigUtil.saveStringToSharedPrefs(any(), any(), any())
             } coAnswers {
-                firstArg<SharedPreferences>().edit().putString(secondArg<String>(), thirdArg<String>()).apply()
+                firstArg<SharedPreferences>().edit()
+                    .putString(secondArg<String>(), thirdArg<String>()).apply()
             }
 
             coEvery {
@@ -323,7 +354,9 @@ class TestUtil {
             }
 
             coEvery {
-                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
+                statsigNetwork.initialize(
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                )
             } answers {
                 throw IOException("Example exception in StatsigNetwork initialize")
             }
@@ -336,7 +369,9 @@ class TestUtil {
             coEvery {
                 statsigNetwork.apiPostLogs(any(), any())
             } answers {
-                onLog?.invoke(StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java))
+                onLog?.invoke(
+                    StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java),
+                )
                 throw IOException("Example exception in StatsigNetwork apiPostLogs")
             }
             return statsigNetwork
@@ -359,7 +394,9 @@ class TestUtil {
             } answers {}
 
             coEvery {
-                statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
+                statsigNetwork.initialize(
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                )
             } coAnswers {
                 captureUser?.invoke(secondArg())
                 makeInitializeResponse(featureGates, dynamicConfigs, layerConfigs, time, hasUpdates)
@@ -372,7 +409,9 @@ class TestUtil {
             coEvery {
                 statsigNetwork.apiPostLogs(any(), any())
             } answers {
-                onLog?.invoke(StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java))
+                onLog?.invoke(
+                    StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java),
+                )
             }
 
             return statsigNetwork
@@ -386,6 +425,25 @@ class TestUtil {
             every {
                 application.unregisterActivityLifecycleCallbacks(any())
             } returns Unit
+        }
+
+        internal fun mockNetworkConnectivityService(
+            application: Application,
+        ) {
+            val connectivityManager: ConnectivityManager = mockk()
+
+            val info: NetworkInfo = mockk()
+            every {
+                connectivityManager.activeNetworkInfo
+            } returns info
+
+            every {
+                info.isConnectedOrConnecting
+            } returns true
+
+            every {
+                application.getSystemService(Context.CONNECTIVITY_SERVICE)
+            } returns connectivityManager
         }
     }
 }
