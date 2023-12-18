@@ -89,14 +89,6 @@ class StatsigClient() {
                     }
                 }
             }
-        }, { e: Exception ->
-            withContext(dispatcherProvider.main) {
-                try {
-                    callback?.onStatsigInitialize(InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e)))
-                } catch (e: Exception) {
-                    throw ExternalException(e.message)
-                }
-            }
         })
     }
 
@@ -122,16 +114,11 @@ class StatsigClient() {
             return null
         }
         errorBoundary.setKey(sdkKey)
-        val start = System.currentTimeMillis()
-        return errorBoundary.captureAsync({
+        return errorBoundary.captureAsync {
             val normalizedUser = setup(application, sdkKey, user, options)
-            return@captureAsync setupAsync(normalizedUser)
-        }, { e: Exception ->
-            val duration = System.currentTimeMillis() - start
-            this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false, additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e.javaClass.name}: ${e.message}")))
-            logger.logDiagnostics()
-            InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e))
-        })
+            val response = setupAsync(normalizedUser)
+            return@captureAsync response
+        }
     }
 
     /**
@@ -833,11 +820,19 @@ class StatsigClient() {
     private fun populateStatsigMetadata() {
         statsigMetadata.overrideStableID(options.overrideStableID)
 
+        val stringID: Int? = application.applicationInfo?.labelRes
+        if (stringID != null) {
+            if (stringID == 0) {
+                application.applicationInfo.nonLocalizedLabel.toString()
+            } else {
+                application.getString(stringID)
+            }
+        }
+
         try {
             if (application.packageManager != null) {
                 val pInfo: PackageInfo = application.packageManager.getPackageInfo(application.packageName, 0)
                 statsigMetadata.appVersion = pInfo.versionName
-                statsigMetadata.appIdentifier = pInfo.packageName
             }
         } catch (e: PackageManager.NameNotFoundException) {
             // noop
