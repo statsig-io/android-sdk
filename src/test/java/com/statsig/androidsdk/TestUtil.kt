@@ -269,15 +269,16 @@ class TestUtil {
             every {
                 app.getSharedPreferences(any(), any())
             } returns sharedPrefs
+
             every {
                 app.applicationInfo
             } returns null
+
             every {
                 app.packageManager
             } returns null
-            every {
-                app.registerActivityLifecycleCallbacks(any())
-            } returns Unit
+
+            mockAppLifecycleCallbacks(app)
 
             return sharedPrefs
         }
@@ -375,6 +376,16 @@ class TestUtil {
             }
 
             return statsigNetwork
+        }
+
+        private fun mockAppLifecycleCallbacks(application: Application) {
+            every {
+                application.registerActivityLifecycleCallbacks(any())
+            } returns Unit
+
+            every {
+                application.unregisterActivityLifecycleCallbacks(any())
+            } returns Unit
         }
     }
 }

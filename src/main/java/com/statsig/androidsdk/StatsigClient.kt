@@ -1,12 +1,10 @@
 package com.statsig.androidsdk
 
-import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.os.Bundle
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
 
-class StatsigClient() {
+class StatsigClient() : LifecycleEventListener {
 
     private lateinit var store: Store
     private lateinit var user: StatsigUser
@@ -222,7 +220,10 @@ class StatsigClient() {
      * @return the Dynamic Config backing the experiment
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun getExperimentWithExposureLoggingDisabled(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
+    fun getExperimentWithExposureLoggingDisabled(
+        experimentName: String,
+        keepDeviceValue: Boolean = false,
+    ): DynamicConfig {
         val functionName = "getExperimentWithExposureLoggingDisabled"
         enforceInitialized(functionName)
         var exp: DynamicConfig? = null
@@ -261,7 +262,10 @@ class StatsigClient() {
      * @return the current layer values as a Layer object
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun getLayerWithExposureLoggingDisabled(layerName: String, keepDeviceValue: Boolean = false): Layer {
+    fun getLayerWithExposureLoggingDisabled(
+        layerName: String,
+        keepDeviceValue: Boolean = false,
+    ): Layer {
         val functionName = "getLayerWithExposureLoggingDisabled"
         enforceInitialized(functionName)
         var layer: Layer? = null
@@ -290,11 +294,11 @@ class StatsigClient() {
             event.user = user
 
             if (!options.disableCurrentActivityLogging) {
-                val className = lifecycleListener.currentActivity?.javaClass?.simpleName
-                if (className != null) {
-                    event.statsigMetadata = mapOf("currentPage" to className)
+                lifecycleListener.getCurrentActivity()?.let {
+                    event.statsigMetadata = mapOf("currentPage" to it.javaClass.simpleName)
                 }
             }
+
             statsigScope.launch {
                 logger.log(event)
             }
@@ -541,7 +545,11 @@ class StatsigClient() {
      * @param parameterName the specific parameter
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun manuallyLogLayerParameterExposure(layerName: String, parameterName: String, keepDeviceValue: Boolean) {
+    fun manuallyLogLayerParameterExposure(
+        layerName: String,
+        parameterName: String,
+        keepDeviceValue: Boolean,
+    ) {
         val functionName = "logManualLayerExposure"
         enforceInitialized(functionName)
         errorBoundary.capture({
@@ -580,7 +588,11 @@ class StatsigClient() {
             val initStartTime = System.currentTimeMillis()
             return@withContext errorBoundary.captureAsync({
                 if (this@StatsigClient.isBootstrapped.get()) {
-                    return@captureAsync InitializationDetails(System.currentTimeMillis() - initStartTime, true, null)
+                    return@captureAsync InitializationDetails(
+                        System.currentTimeMillis() - initStartTime,
+                        true,
+                        null,
+                    )
                 }
                 var success = false
                 if (this@StatsigClient.options.loadCacheAsync) {
@@ -609,7 +621,11 @@ class StatsigClient() {
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates && !options.initializeOffline) {
                     this@StatsigClient.diagnostics.markStart(KeyType.INITIALIZE, StepType.PROCESS)
                     this@StatsigClient.store.save(initResponse, user)
-                    this@StatsigClient.diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.PROCESS)
+                    this@StatsigClient.diagnostics.markEnd(
+                        KeyType.INITIALIZE,
+                        true,
+                        StepType.PROCESS,
+                    )
                     success = true
                 }
                 val duration = System.currentTimeMillis() - initStartTime
@@ -621,15 +637,39 @@ class StatsigClient() {
                     KeyType.OVERALL,
                     success,
                     additionalMarker =
-                    Marker(evaluationDetails = store.getGlobalEvaluationDetails(), error = if (initResponse is InitializeResponse.FailedInitializeResponse) Diagnostics.formatFailedResponse(initResponse) else null),
+                    Marker(
+                        evaluationDetails = store.getGlobalEvaluationDetails(),
+                        error = if (initResponse is InitializeResponse.FailedInitializeResponse) {
+                            Diagnostics.formatFailedResponse(
+                                initResponse,
+                            )
+                        } else {
+                            null
+                        },
+                    ),
                 )
                 logger.logDiagnostics()
-                InitializationDetails(duration, success, if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null)
+                InitializationDetails(
+                    duration,
+                    success,
+                    if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null,
+                )
             }, { e: Exception ->
                 val duration = System.currentTimeMillis() - initStartTime
-                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false, additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e.javaClass.name}: ${e.message}")))
+                this@StatsigClient.diagnostics.markEnd(
+                    KeyType.OVERALL,
+                    false,
+                    additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e.javaClass.name}: ${e.message}")),
+                )
                 logger.logDiagnostics()
-                InitializationDetails(duration, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, e))
+                InitializationDetails(
+                    duration,
+                    false,
+                    InitializeResponse.FailedInitializeResponse(
+                        InitializeFailReason.InternalError,
+                        e,
+                    ),
+                )
             })
         }
     }
@@ -663,8 +703,8 @@ class StatsigClient() {
         exceptionHandler = errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
 
-        lifecycleListener = StatsigActivityLifecycleListener()
-        application.registerActivityLifecycleCallbacks(lifecycleListener)
+        lifecycleListener = StatsigActivityLifecycleListener(application, this)
+
         logger = StatsigLogger(
             statsigScope,
             sdkKey,
@@ -728,7 +768,11 @@ class StatsigClient() {
         }
     }
 
-    internal fun logLayerParameterExposure(layer: Layer, parameterName: String, isManual: Boolean = false) {
+    internal fun logLayerParameterExposure(
+        layer: Layer,
+        parameterName: String,
+        isManual: Boolean = false,
+    ) {
         if (!isInitialized()) {
             return
         }
@@ -810,11 +854,12 @@ class StatsigClient() {
         }
         pollingJob?.cancel()
         val sinceTime = store.getLastUpdateTime(user)
-        pollingJob = statsigNetwork.pollForChanges(options.api, user, sinceTime, statsigMetadata).onEach {
-            if (it?.hasUpdates == true) {
-                store.save(it, user)
-            }
-        }.launchIn(statsigScope)
+        pollingJob =
+            statsigNetwork.pollForChanges(options.api, user, sinceTime, statsigMetadata).onEach {
+                if (it?.hasUpdates == true) {
+                    store.save(it, user)
+                }
+            }.launchIn(statsigScope)
     }
 
     private fun populateStatsigMetadata() {
@@ -831,7 +876,8 @@ class StatsigClient() {
 
         try {
             if (application.packageManager != null) {
-                val pInfo: PackageInfo = application.packageManager.getPackageInfo(application.packageName, 0)
+                val pInfo: PackageInfo =
+                    application.packageManager.getPackageInfo(application.packageName, 0)
                 statsigMetadata.appVersion = pInfo.versionName
             }
         } catch (e: PackageManager.NameNotFoundException) {
@@ -850,68 +896,22 @@ class StatsigClient() {
     private suspend fun shutdownImpl() {
         pollingJob?.cancel()
         logger.shutdown()
+        lifecycleListener.shutdown()
         initialized = AtomicBoolean()
         isBootstrapped = AtomicBoolean()
         errorBoundary = ErrorBoundary()
         statsigJob = SupervisorJob()
     }
 
-    private inner class StatsigActivityLifecycleListener : Application.ActivityLifecycleCallbacks {
-        var currentActivity: Activity? = null
-        private var resumed = 0
-        private var paused = 0
-        private var started = 0
-        private var stopped = 0
-
-        override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
-            currentActivity = activity
+    override fun onAppFocus() {
+        statsigScope.launch {
+            statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api)
         }
+    }
 
-        override fun onActivityStarted(activity: Activity) {
-            ++started
-            currentActivity = activity
-        }
-
-        override fun onActivityResumed(activity: Activity) {
-            currentActivity = activity
-            ++resumed
-            this@StatsigClient.statsigScope.launch {
-                this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api)
-            }
-        }
-
-        override fun onActivityPaused(activity: Activity) {
-            ++paused
-            if (!this.isApplicationInForeground()) { // app is entering background
-                this@StatsigClient.statsigScope.launch {
-                    logger.flush()
-                }
-            }
-        }
-
-        override fun onActivityStopped(activity: Activity) {
-            ++stopped
-            currentActivity = null
-            if (!this.isApplicationVisible()) {
-                this@StatsigClient.statsigScope.launch {
-                    logger.flush()
-                }
-            }
-        }
-
-        private fun isApplicationVisible(): Boolean {
-            return started > stopped
-        }
-
-        private fun isApplicationInForeground(): Boolean {
-            return resumed > paused
-        }
-
-        override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
-        }
-
-        override fun onActivityDestroyed(activity: Activity) {
-            currentActivity = null
+    override fun onAppBlur() {
+        statsigScope.launch {
+            logger.flush()
         }
     }
 }
