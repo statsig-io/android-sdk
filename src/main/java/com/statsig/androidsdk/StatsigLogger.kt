@@ -189,7 +189,6 @@ internal class StatsigLogger(
             return
         }
         val event = this.makeDiagnosticsEvent(diagnostics.diagnosticsContext, markers)
-
         coroutineScope.launch(singleThreadDispatcher) { log(event) }
         diagnostics.clearContext()
     }

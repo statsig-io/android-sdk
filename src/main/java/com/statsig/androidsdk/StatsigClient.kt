@@ -34,6 +34,7 @@ class StatsigClient() : LifecycleEventListener {
     private lateinit var exceptionHandler: CoroutineExceptionHandler
     private lateinit var statsigScope: CoroutineScope
     private lateinit var diagnostics: Diagnostics
+    private var initTime: Long = System.currentTimeMillis()
 
     internal var errorBoundary = ErrorBoundary()
 
@@ -77,6 +78,7 @@ class StatsigClient() : LifecycleEventListener {
             val normalizedUser = setup(application, sdkKey, user, options)
             statsigScope.launch {
                 val initDetails = setupAsync(normalizedUser)
+                initDetails.duration = System.currentTimeMillis() - initTime
                 // The scope's dispatcher may change in the future.
                 // This "withContext" will ensure that initialization is complete when the callback is invoked
                 withContext(dispatcherProvider.main) {
@@ -86,6 +88,14 @@ class StatsigClient() : LifecycleEventListener {
                         throw ExternalException(e.message)
                     }
                 }
+            }
+        }, recover = {
+            logEndDiagnosticsWhenException(it)
+            try {
+                val initDetails = InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
+                callback?.onStatsigInitialize(initDetails)
+            } catch (e: Exception) {
+                throw ExternalException(e.message)
             }
         })
     }
@@ -112,11 +122,18 @@ class StatsigClient() : LifecycleEventListener {
             return null
         }
         errorBoundary.setKey(sdkKey)
-        return errorBoundary.captureAsync {
-            val normalizedUser = setup(application, sdkKey, user, options)
-            val response = setupAsync(normalizedUser)
-            return@captureAsync response
-        }
+        return errorBoundary.captureAsync(
+            {
+                val normalizedUser = setup(application, sdkKey, user, options)
+                val response = setupAsync(normalizedUser)
+                response.duration = System.currentTimeMillis() - initTime
+                return@captureAsync response
+            },
+            {
+                logEndDiagnosticsWhenException(it)
+                InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
+            },
+        )
     }
 
     /**
@@ -585,11 +602,10 @@ class StatsigClient() : LifecycleEventListener {
     @VisibleForTesting
     internal suspend fun setupAsync(user: StatsigUser): InitializationDetails {
         return withContext(dispatcherProvider.io) {
-            val initStartTime = System.currentTimeMillis()
             return@withContext errorBoundary.captureAsync({
                 if (this@StatsigClient.isBootstrapped.get()) {
                     return@captureAsync InitializationDetails(
-                        System.currentTimeMillis() - initStartTime,
+                        0,
                         true,
                         null,
                     )
@@ -628,7 +644,6 @@ class StatsigClient() : LifecycleEventListener {
                     )
                     success = true
                 }
-                val duration = System.currentTimeMillis() - initStartTime
 
                 this@StatsigClient.pollForUpdates()
 
@@ -650,20 +665,14 @@ class StatsigClient() : LifecycleEventListener {
                 )
                 logger.logDiagnostics()
                 InitializationDetails(
-                    duration,
+                    0,
                     success,
                     if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null,
                 )
             }, { e: Exception ->
-                val duration = System.currentTimeMillis() - initStartTime
-                this@StatsigClient.diagnostics.markEnd(
-                    KeyType.OVERALL,
-                    false,
-                    additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e.javaClass.name}: ${e.message}")),
-                )
-                logger.logDiagnostics()
+                logEndDiagnosticsWhenException(e)
                 InitializationDetails(
-                    duration,
+                    0,
                     false,
                     InitializeResponse.FailedInitializeResponse(
                         InitializeFailReason.InternalError,
@@ -674,6 +683,7 @@ class StatsigClient() : LifecycleEventListener {
         }
     }
 
+    @VisibleForTesting
     private fun setup(
         application: Application,
         sdkKey: String,
@@ -683,6 +693,7 @@ class StatsigClient() : LifecycleEventListener {
         if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
             throw IllegalArgumentException("Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console")
         }
+        initTime = System.currentTimeMillis()
         this.diagnostics = Diagnostics(options.disableDiagnosticsLogging)
         diagnostics.markStart(KeyType.OVERALL)
         this.application = application
@@ -698,7 +709,6 @@ class StatsigClient() : LifecycleEventListener {
         statsigMetadata = StatsigMetadata()
         errorBoundary.setMetadata(statsigMetadata)
         errorBoundary.setDiagnostics(diagnostics)
-        populateStatsigMetadata()
 
         exceptionHandler = errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
@@ -715,6 +725,7 @@ class StatsigClient() : LifecycleEventListener {
             diagnostics,
         )
         store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey)
+        populateStatsigMetadata()
 
         if (options.overrideStableID == null) {
             val stableID = getLocalStorageStableID()
@@ -892,6 +903,20 @@ class StatsigClient() : LifecycleEventListener {
         isBootstrapped = AtomicBoolean()
         errorBoundary = ErrorBoundary()
         statsigJob = SupervisorJob()
+    }
+
+    private fun logEndDiagnosticsWhenException(e: Exception?) {
+        try {
+            if (this::diagnostics.isInitialized && this::logger.isInitialized) {
+                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false, additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e?.javaClass?.name}: ${e?.message}")))
+                this@StatsigClient.logger.logDiagnostics()
+                runBlocking {
+                    this@StatsigClient.logger.flush()
+                }
+            }
+        } catch (e: Exception) {
+            // no-op
+        }
     }
 
     override fun onAppFocus() {

@@ -59,7 +59,7 @@ internal class ErrorBoundary() {
         }
     }
 
-    fun capture(task: () -> Unit, tag: String? = null, recover: (() -> Unit)? = null, configName: String? = null) {
+    fun capture(task: () -> Unit, tag: String? = null, recover: ((exception: Exception?) -> Unit)? = null, configName: String? = null) {
         var markerID = ""
         try {
             markerID = startMarker(tag, configName) ?: ""
@@ -68,7 +68,7 @@ internal class ErrorBoundary() {
         } catch (e: Exception) {
             endMarker(tag, markerID, false, configName)
             handleException(e)
-            recover?.let { it() }
+            recover?.let { it(e) }
         }
     }
 

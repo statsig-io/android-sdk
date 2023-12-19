@@ -88,7 +88,9 @@ class TestUtil {
                 "always_on_group",
                 arrayOf(
                     mapOf(
-                        "gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1",
+                        "gate" to "dependent_gate",
+                        "gateValue" to "true",
+                        "ruleID" to "rule_id_1",
                     ),
                     mapOf(
                         "gate" to "dependent_gate_2",
@@ -121,7 +123,9 @@ class TestUtil {
                 null,
                 arrayOf(
                     mapOf(
-                        "gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1",
+                        "gate" to "dependent_gate",
+                        "gateValue" to "true",
+                        "ruleID" to "rule_id_1",
                     ),
                 ),
             ),
