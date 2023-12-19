@@ -647,7 +647,7 @@ class StatsigClient() : LifecycleEventListener {
 
                 this@StatsigClient.pollForUpdates()
 
-                this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api)
+                this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI)
                 this@StatsigClient.diagnostics.markEnd(
                     KeyType.OVERALL,
                     success,
@@ -718,7 +718,7 @@ class StatsigClient() : LifecycleEventListener {
         logger = StatsigLogger(
             statsigScope,
             sdkKey,
-            options.api,
+            options.eventLoggingAPI,
             statsigMetadata,
             statsigNetwork,
             normalizedUser,

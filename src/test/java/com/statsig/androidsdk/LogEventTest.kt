@@ -9,7 +9,6 @@ import io.mockk.spyk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
 import org.junit.After
-import org.junit.Before
 import org.junit.Test
 class LogEventTest {
     private lateinit var app: Application
@@ -19,8 +18,7 @@ class LogEventTest {
     private var logEventRequests = mutableListOf<LogEventData>()
     private lateinit var network: StatsigNetwork
 
-    @Before
-    internal fun setup() {
+    internal fun setup(options: StatsigOptions) {
         runBlocking {
             TestUtil.mockStatsigUtil()
             TestUtil.mockDispatchers()
@@ -32,7 +30,7 @@ class LogEventTest {
             network = TestUtil.mockNetwork(onLog = {
                 logEventRequests.add(it)
             })
-            TestUtil.startStatsigAndWait(app, StatsigUser(userID = "testUser"), StatsigOptions(disableDiagnosticsLogging = true), network)
+            TestUtil.startStatsigAndWait(app, StatsigUser(userID = "testUser"), options, network)
             val lifeCycleListenerField = StatsigClient::class.java.getDeclaredField("lifecycleListener")
             lifeCycleListenerField.isAccessible = true
             statsigLifecycleListener = lifeCycleListenerField.get(Statsig.client) as Application.ActivityLifecycleCallbacks
@@ -48,7 +46,7 @@ class LogEventTest {
     @Test
     fun testRetryOnAppForegrounded() {
         runBlocking {
-            Statsig.client.statsigNetwork = StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary)
+            setup(StatsigOptions(eventLoggingAPI = "https://fake.statsig.com/v1"))
             Statsig.logEvent("viewCartIcon")
             Statsig.logEvent("clickCartIcon")
             Statsig.logEvent("viewCart")
@@ -63,8 +61,40 @@ class LogEventTest {
             assert(logEventRequests[0].events[3].eventName == "viewCart")
             mockAppOnResume()
             Thread.sleep(500)
-            coVerify { network.apiRetryFailedLogs(any()) }
+            coVerify { network.apiRetryFailedLogs("https://fake.statsig.com/v1") }
         }
+    }
+
+    @Test
+    fun testOverrideLoggingApi() = runBlocking {
+        val apiPermutations = arrayOf(
+            arrayOf("https://initialize.fake.statsig.com/v1", "https://logevent.fake.statsig.com/v1"),
+            arrayOf("default", "default"),
+            arrayOf("https://initialize.fake.statsig.com/v1", "default"),
+            arrayOf("default", "https://lgevent.fake.statsig.com/v1"),
+        )
+        apiPermutations.forEach {
+            verifyAPI(it[0], it[1])
+        }
+    }
+
+    private fun verifyAPI(initializeApi: String, logEventAPI: String) = runBlocking {
+        val options = StatsigOptions()
+        var expectedInitializeAPI = "https://api.statsig.com/v1"
+        var expectedLogEventApi = "https://api.statsig.com/v1"
+        if (initializeApi != "default") {
+            options.api = initializeApi
+            expectedInitializeAPI = initializeApi
+        }
+        if (logEventAPI != "default") {
+            options.eventLoggingAPI = logEventAPI
+            expectedLogEventApi = logEventAPI
+        }
+        setup(options)
+        Statsig.logEvent("viewCartIcon")
+        Statsig.shutdown()
+        coVerify { network.initialize(expectedInitializeAPI, any(), any(), any(), any(), any(), any(), any(), any()) }
+        coVerify { network.apiPostLogs(expectedLogEventApi, any()) }
     }
 
     private fun mockAppOnPause() {

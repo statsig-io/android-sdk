@@ -9,6 +9,7 @@ enum class Tier {
 }
 
 private const val TIER_KEY: String = "tier"
+private const val DEFAULT_API = "https://api.statsig.com/v1"
 
 /**
  * An object of properties for initializing the sdk with advanced options
@@ -21,10 +22,18 @@ private const val TIER_KEY: String = "tier"
  */
 class StatsigOptions(
     /**
-     The endpoint to use for all SDK network requests. You should not need to override this
-     (unless you have another API that implements the Statsig API endpoints)
+     The endpoint to use for initialize statsig SDK. You should not need to override this
+     (unless you have another API that implements the Statsig Initialize API endpoints)
      */
-    @SerializedName("api") var api: String = "https://api.statsig.com/v1",
+    @SerializedName("api") var api: String = DEFAULT_API,
+
+    /**
+     The endpoint to use for logging events. Default is "https://api.statsig.com/v1".
+     The SDK will hit different endpoints for initialize
+     to evaluate gates and for logEvent to log event data. The api option controls the evaluation
+     endpoint, and eventLoggingApi controls the event logging endpoint.
+     */
+    @SerializedName("eventLoggingAPI") var eventLoggingAPI: String = DEFAULT_API,
     /**
      * By default, any custom event your application logs with Statsig.logEvent() includes the current
      * root View Controller. This is so we can generate user journey funnels for your users. You can
