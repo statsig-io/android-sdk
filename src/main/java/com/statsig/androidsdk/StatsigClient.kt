@@ -864,21 +864,12 @@ class StatsigClient() : LifecycleEventListener {
 
     private fun populateStatsigMetadata() {
         statsigMetadata.overrideStableID(options.overrideStableID)
-
-        val stringID: Int? = application.applicationInfo?.labelRes
-        if (stringID != null) {
-            if (stringID == 0) {
-                application.applicationInfo.nonLocalizedLabel.toString()
-            } else {
-                application.getString(stringID)
-            }
-        }
-
         try {
             if (application.packageManager != null) {
                 val pInfo: PackageInfo =
                     application.packageManager.getPackageInfo(application.packageName, 0)
                 statsigMetadata.appVersion = pInfo.versionName
+                statsigMetadata.appIdentifier = pInfo.packageName
             }
         } catch (e: PackageManager.NameNotFoundException) {
             // noop
