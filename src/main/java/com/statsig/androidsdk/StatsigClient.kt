@@ -91,11 +91,13 @@ class StatsigClient() : LifecycleEventListener {
             }
         }, recover = {
             logEndDiagnosticsWhenException(it)
-            try {
-                val initDetails = InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
-                callback?.onStatsigInitialize(initDetails)
-            } catch (e: Exception) {
-                throw ExternalException(e.message)
+            if (isInitialized()) {
+                try {
+                    val initDetails = InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
+                    callback?.onStatsigInitialize(initDetails)
+                } catch (e: Exception) {
+                    throw ExternalException(e.message)
+                }
             }
         })
     }
@@ -131,7 +133,11 @@ class StatsigClient() : LifecycleEventListener {
             },
             {
                 logEndDiagnosticsWhenException(it)
-                InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
+                if (isInitialized()) {
+                    return@captureAsync InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
+                } else {
+                    return@captureAsync null
+                }
             },
         )
     }
@@ -712,6 +718,8 @@ class StatsigClient() : LifecycleEventListener {
 
         exceptionHandler = errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
+        store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey)
+        this.initialized.set(true)
 
         lifecycleListener = StatsigActivityLifecycleListener(application, this)
 
@@ -724,7 +732,6 @@ class StatsigClient() : LifecycleEventListener {
             normalizedUser,
             diagnostics,
         )
-        store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey)
         populateStatsigMetadata()
 
         if (options.overrideStableID == null) {
@@ -741,7 +748,6 @@ class StatsigClient() : LifecycleEventListener {
             this@StatsigClient.isBootstrapped.set(true)
         }
 
-        this.initialized.set(true)
         return normalizedUser
     }
 
@@ -840,7 +846,7 @@ class StatsigClient() : LifecycleEventListener {
         return stableID
     }
 
-    internal fun isInitialized(): Boolean {
+    fun isInitialized(): Boolean {
         return this.initialized.get()
     }
 

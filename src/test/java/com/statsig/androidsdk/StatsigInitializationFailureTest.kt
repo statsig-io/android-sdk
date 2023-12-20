@@ -29,7 +29,7 @@ class StatsigInitializationFailureTest {
 
     @Before
     internal fun setup() {
-        client = StatsigClient()
+        client = spyk(StatsigClient(), recordPrivateCalls = true)
         client.errorBoundary = spyk(client.errorBoundary)
         eb = client.errorBoundary
         network = TestUtil.mockNetwork {
@@ -78,6 +78,7 @@ class StatsigInitializationFailureTest {
         val markers = Gson().fromJson(logEventRequests[0].events[0].metadata?.get("markers") ?: "", Array<Marker>::class.java)
         assert(markers.size === 2)
         assert(markers[1].success === false)
+        assert(client.isInitialized())
     }
 
     @Test
@@ -98,6 +99,7 @@ class StatsigInitializationFailureTest {
         verify {
             eb.logException(any())
         }
+        assert(client.isInitialized())
     }
 
     @Test
@@ -124,6 +126,7 @@ class StatsigInitializationFailureTest {
         assert(markers.size === 2)
         assert(markers[1].success === false)
         assert(markers[1].key === KeyType.OVERALL)
+        assert(client.isInitialized())
     }
 
     @Test
@@ -147,6 +150,7 @@ class StatsigInitializationFailureTest {
         val markers = Gson().fromJson(logEventRequests[0].events[0].metadata?.get("markers") ?: "", Array<Marker>::class.java)
         assert(markers.size === 2)
         assert(markers[1].success === false)
+        assert(client.isInitialized())
     }
 
     @Test
@@ -167,5 +171,27 @@ class StatsigInitializationFailureTest {
         verify {
             eb.logException(any())
         }
+        assert(client.isInitialized())
+    }
+
+    @Test
+    fun testInitializeEarlyFailure() = runBlocking {
+        every { client["setup"](allAny<Application>(), allAny<String>(), allAny<StatsigUser>(), allAny<StatsigOptions>()) } answers {
+            throw Exception("Unsuccessful setup")
+        }
+        initDetails = client.initialize(app, "client-key", StatsigUser("test_user"))
+        assert(initDetails == null)
+        assert(client.isInitialized() === false)
+    }
+
+    @Test
+    fun testInitializeAsyncEarlyFailure() = runBlocking {
+        every { client["setup"](allAny<Application>(), allAny<String>(), allAny<StatsigUser>(), allAny<StatsigOptions>()) } answers {
+            throw Exception("Unsuccessful setup")
+        }
+        client.initializeAsync(app, "client-key", StatsigUser("test_user"), callback)
+        countdown.await(3, TimeUnit.SECONDS)
+        assert(initDetails == null)
+        assert(client.isInitialized() === false)
     }
 }

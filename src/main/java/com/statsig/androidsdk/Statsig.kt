@@ -321,6 +321,16 @@ object Statsig {
     }
 
     /**
+     * @return If SDK is initialized, initialized is set to true when SDK basic functionality is setup,
+     * and become usable. SDK use the same function to enforce initialize for other functions.
+     * isInitialized is different from have a response from network
+     */
+    @JvmStatic
+    fun isInitialized(): Boolean {
+        return client.isInitialized()
+    }
+
+    /**
      * @return the current Statsig stableID
      */
     @JvmStatic
