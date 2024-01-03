@@ -623,16 +623,11 @@ class StatsigClient() : LifecycleEventListener {
                         null,
                     )
                 }
-                var success = false
                 if (this@StatsigClient.options.loadCacheAsync) {
                     this@StatsigClient.store.syncLoadFromLocalStorage()
                 }
                 val initResponse = if (this@StatsigClient.options.initializeOffline) {
-                    val cacheResponse = store.getCachedInitializationResponse()
-                    if (cacheResponse != null) {
-                        success = true
-                    }
-                    cacheResponse
+                    store.getCachedInitializationResponse()
                 } else {
                     statsigNetwork.initialize(
                         this@StatsigClient.options.api,
@@ -655,12 +650,12 @@ class StatsigClient() : LifecycleEventListener {
                         true,
                         StepType.PROCESS,
                     )
-                    success = true
                 }
 
                 this@StatsigClient.pollForUpdates()
 
                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI)
+                val success = initResponse is InitializeResponse.SuccessfulInitializeResponse
                 this@StatsigClient.diagnostics.markEnd(
                     KeyType.OVERALL,
                     success,
