@@ -610,6 +610,13 @@ class StatsigClient() : LifecycleEventListener {
         return withContext(dispatcherProvider.io) {
             return@withContext errorBoundary.captureAsync({
                 if (this@StatsigClient.isBootstrapped.get()) {
+                    val evalDetails = store.getGlobalEvaluationDetails()
+                    this@StatsigClient.diagnostics.markEnd(
+                        KeyType.OVERALL,
+                        evalDetails.reason === EvaluationReason.Bootstrap,
+                        additionalMarker = Marker(evaluationDetails = evalDetails),
+                    )
+                    logger.logDiagnostics()
                     return@captureAsync InitializationDetails(
                         0,
                         true,
