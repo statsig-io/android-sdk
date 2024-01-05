@@ -97,6 +97,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 StatsigMetadata(),
                 999,
                 app.getSharedPreferences("SHARED_PREFERENCES_KEY", Context.MODE_PRIVATE),
+                ContextType.INITIALIZE,
                 null,
                 HashAlgorithm.NONE,
                 mapOf(),

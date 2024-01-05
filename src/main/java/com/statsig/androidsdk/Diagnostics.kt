@@ -12,13 +12,10 @@ internal class Diagnostics(private var isDisabled: Boolean) {
     var diagnosticsContext: ContextType = ContextType.INITIALIZE
     private var defaultMaxMarkers: Int = 30
 
-    private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.API_CALL to this.defaultMaxMarkers, ContextType.EVENT_LOGGING to 0, ContextType.CONFIG_SYNC to 0)
+    private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.API_CALL to this.defaultMaxMarkers, ContextType.EVENT_LOGGING to 0, ContextType.CONFIG_SYNC to 0, ContextType.UPDATE_USER to this.defaultMaxMarkers)
 
     private var markers: DiagnosticsMarkers = mutableMapOf()
 
-    fun getIsDisabled(): Boolean {
-        return this.isDisabled
-    }
     fun getMarkers(context: ContextType? = null): List<Marker> {
         return this.markers[context ?: this.diagnosticsContext] ?: listOf()
     }
@@ -46,7 +43,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
         }
         val marker = Marker(key = key, action = ActionType.START, timestamp = System.nanoTime() / NANO_IN_MS, step = step)
         when (context) {
-            ContextType.INITIALIZE -> {
+            ContextType.INITIALIZE, ContextType.UPDATE_USER -> {
                 if (key == KeyType.INITIALIZE && step == StepType.NETWORK_REQUEST) {
                     marker.attempt = additionalMarker?.attempt
                 }
@@ -57,7 +54,8 @@ internal class Diagnostics(private var isDisabled: Boolean) {
 
             else -> return false
         }
-        return this.addMarker(marker, overrideContext)
+
+        return this.addMarker(marker, context)
     }
 
     fun markEnd(key: KeyType, success: Boolean, step: StepType? = null, additionalMarker: Marker? = null, overrideContext: ContextType? = null): Boolean {
@@ -70,7 +68,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
         }
         val marker = Marker(key = key, action = ActionType.END, timestamp = System.nanoTime() / NANO_IN_MS, success = success, step = step)
         when (context) {
-            ContextType.INITIALIZE -> {
+            ContextType.INITIALIZE, ContextType.UPDATE_USER -> {
                 marker.evaluationDetails = additionalMarker?.evaluationDetails
                 marker.attempt = additionalMarker?.attempt
                 marker.sdkRegion = additionalMarker?.sdkRegion
@@ -85,7 +83,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
 
             else -> return false
         }
-        return this.addMarker(marker, overrideContext)
+        return this.addMarker(marker, context)
     }
 
     private fun getMaxMarkers(context: ContextType): Int {

@@ -43,6 +43,9 @@ enum class ContextType {
 
     @SerializedName("event_logging")
     EVENT_LOGGING,
+
+    @SerializedName("update_user")
+    UPDATE_USER,
 }
 
 enum class KeyType {

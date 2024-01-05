@@ -68,6 +68,7 @@ internal interface StatsigNetwork {
         metadata: StatsigMetadata,
         initTimeoutMs: Long,
         sharedPrefs: SharedPreferences,
+        context: ContextType,
         diagnostics: Diagnostics? = null,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
@@ -111,6 +112,7 @@ private class StatsigNetworkImpl(
         metadata: StatsigMetadata,
         initTimeoutMs: Long,
         sharedPrefs: SharedPreferences,
+        contextType: ContextType,
         diagnostics: Diagnostics?,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
@@ -122,6 +124,7 @@ private class StatsigNetworkImpl(
                 user,
                 sinceTime,
                 metadata,
+                contextType,
                 diagnostics,
                 hashUsed = hashUsed,
                 previousDerivedFields = previousDerivedFields,
@@ -133,6 +136,7 @@ private class StatsigNetworkImpl(
                 user,
                 sinceTime,
                 metadata,
+                contextType,
                 diagnostics,
                 initTimeoutMs.toInt(),
                 hashUsed = hashUsed,
@@ -146,6 +150,7 @@ private class StatsigNetworkImpl(
         user: StatsigUser?,
         sinceTime: Long?,
         metadata: StatsigMetadata,
+        contextType: ContextType,
         diagnostics: Diagnostics?,
         timeoutMs: Int? = null,
         hashUsed: HashAlgorithm,
@@ -168,7 +173,7 @@ private class StatsigNetworkImpl(
                 INITIALIZE_ENDPOINT,
                 gson.toJson(body),
                 retries,
-                ContextType.INITIALIZE,
+                contextType,
                 diagnostics,
                 timeoutMs,
             ) { status: Int? -> statusCode = status }
@@ -184,7 +189,8 @@ private class StatsigNetworkImpl(
 
             this.endDiagnostics(
                 diagnostics,
-                ContextType.INITIALIZE,
+                contextType,
+                KeyType.INITIALIZE,
                 null,
                 null,
                 1,
@@ -381,6 +387,7 @@ private class StatsigNetworkImpl(
                     endDiagnostics(
                         diagnostics,
                         contextType,
+                        KeyType.INITIALIZE,
                         code,
                         connection.headerFields["x-statsig-region"]?.get(0),
                         retryAttempt,
@@ -441,6 +448,7 @@ private class StatsigNetworkImpl(
     private fun endDiagnostics(
         diagnostics: Diagnostics?,
         diagnosticsContext: ContextType,
+        keyType: KeyType,
         statusCode: Int?,
         sdkRegion: String?,
         attempt: Int?,
@@ -454,7 +462,7 @@ private class StatsigNetworkImpl(
         val wasSuccessful = statusCode in 200..299
 
         diagnostics.markEnd(
-            KeyType.INITIALIZE,
+            keyType,
             wasSuccessful,
             StepType.NETWORK_REQUEST,
             marker,

@@ -90,7 +90,7 @@ class StatsigClient() : LifecycleEventListener {
                 }
             }
         }, recover = {
-            logEndDiagnosticsWhenException(it)
+            logEndDiagnosticsWhenException(ContextType.INITIALIZE, it)
             if (isInitialized()) {
                 try {
                     val initDetails = InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
@@ -132,7 +132,7 @@ class StatsigClient() : LifecycleEventListener {
                 return@captureAsync response
             },
             {
-                logEndDiagnosticsWhenException(it)
+                logEndDiagnosticsWhenException(ContextType.INITIALIZE, it)
                 if (isInitialized()) {
                     return@captureAsync InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
                 } else {
@@ -636,6 +636,7 @@ class StatsigClient() : LifecycleEventListener {
                         this@StatsigClient.statsigMetadata,
                         this@StatsigClient.options.initTimeoutMs,
                         this@StatsigClient.getSharedPrefs(),
+                        ContextType.INITIALIZE,
                         this@StatsigClient.diagnostics,
                         if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
                         this@StatsigClient.store.getPreviousDerivedFields(this@StatsigClient.user),
@@ -656,29 +657,14 @@ class StatsigClient() : LifecycleEventListener {
 
                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI)
                 val success = initResponse is InitializeResponse.SuccessfulInitializeResponse
-                this@StatsigClient.diagnostics.markEnd(
-                    KeyType.OVERALL,
-                    success,
-                    additionalMarker =
-                    Marker(
-                        evaluationDetails = store.getGlobalEvaluationDetails(),
-                        error = if (initResponse is InitializeResponse.FailedInitializeResponse) {
-                            Diagnostics.formatFailedResponse(
-                                initResponse,
-                            )
-                        } else {
-                            null
-                        },
-                    ),
-                )
-                logger.logDiagnostics()
+                logEndDiagnostics(success, ContextType.INITIALIZE, initResponse)
                 InitializationDetails(
                     0,
                     success,
                     if (initResponse is InitializeResponse.FailedInitializeResponse) initResponse else null,
                 )
             }, { e: Exception ->
-                logEndDiagnosticsWhenException(e)
+                logEndDiagnosticsWhenException(ContextType.INITIALIZE, e)
                 InitializationDetails(
                     0,
                     false,
@@ -765,25 +751,44 @@ class StatsigClient() : LifecycleEventListener {
 
     private suspend fun updateUserImpl() {
         withContext(dispatcherProvider.io) {
-            errorBoundary.captureAsync {
-                val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
-                val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
-
-                val initResponse = statsigNetwork.initialize(
-                    options.api,
-                    this@StatsigClient.user,
-                    sinceTime,
-                    statsigMetadata,
-                    options.initTimeoutMs,
-                    getSharedPrefs(),
-                    hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
-                    previousDerivedFields = previousDerivedFields,
-                )
-                if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
-                    store.save(initResponse, this@StatsigClient.user)
-                }
-                pollForUpdates()
-            }
+            errorBoundary.captureAsync(
+                {
+                    diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
+                    val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
+                    val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
+                    val initResponse = statsigNetwork.initialize(
+                        options.api,
+                        this@StatsigClient.user,
+                        sinceTime,
+                        statsigMetadata,
+                        options.initTimeoutMs,
+                        getSharedPrefs(),
+                        ContextType.UPDATE_USER,
+                        diagnostics = this@StatsigClient.diagnostics,
+                        hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
+                        previousDerivedFields = previousDerivedFields,
+                    )
+                    if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
+                        diagnostics.markStart(
+                            KeyType.INITIALIZE,
+                            StepType.PROCESS,
+                            overrideContext = ContextType.UPDATE_USER,
+                        )
+                        store.save(initResponse, this@StatsigClient.user)
+                        diagnostics.markEnd(
+                            KeyType.INITIALIZE,
+                            true,
+                            StepType.PROCESS,
+                            overrideContext = ContextType.UPDATE_USER,
+                        )
+                    }
+                    pollForUpdates()
+                    logEndDiagnostics(initResponse is InitializeResponse.SuccessfulInitializeResponse, ContextType.UPDATE_USER, initResponse)
+                },
+                {
+                    logEndDiagnosticsWhenException(ContextType.UPDATE_USER, it)
+                },
+            )
         }
     }
 
@@ -913,11 +918,31 @@ class StatsigClient() : LifecycleEventListener {
         statsigJob = SupervisorJob()
     }
 
-    private fun logEndDiagnosticsWhenException(e: Exception?) {
+    private fun logEndDiagnostics(success: Boolean, context: ContextType, initResponse: InitializeResponse?) {
+        this@StatsigClient.diagnostics.markEnd(
+            KeyType.OVERALL,
+            success,
+            additionalMarker =
+            Marker(
+                evaluationDetails = store.getGlobalEvaluationDetails(),
+                error = if (initResponse is InitializeResponse.FailedInitializeResponse) {
+                    Diagnostics.formatFailedResponse(
+                        initResponse,
+                    )
+                } else {
+                    null
+                },
+            ),
+            overrideContext = context,
+        )
+        logger.logDiagnostics(context)
+    }
+
+    private fun logEndDiagnosticsWhenException(context: ContextType, e: Exception?) {
         try {
             if (this::diagnostics.isInitialized && this::logger.isInitialized) {
-                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false, additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e?.javaClass?.name}: ${e?.message}")))
-                this@StatsigClient.logger.logDiagnostics()
+                this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false, additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e?.javaClass?.name}: ${e?.message}")), overrideContext = context)
+                this@StatsigClient.logger.logDiagnostics(context)
                 runBlocking {
                     this@StatsigClient.logger.flush()
                 }

@@ -183,12 +183,13 @@ internal class StatsigLogger(
     /*
      * Diagnostics
      * */
-    fun logDiagnostics() {
-        val markers = diagnostics.getMarkers()
+    fun logDiagnostics(overrideContext: ContextType? = null) {
+        val context = overrideContext ?: diagnostics.diagnosticsContext
+        val markers = diagnostics.getMarkers(context)
         if (markers.isEmpty()) {
             return
         }
-        val event = this.makeDiagnosticsEvent(diagnostics.diagnosticsContext, markers)
+        val event = this.makeDiagnosticsEvent(context, markers)
         coroutineScope.launch(singleThreadDispatcher) { log(event) }
         diagnostics.clearContext()
     }
