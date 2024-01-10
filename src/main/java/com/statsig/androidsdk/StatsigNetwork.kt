@@ -458,7 +458,7 @@ private class StatsigNetworkImpl(
             return
         }
         val marker =
-            Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode, error = error)
+            Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode, error = error, hasNetwork = connectivityListener.isNetworkAvailable())
         val wasSuccessful = statusCode in 200..299
 
         diagnostics.markEnd(

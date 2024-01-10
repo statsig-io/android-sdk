@@ -83,6 +83,9 @@ internal class Diagnostics(private var isDisabled: Boolean) {
 
             else -> return false
         }
+        if (step == StepType.NETWORK_REQUEST) {
+            marker.hasNetwork = additionalMarker?.hasNetwork
+        }
         return this.addMarker(marker, context)
     }
 

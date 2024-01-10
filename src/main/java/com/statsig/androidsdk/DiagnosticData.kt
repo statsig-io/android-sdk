@@ -23,6 +23,7 @@ data class Marker(
     @SerializedName("configName") var configName: String? = null,
     @SerializedName("evaluationDetails") var evaluationDetails: EvaluationDetails? = null,
     @SerializedName("error") var error: ErrorMessage? = null,
+    @SerializedName("hasNetwork") var hasNetwork: Boolean? = null,
 ) {
     data class ErrorMessage(
         @SerializedName("message") val message: String? = null,
