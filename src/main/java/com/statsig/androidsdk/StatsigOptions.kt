@@ -51,7 +51,7 @@ class StatsigOptions(
      * network request completes
      * if you always want to wait for the latest values fetched from Statsig server, you should set this to 0 so we do not timeout the network request.
      */
-    @SerializedName("initTimeoutMs") var initTimeoutMs: Long = 3000L,
+    @SerializedName("initTimeoutMs") var initTimeoutMs: Long = 5000L,
     /**
      * By default, feature values for a user are fetched once during Statsig.start and don't change
      * throughout the session. Setting this value to true will make Statsig periodically fetch updated
