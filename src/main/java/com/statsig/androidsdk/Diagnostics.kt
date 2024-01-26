@@ -1,5 +1,7 @@
 package com.statsig.androidsdk
 
+import java.util.Collections
+
 const val NANO_IN_MS = 1_000_000.0
 internal class Diagnostics(private var isDisabled: Boolean) {
     companion object {
@@ -14,10 +16,12 @@ internal class Diagnostics(private var isDisabled: Boolean) {
 
     private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.API_CALL to this.defaultMaxMarkers, ContextType.EVENT_LOGGING to 0, ContextType.CONFIG_SYNC to 0, ContextType.UPDATE_USER to this.defaultMaxMarkers)
 
-    private var markers: DiagnosticsMarkers = mutableMapOf()
+    private var markers: DiagnosticsMarkers = Collections.synchronizedMap(mutableMapOf())
 
     fun getMarkers(context: ContextType? = null): List<Marker> {
-        return this.markers[context ?: this.diagnosticsContext] ?: listOf()
+        return this.markers[context ?: this.diagnosticsContext] ?: Collections.synchronizedList(
+            mutableListOf(),
+        )
     }
 
     fun setMaxMarkers(context: ContextType, maxMarkers: Int) {
@@ -25,7 +29,9 @@ internal class Diagnostics(private var isDisabled: Boolean) {
     }
 
     fun clearContext(context: ContextType? = null) {
-        this.markers[context ?: this.diagnosticsContext] = mutableListOf()
+        this.markers[context ?: this.diagnosticsContext] = Collections.synchronizedList(
+            mutableListOf(),
+        )
     }
 
     fun clearAllContext() {
@@ -99,7 +105,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
             return false
         }
         if (this.markers[context] == null) {
-            this.markers[context] = mutableListOf()
+            this.markers[context] = Collections.synchronizedList(mutableListOf())
         }
         this.markers[context]?.add(marker)
         this.markers.values
