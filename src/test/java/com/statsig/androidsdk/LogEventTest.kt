@@ -94,13 +94,13 @@ class LogEventTest {
         Statsig.logEvent("viewCartIcon")
         Statsig.shutdown()
         coVerify { network.initialize(expectedInitializeAPI, any(), any(), any(), any(), any(), any(), any(), any(), any()) }
-        coVerify { network.apiPostLogs(expectedLogEventApi, any()) }
+        coVerify { network.apiPostLogs(expectedLogEventApi, any(), any()) }
     }
 
     private fun mockAppOnPause() {
         val network = spyk(StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary))
         coEvery {
-            network.apiPostLogs(any(), any())
+            network.apiPostLogs(any(), any(), any())
         } answers {
             logEventRequests.add(StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java))
             callOriginal()

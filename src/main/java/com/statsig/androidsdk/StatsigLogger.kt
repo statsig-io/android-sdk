@@ -68,9 +68,10 @@ internal class StatsigLogger(
             if (events.size == 0) {
                 return@withContext
             }
+            val eventsCount = events.size.toString()
             val flushEvents = ArrayList(events)
             events = ConcurrentLinkedQueue()
-            statsigNetwork.apiPostLogs(api, gson.toJson(LogEventData(flushEvents, statsigMetadata)))
+            statsigNetwork.apiPostLogs(api, gson.toJson(LogEventData(flushEvents, statsigMetadata)), eventsCount)
         }
     }
 

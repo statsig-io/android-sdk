@@ -56,6 +56,7 @@ private const val STATSIG_API_HEADER_KEY = "STATSIG-API-KEY"
 private const val STATSIG_CLIENT_TIME_HEADER_KEY = "STATSIG-CLIENT-TIME"
 private const val STATSIG_SDK_TYPE_KEY = "STATSIG-SDK-TYPE"
 private const val STATSIG_SDK_VERSION_KEY = "STATSIG-SDK-VERSION"
+private const val STATSIG_EVENT_COUNT = "STATSIG-EVENT-COUNT"
 private const val ACCEPT_HEADER_KEY = "Accept"
 private const val ACCEPT_HEADER_VALUE = "application/json"
 
@@ -81,7 +82,7 @@ internal interface StatsigNetwork {
         metadata: StatsigMetadata,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
 
-    suspend fun apiPostLogs(api: String, bodyString: String)
+    suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String? = null)
 
     suspend fun apiRetryFailedLogs(api: String)
 
@@ -256,7 +257,7 @@ private class StatsigNetworkImpl(
         }
     }
 
-    override suspend fun apiPostLogs(api: String, bodyString: String) {
+    override suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String?) {
         try {
             postRequest<LogEventResponse>(
                 api,
@@ -264,6 +265,7 @@ private class StatsigNetworkImpl(
                 bodyString,
                 3,
                 ContextType.EVENT_LOGGING,
+                eventsCount = eventsCount,
             )
         } catch (_: Exception) {
         }
@@ -275,7 +277,8 @@ private class StatsigNetworkImpl(
             return
         }
         StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
-        savedLogs.map { apiPostLogs(api, it.requestBody) }
+        val eventsCount = savedLogs.size.toString()
+        savedLogs.map { apiPostLogs(api, it.requestBody, eventsCount) }
     }
 
     override suspend fun addFailedLogRequest(requestBody: String) {
@@ -326,6 +329,7 @@ private class StatsigNetworkImpl(
         contextType: ContextType,
         diagnostics: Diagnostics? = null,
         timeout: Int? = null,
+        eventsCount: String? = null,
         crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> },
     ): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
@@ -357,6 +361,7 @@ private class StatsigNetworkImpl(
                         STATSIG_CLIENT_TIME_HEADER_KEY,
                         System.currentTimeMillis().toString(),
                     )
+                    connection.setRequestProperty(STATSIG_EVENT_COUNT, eventsCount)
                     connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
                     connection.setRequestProperty("Accept-Encoding", "gzip")
 

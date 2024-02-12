@@ -117,7 +117,7 @@ class StatsigOfflineInitializationTest {
         } coAnswers {}
 
         coEvery {
-            statsigNetwork.apiPostLogs(any(), any())
+            statsigNetwork.apiPostLogs(any(), any(), any())
         } answers {
             logs.add(gson.fromJson(secondArg<String>(), LogEventData::class.java))
         }

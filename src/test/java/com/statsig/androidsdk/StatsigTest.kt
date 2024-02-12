@@ -39,7 +39,7 @@ class StatsigTest {
         })
 
         coEvery {
-            network.apiPostLogs(any(), any())
+            network.apiPostLogs(any(), any(), any())
         } answers {
             flushedLogs = secondArg()
         }

@@ -291,7 +291,7 @@ class TestUtil {
         @JvmName("captureLogs")
         internal fun captureLogs(network: StatsigNetwork, onLog: ((LogEventData) -> Unit)? = null) {
             coEvery {
-                network.apiPostLogs(any(), any())
+                network.apiPostLogs(any(), any(), any())
             } answers {
                 onLog?.invoke(Gson().fromJson(secondArg<String>(), LogEventData::class.java))
             }
@@ -371,7 +371,7 @@ class TestUtil {
             } answers {}
 
             coEvery {
-                statsigNetwork.apiPostLogs(any(), any())
+                statsigNetwork.apiPostLogs(any(), any(), any())
             } answers {
                 onLog?.invoke(
                     StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java),
@@ -411,7 +411,7 @@ class TestUtil {
             } coAnswers {}
 
             coEvery {
-                statsigNetwork.apiPostLogs(any(), any())
+                statsigNetwork.apiPostLogs(any(), any(), any())
             } answers {
                 onLog?.invoke(
                     StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java),
