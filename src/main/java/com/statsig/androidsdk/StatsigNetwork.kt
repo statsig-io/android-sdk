@@ -434,6 +434,9 @@ private class StatsigNetworkImpl(
                         }
 
                         else -> {
+                            if (endpoint == LOGGING_ENDPOINT) {
+                                addFailedLogRequest(bodyString)
+                            }
                             callback(code)
                             return@withContext null
                         }
