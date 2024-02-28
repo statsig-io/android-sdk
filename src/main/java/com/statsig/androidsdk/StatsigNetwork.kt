@@ -42,7 +42,7 @@ private const val HASH = "hash"
 private const val PREVIOUS_DERIVED_FIELDS = "previousDerivedFields"
 
 // SharedPref keys
-private const val OFFLINE_LOGS_KEY: String = "StatsigNetwork.OFFLINE_LOGS"
+private const val OFFLINE_LOGS_KEY_V1: String = "StatsigNetwork.OFFLINE_LOGS"
 
 // Endpoints
 private const val LOGGING_ENDPOINT: String = "log_event"
@@ -105,7 +105,7 @@ private class StatsigNetworkImpl(
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var sharedPrefs: SharedPreferences? = null
     private val connectivityListener = StatsigNetworkConnectivityListener(context)
-
+    private val offlineLogsKeyV2 = "$OFFLINE_LOGS_KEY_V1:$sdkKey"
     override suspend fun initialize(
         api: String,
         user: StatsigUser?,
@@ -276,7 +276,9 @@ private class StatsigNetworkImpl(
         if (savedLogs.isEmpty()) {
             return
         }
-        StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
+        StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY_V1)
+        StatsigUtil.removeFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
+
         val eventsCount = savedLogs.size.toString()
         savedLogs.map { apiPostLogs(api, it.requestBody, eventsCount) }
     }
@@ -289,20 +291,20 @@ private class StatsigNetworkImpl(
                 // savedLogs wont be concurrently modified as it is read from storage and only used here
                 StatsigUtil.saveStringToSharedPrefs(
                     sharedPrefs,
-                    OFFLINE_LOGS_KEY,
+                    offlineLogsKeyV2,
                     gson.toJson(StatsigPendingRequests(savedLogs)),
                 )
             } catch (_: Exception) {
-                StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
+                StatsigUtil.removeFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
             }
         }
     }
 
     private suspend fun getSavedLogs(): List<StatsigOfflineRequest> {
         return withContext(dispatcherProvider.io) {
-            val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY)
+            val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
+                ?: StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY_V1)
                 ?: return@withContext arrayListOf()
-
             return@withContext try {
                 val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
                 if (pendingRequests?.requests == null) {
