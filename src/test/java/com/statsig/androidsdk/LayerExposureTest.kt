@@ -274,7 +274,10 @@ class LayerExposureTest {
         layer.getInt("an_int", 0)
         Statsig.shutdown()
 
-        assertNull(logs)
+        val logs = logs!!
+
+        assertEquals(1, logs.events.count())
+        assertEquals("statsig::non_exposed_checks", logs.events[0].eventName)
     }
 
     @Test
@@ -299,7 +302,7 @@ class LayerExposureTest {
         Statsig.shutdown()
 
         val logs = logs!!
-        assertEquals(1, logs.events.count())
+        assertEquals(2, logs.events.count())
 
         assertEquals(
             Gson().toJson(mapOf("userID" to "dloomb", "email" to "daniel@loomb.net")),
@@ -307,6 +310,7 @@ class LayerExposureTest {
         )
         assertEquals("statsig::layer_exposure", logs.events[0].eventName)
         assertEquals("true", logs.events[0].metadata!!["isManualExposure"])
+        assertEquals("statsig::non_exposed_checks", logs.events[1].eventName)
     }
 
     private fun start(layers: Map<String, APIDynamicConfig>, user: StatsigUser = StatsigUser(userID = "jkw")) {

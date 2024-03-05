@@ -18,6 +18,7 @@ internal const val CONFIG_EXPOSURE = "statsig::config_exposure"
 internal const val LAYER_EXPOSURE = "statsig::layer_exposure"
 internal const val GATE_EXPOSURE = "statsig::gate_exposure"
 internal const val DIAGNOSTICS_EVENT = "statsig::diagnostics"
+internal const val NON_EXPOSED_CHECKS_EVENT = "statsig::non_exposed_checks"
 
 internal data class LogEventData(
     @SerializedName("events") val events: ArrayList<LogEvent>,
@@ -46,6 +47,7 @@ internal class StatsigLogger(
 
     private var events = ConcurrentLinkedQueue<LogEvent>()
     private var loggedExposures = ConcurrentHashMap<String, Long>()
+    private var nonExposedChecks = ConcurrentHashMap<String, Long>()
 
     suspend fun log(event: LogEvent) {
         withContext(singleThreadDispatcher) {
@@ -65,6 +67,7 @@ internal class StatsigLogger(
     suspend fun flush() {
         withContext(singleThreadDispatcher) {
             addErrorBoundaryDiagnostics()
+            addNonExposedChecksEvent()
             if (events.size == 0) {
                 return@withContext
             }
@@ -212,12 +215,27 @@ internal class StatsigLogger(
         return true
     }
 
+    fun addNonExposedCheck(configName: String) {
+        val count = nonExposedChecks[configName] ?: 0
+        nonExposedChecks[configName] = count + 1
+    }
+
     private fun makeDiagnosticsEvent(context: ContextType, markers: Collection<Marker>): LogEvent {
         // Need to verify if the JSON is in the right format for log event
         val event = LogEvent(DIAGNOSTICS_EVENT)
         event.user = this.statsigUser
         event.metadata = mapOf("context" to context.toString().lowercase(), "markers" to gson.toJson(markers))
         return event
+    }
+
+    private fun addNonExposedChecksEvent() {
+        if (nonExposedChecks.isEmpty()) {
+            return
+        }
+        val event = LogEvent(NON_EXPOSED_CHECKS_EVENT)
+        event.metadata = mapOf("checks" to gson.toJson(nonExposedChecks))
+        this.events.add(event)
+        nonExposedChecks.clear()
     }
 
     private fun addErrorBoundaryDiagnostics() {

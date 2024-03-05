@@ -126,7 +126,7 @@ class StatsigTest {
         client.shutdown()
 
         var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
-        assertEquals(14, parsedLogs.events.count())
+        assertEquals(15, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
         assertEquals("Android", parsedLogs.statsigMetadata.systemName)

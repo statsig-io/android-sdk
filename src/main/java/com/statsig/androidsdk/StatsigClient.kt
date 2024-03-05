@@ -173,6 +173,7 @@ class StatsigClient() : LifecycleEventListener {
         enforceInitialized(functionName)
         var result = false
         errorBoundary.capture({
+            this.logger.addNonExposedCheck(gateName)
             val gate = store.checkGate(gateName)
             result = gate.value
         }, tag = functionName, configName = gateName)
@@ -209,6 +210,7 @@ class StatsigClient() : LifecycleEventListener {
         enforceInitialized(functionName)
         var result: DynamicConfig? = null
         errorBoundary.capture({
+            this.logger.addNonExposedCheck(configName)
             result = store.getConfig(configName)
         }, tag = functionName, configName = configName)
         return result ?: DynamicConfig.getUninitialized(configName)
@@ -251,6 +253,7 @@ class StatsigClient() : LifecycleEventListener {
         enforceInitialized(functionName)
         var exp: DynamicConfig? = null
         errorBoundary.capture({
+            this.logger.addNonExposedCheck(experimentName)
             exp = store.getExperiment(experimentName, keepDeviceValue)
             updateStickyValues()
         }, configName = experimentName, tag = functionName)
@@ -293,6 +296,7 @@ class StatsigClient() : LifecycleEventListener {
         enforceInitialized(functionName)
         var layer: Layer? = null
         errorBoundary.capture({
+            this.logger.addNonExposedCheck(layerName)
             layer = store.getLayer(null, layerName, keepDeviceValue)
             updateStickyValues()
         }, tag = functionName, configName = layerName)
@@ -445,6 +449,13 @@ class StatsigClient() : LifecycleEventListener {
             withContext(Dispatchers.Main.immediate) {
                 shutdownSuspend()
             }
+        }
+    }
+
+    suspend fun flush() {
+        enforceInitialized("flush")
+        errorBoundary.captureAsync {
+            this.logger.flush()
         }
     }
 

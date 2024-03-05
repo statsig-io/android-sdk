@@ -321,6 +321,16 @@ object Statsig {
     }
 
     /**
+     * Flushes all events to the Statsig servers
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmStatic
+    suspend fun flush() {
+        enforceInitialized("flush")
+        client.flush()
+    }
+
+    /**
      * @return If SDK is initialized, initialized is set to true when SDK basic functionality is setup,
      * and become usable. SDK use the same function to enforce initialize for other functions.
      * isInitialized is different from have a response from network
