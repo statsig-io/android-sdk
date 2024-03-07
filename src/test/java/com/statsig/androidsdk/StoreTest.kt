@@ -113,10 +113,10 @@ class StoreTest {
         store.save(getInitValue("v0", inExperiment = false, active = true), userDloomb)
 
         store.loadAndResetForUser(userJkw)
-        assertEquals(true, store.checkGate("gate").value)
+        assertEquals(true, store.checkGate("gate").getValue())
 
         store.loadAndResetForUser(userDloomb)
-        assertEquals(false, store.checkGate("gate").value)
+        assertEquals(false, store.checkGate("gate").getValue())
     }
 
     @Test

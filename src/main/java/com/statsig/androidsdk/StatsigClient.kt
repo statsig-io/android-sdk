@@ -155,9 +155,11 @@ class StatsigClient() : LifecycleEventListener {
         var result = false
         errorBoundary.capture({
             val gate = store.checkGate(gateName)
-            result = gate.value
+            options.evaluationCallback?.invoke(gate)
+            result = gate.getValue()
             logExposure(gateName, gate)
         }, tag = functionName, configName = gateName)
+        options.evaluationCallback?.invoke(FeatureGate(gateName, EvaluationDetails(EvaluationReason.Uninitialized), false, ""))
         return result
     }
 
@@ -175,8 +177,10 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture({
             this.logger.addNonExposedCheck(gateName)
             val gate = store.checkGate(gateName)
-            result = gate.value
+            options.evaluationCallback?.invoke(gate)
+            result = gate.getValue()
         }, tag = functionName, configName = gateName)
+        options.evaluationCallback?.invoke(FeatureGate(gateName, EvaluationDetails(EvaluationReason.Uninitialized), false, ""))
         return result
     }
 
@@ -190,12 +194,13 @@ class StatsigClient() : LifecycleEventListener {
     fun getConfig(configName: String): DynamicConfig {
         val functionName = "getConfig"
         enforceInitialized(functionName)
-        var result: DynamicConfig? = null
+        var result: DynamicConfig = DynamicConfig.getUninitialized(configName)
         errorBoundary.capture({
             result = store.getConfig(configName)
-            logExposure(configName, result!!)
+            logExposure(configName, result)
         }, tag = functionName, configName = configName)
-        return result ?: DynamicConfig.getUninitialized(configName)
+        options.evaluationCallback?.invoke(result)
+        return result
     }
 
     /**
@@ -208,12 +213,13 @@ class StatsigClient() : LifecycleEventListener {
     fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig {
         val functionName = "getConfigWithExposureLoggingDisabled"
         enforceInitialized(functionName)
-        var result: DynamicConfig? = null
+        var result: DynamicConfig = DynamicConfig.getUninitialized(configName)
         errorBoundary.capture({
             this.logger.addNonExposedCheck(configName)
             result = store.getConfig(configName)
         }, tag = functionName, configName = configName)
-        return result ?: DynamicConfig.getUninitialized(configName)
+        options.evaluationCallback?.invoke(result)
+        return result
     }
 
     /**
@@ -227,14 +233,14 @@ class StatsigClient() : LifecycleEventListener {
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         val functionName = "getExperiment"
         enforceInitialized(functionName)
-        var res: DynamicConfig? = null
+        var res: DynamicConfig = DynamicConfig.getUninitialized(experimentName)
         errorBoundary.capture({
             res = store.getExperiment(experimentName, keepDeviceValue)
             updateStickyValues()
-            logExposure(experimentName, res!!)
+            logExposure(experimentName, res)
         }, tag = functionName, configName = experimentName)
-
-        return res ?: DynamicConfig.getUninitialized(experimentName)
+        options.evaluationCallback?.invoke(res)
+        return res
     }
 
     /**
@@ -251,13 +257,14 @@ class StatsigClient() : LifecycleEventListener {
     ): DynamicConfig {
         val functionName = "getExperimentWithExposureLoggingDisabled"
         enforceInitialized(functionName)
-        var exp: DynamicConfig? = null
+        var exp: DynamicConfig = DynamicConfig.getUninitialized(experimentName)
         errorBoundary.capture({
             this.logger.addNonExposedCheck(experimentName)
             exp = store.getExperiment(experimentName, keepDeviceValue)
             updateStickyValues()
         }, configName = experimentName, tag = functionName)
-        return exp ?: DynamicConfig.getUninitialized(experimentName)
+        options.evaluationCallback?.invoke(exp)
+        return exp
     }
 
     /**
@@ -271,13 +278,13 @@ class StatsigClient() : LifecycleEventListener {
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
         val functionName = "getLayer"
         enforceInitialized(functionName)
-        var layer: Layer? = null
+        var layer: Layer = Layer.getUninitialized(layerName)
         errorBoundary.capture({
             layer = store.getLayer(this, layerName, keepDeviceValue)
             updateStickyValues()
         }, tag = functionName, configName = layerName)
-
-        return layer ?: Layer.getUninitialized(layerName)
+        options.evaluationCallback?.invoke(layer)
+        return layer
     }
 
     /**
@@ -294,14 +301,14 @@ class StatsigClient() : LifecycleEventListener {
     ): Layer {
         val functionName = "getLayerWithExposureLoggingDisabled"
         enforceInitialized(functionName)
-        var layer: Layer? = null
+        var layer: Layer = Layer.getUninitialized(layerName)
         errorBoundary.capture({
             this.logger.addNonExposedCheck(layerName)
             layer = store.getLayer(null, layerName, keepDeviceValue)
             updateStickyValues()
         }, tag = functionName, configName = layerName)
-
-        return layer ?: Layer.getUninitialized(layerName)
+        options.evaluationCallback?.invoke(layer)
+        return layer
     }
 
     /**

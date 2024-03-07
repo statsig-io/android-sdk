@@ -17,7 +17,7 @@ class Layer internal constructor(
     private val isDeviceBased: Boolean = false,
     private val allocatedExperimentName: String? = null,
     private val explicitParameters: Set<String>? = null,
-) {
+) : BaseConfig(name, details) {
     internal constructor(
         client: StatsigClient?,
         layerName: String,
@@ -142,20 +142,12 @@ class Layer internal constructor(
         }
     }
 
-    fun getName(): String {
-        return this.name
-    }
-
     fun getIsUserInExperiment(): Boolean {
         return this.isUserInExperiment
     }
 
     fun getIsExperimentActive(): Boolean {
         return this.isExperimentActive
-    }
-
-    fun getEvaluationDetails(): EvaluationDetails {
-        return this.details
     }
 
     fun getRuleID(): String {

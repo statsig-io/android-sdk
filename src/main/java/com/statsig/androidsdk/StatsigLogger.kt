@@ -79,7 +79,7 @@ internal class StatsigLogger(
     }
 
     fun logExposure(name: String, gate: FeatureGate, user: StatsigUser, isManual: Boolean) {
-        val dedupeKey = name + gate.value + gate.ruleID + gate.details.reason.toString()
+        val dedupeKey = name + gate.getValue() + gate.getRuleID() + gate.getEvaluationDetails().reason.toString()
         if (!shouldLogExposure(dedupeKey)) {
             return
         }
@@ -90,15 +90,15 @@ internal class StatsigLogger(
 
             val metadata = mutableMapOf(
                 "gate" to name,
-                "gateValue" to gate.value.toString(),
-                "ruleID" to gate.ruleID,
-                "reason" to gate.details.reason.toString(),
-                "time" to gate.details.time.toString(),
+                "gateValue" to gate.getValue().toString(),
+                "ruleID" to gate.getRuleID(),
+                "reason" to gate.getEvaluationDetails().reason.toString(),
+                "time" to gate.getEvaluationDetails().time.toString(),
             )
             addManualFlag(metadata, isManual)
 
             event.metadata = metadata
-            event.secondaryExposures = gate.secondaryExposures
+            event.secondaryExposures = gate.getSecondaryExposures()
             log(event)
         }
     }

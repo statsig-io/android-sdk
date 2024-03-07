@@ -185,8 +185,8 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
         val hashName = Hashing.getHashedString(gateName, currentCache.values.hashUsed)
         val gate = currentCache.values.featureGates?.get(hashName)
-            ?: return FeatureGate(gateName, getEvaluationDetails(false))
-        return FeatureGate(gate, getEvaluationDetails(true))
+            ?: return FeatureGate(gateName, getEvaluationDetails(false), false)
+        return FeatureGate(gateName, gate, getEvaluationDetails(true))
     }
 
     fun getConfig(configName: String): DynamicConfig {

@@ -83,6 +83,8 @@ class StatsigOptions(
      * Note: This requires special authorization from Statsig
      */
     @SerializedName("disableHashing") var disableHashing: Boolean? = false,
+
+    var evaluationCallback: ((BaseConfig) -> Unit)? = null,
 ) {
 
     private var environment: MutableMap<String, String>? = null

@@ -14,7 +14,7 @@ class DynamicConfig(
     private val isExperimentActive: Boolean = false,
     private val isDeviceBased: Boolean = false,
     private val allocatedExperimentName: String? = null,
-) {
+) : BaseConfig(name, details) {
     internal constructor(
         configName: String,
         apiDynamicConfig: APIDynamicConfig,
@@ -175,20 +175,12 @@ class DynamicConfig(
         return this.jsonValue
     }
 
-    fun getName(): String {
-        return this.name
-    }
-
     fun getIsUserInExperiment(): Boolean {
         return this.isUserInExperiment
     }
 
     fun getIsExperimentActive(): Boolean {
         return this.isExperimentActive
-    }
-
-    fun getEvaluationDetails(): EvaluationDetails {
-        return this.details
     }
 
     fun getRuleID(): String {

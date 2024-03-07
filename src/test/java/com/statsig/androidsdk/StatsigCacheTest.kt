@@ -55,7 +55,7 @@ class StatsigCacheTest {
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
         assertTrue(client.isInitialized())
-        assertEquals(EvaluationReason.Cache, client.getStore().checkGate("always_on").details.reason)
+        assertEquals(EvaluationReason.Cache, client.getStore().checkGate("always_on").getEvaluationDetails().reason)
 
         assertTrue(client.checkGate("always_on"))
         runBlocking {

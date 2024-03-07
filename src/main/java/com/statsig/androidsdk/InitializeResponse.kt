@@ -48,24 +48,3 @@ internal data class APIDynamicConfig(
     @SerializedName("allocated_experiment_name") val allocatedExperimentName: String? = null,
     @SerializedName("explicit_parameters") val explicitParameters: Array<String> = arrayOf(),
 )
-
-internal data class FeatureGate(
-    val name: String,
-    val details: EvaluationDetails,
-    val value: Boolean = false,
-    val ruleID: String = "",
-    val groupName: String? = null,
-    val secondaryExposures: Array<Map<String, String>> = arrayOf(),
-) {
-    constructor(
-        apiFeatureGate: APIFeatureGate,
-        evalDetails: EvaluationDetails,
-    ) : this(
-        apiFeatureGate.name,
-        evalDetails,
-        apiFeatureGate.value,
-        apiFeatureGate.ruleID,
-        apiFeatureGate.groupName,
-        apiFeatureGate.secondaryExposures,
-    )
-}
