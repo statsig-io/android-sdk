@@ -363,7 +363,11 @@ private class StatsigNetworkImpl(
                         STATSIG_CLIENT_TIME_HEADER_KEY,
                         System.currentTimeMillis().toString(),
                     )
-                    connection.setRequestProperty(STATSIG_EVENT_COUNT, eventsCount)
+
+                    if (eventsCount != null) {
+                        connection.setRequestProperty(STATSIG_EVENT_COUNT, eventsCount)
+                    }
+
                     connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
                     connection.setRequestProperty("Accept-Encoding", "gzip")
 
