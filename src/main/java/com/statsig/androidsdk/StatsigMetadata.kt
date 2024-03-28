@@ -11,7 +11,15 @@ internal data class StatsigMetadata(
     @SerializedName("deviceModel") var deviceModel: String? = Build.MODEL,
     @SerializedName("deviceOS") var deviceOS: String = "Android",
     @SerializedName("locale") var locale: String? = Locale.getDefault().toString(),
-    @SerializedName("language") var language: String? = Locale.getDefault().displayLanguage,
+    @SerializedName("language")
+    var language: String? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        // API 21+
+        Locale.getDefault().toLanguageTag()
+    } else {
+        Locale.getDefault().let { locale ->
+            "${locale.language}-${locale.country}"
+        }
+    },
     @SerializedName("sdkType") var sdkType: String? = "android-client",
     @SerializedName("sdkVersion") var sdkVersion: String? = BuildConfig.VERSION_NAME,
     @SerializedName("sessionID") var sessionID: String = UUID.randomUUID().toString(),
