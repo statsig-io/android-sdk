@@ -131,6 +131,7 @@ class StatsigTest {
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
         assertEquals("Android", parsedLogs.statsigMetadata.systemName)
         assertEquals("Android", parsedLogs.statsigMetadata.deviceOS)
+        assertEquals("en_US", parsedLogs.statsigMetadata.locale)
         // validate diagnostics
         assertEquals(parsedLogs.events[0].eventName, "statsig::diagnostics")
         parsedLogs = LogEventData(parsedLogs.events.filter { it -> it.eventName != "statsig::diagnostics" } as ArrayList<LogEvent>, parsedLogs.statsigMetadata)

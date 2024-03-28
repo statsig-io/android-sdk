@@ -10,6 +10,7 @@ internal data class StatsigMetadata(
     @SerializedName("appVersion") var appVersion: String? = null,
     @SerializedName("deviceModel") var deviceModel: String? = Build.MODEL,
     @SerializedName("deviceOS") var deviceOS: String = "Android",
+    @SerializedName("locale") var locale: String? = Locale.getDefault().toString(),
     @SerializedName("language") var language: String? = Locale.getDefault().displayLanguage,
     @SerializedName("sdkType") var sdkType: String? = "android-client",
     @SerializedName("sdkVersion") var sdkVersion: String? = BuildConfig.VERSION_NAME,
