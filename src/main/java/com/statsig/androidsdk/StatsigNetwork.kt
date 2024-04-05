@@ -14,6 +14,7 @@ import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
+import java.util.Collections
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 import kotlin.math.pow
@@ -32,6 +33,7 @@ private val RETRY_CODES: IntArray = intArrayOf(
 // Constants
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
 private const val POLLING_INTERVAL_MS: Long = 10000
+private const val MAX_INITIALIZE_REQUESTS: Int = 50
 
 // JSON keys
 private const val USER = "user"
@@ -106,6 +108,7 @@ private class StatsigNetworkImpl(
     private var sharedPrefs: SharedPreferences? = null
     private val connectivityListener = StatsigNetworkConnectivityListener(context)
     private val offlineLogsKeyV2 = "$OFFLINE_LOGS_KEY_V1:$sdkKey"
+    private var initializeRequestsMap = Collections.synchronizedMap(mutableMapOf<String, HttpURLConnection>())
     override suspend fun initialize(
         api: String,
         user: StatsigUser?,
@@ -160,6 +163,7 @@ private class StatsigNetworkImpl(
         val retries = 0
         return try {
             val userCopy = user?.getCopyForEvaluation()
+            val userCacheKey = user?.getCacheKeyWithSDKKey(sdkKey)
             val metadataCopy = metadata.copy()
             val body = mapOf(
                 USER to userCopy,
@@ -169,6 +173,7 @@ private class StatsigNetworkImpl(
                 PREVIOUS_DERIVED_FIELDS to previousDerivedFields,
             )
             var statusCode: Int? = null
+            if (userCacheKey != null) initializeRequestsMap[userCacheKey]?.disconnect()
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(
                 api,
                 INITIALIZE_ENDPOINT,
@@ -177,6 +182,7 @@ private class StatsigNetworkImpl(
                 contextType,
                 diagnostics,
                 timeoutMs,
+                requestCacheKey = userCacheKey,
             ) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(
                 InitializeFailReason.NetworkError,
@@ -231,6 +237,7 @@ private class StatsigNetworkImpl(
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
         return flow<InitializeResponse.SuccessfulInitializeResponse?> {
             val userCopy = user?.getCopyForEvaluation()
+            val userCacheKey = user?.getCacheKeyWithSDKKey(sdkKey)
             val metadataCopy = metadata.copy()
             while (true) {
                 delay(POLLING_INTERVAL_MS) // If coroutine is cancelled, this delay will exit the while loop
@@ -241,6 +248,7 @@ private class StatsigNetworkImpl(
                     SINCE_TIME to sinceTime,
                     HASH to HashAlgorithm.DJB2.value,
                 )
+                if (userCacheKey != null) initializeRequestsMap[userCacheKey]?.disconnect()
                 try {
                     emit(
                         postRequest(
@@ -249,6 +257,7 @@ private class StatsigNetworkImpl(
                             gson.toJson(body),
                             0,
                             ContextType.CONFIG_SYNC,
+                            requestCacheKey = user?.getCacheKeyWithSDKKey(sdkKey),
                         ),
                     )
                 } catch (_: Exception) {
@@ -332,6 +341,7 @@ private class StatsigNetworkImpl(
         diagnostics: Diagnostics? = null,
         timeout: Int? = null,
         eventsCount: String? = null,
+        requestCacheKey: String? = null,
         crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> },
     ): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
@@ -342,7 +352,13 @@ private class StatsigNetworkImpl(
                     val urlStr = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
                     val url = URL(urlStr)
                     connection = url.openConnection() as HttpURLConnection
-
+                    if (requestCacheKey != null && !endpoint.contains(LOGGING_ENDPOINT)) {
+                        if (initializeRequestsMap.size > MAX_INITIALIZE_REQUESTS) {
+                            initializeRequestsMap.values.forEach { it.disconnect() }
+                            initializeRequestsMap = Collections.synchronizedMap(mutableMapOf())
+                        }
+                        initializeRequestsMap[requestCacheKey] = connection
+                    }
                     if (url.protocol == "http") {
                         connection.doOutput = true
                     }
