@@ -33,7 +33,7 @@ class BootstrapValidatorTest {
         initializeValues["evaluated_keys"] = mapOf("userID" to "test_user", "customIDs" to newCustomIDs)
         assertFalse(BootstrapValidator.isValid(initializeValues, user2))
 
-        //No user id
+        // No user id
         val userWithoutUID = StatsigUser()
         userWithoutUID.customIDs = HashMap(customIDs)
         initializeValues["evaluated_keys"] = mapOf("customIDs" to (HashMap(customIDs)))

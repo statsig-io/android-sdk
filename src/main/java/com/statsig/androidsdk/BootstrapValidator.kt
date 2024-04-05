@@ -8,7 +8,7 @@ object BootstrapValidator {
             // If no evaluated key being passed in, return true
             val evaluatedKeys = initializeValues["evaluated_keys"] as? Map<*, *> ?: return true
             val userCopy = getUserIdentifier(user.customIDs)
-            if(user.userID != null) {
+            if (user.userID != null) {
                 userCopy["userID"] = user.userID
             }
             val evaluatedKeyCopy = getUserIdentifier(evaluatedKeys)
