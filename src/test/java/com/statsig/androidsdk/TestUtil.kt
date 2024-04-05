@@ -311,7 +311,6 @@ class TestUtil {
             every {
                 app.packageManager
             } returns null
-
             mockAppLifecycleCallbacks(app)
 
             return sharedPrefs

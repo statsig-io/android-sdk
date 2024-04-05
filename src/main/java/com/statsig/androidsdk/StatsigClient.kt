@@ -422,6 +422,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.captureAsync {
             updateUserCache(user)
             updateUserImpl()
+            options.userObjectValidator?.let { it(this.user) }
         }
     }
 
@@ -714,6 +715,7 @@ class StatsigClient() : LifecycleEventListener {
         val normalizedUser = normalizeUser(user)
         val initializeValues = options.initializeValues
         this.user = normalizedUser
+        options.userObjectValidator?.let { it(this.user) }
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
             statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary)

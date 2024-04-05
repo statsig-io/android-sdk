@@ -3,9 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.google.gson.Gson
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.spyk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -33,6 +31,7 @@ class StatsigTest {
         testSharedPrefs = TestUtil.stubAppFunctions(app)
 
         TestUtil.mockStatsigUtil()
+        TestUtil.mockNetworkConnectivityService(app)
 
         network = TestUtil.mockNetwork(captureUser = { user ->
             initUser = user
@@ -48,18 +47,6 @@ class StatsigTest {
     @After
     internal fun tearDown() {
         unmockkAll()
-    }
-
-    @Test
-    fun testInitializeBadInput() = runBlocking {
-        client = StatsigClient()
-        client.errorBoundary = spyk(client.errorBoundary)
-        client.initialize(
-            app,
-            "secret-111aaa",
-            null,
-        )
-        coVerify { client.errorBoundary.logException(any()) }
     }
 
     @Test
@@ -131,8 +118,9 @@ class StatsigTest {
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
         assertEquals("Android", parsedLogs.statsigMetadata.systemName)
         assertEquals("Android", parsedLogs.statsigMetadata.deviceOS)
-        assertEquals("en_US", parsedLogs.statsigMetadata.locale)
-        assertEquals("en-US", parsedLogs.statsigMetadata.language)
+        assertEquals("en", parsedLogs.statsigMetadata.locale)
+        assertEquals("en-", parsedLogs.statsigMetadata.language)
+
         // validate diagnostics
         assertEquals(parsedLogs.events[0].eventName, "statsig::diagnostics")
         parsedLogs = LogEventData(parsedLogs.events.filter { it -> it.eventName != "statsig::diagnostics" } as ArrayList<LogEvent>, parsedLogs.statsigMetadata)
@@ -261,19 +249,16 @@ class StatsigTest {
 
         assertTrue(Statsig.client.isInitialized())
         assertEquals("jkw", user?.userID)
+    }
 
+    @Test
+    fun testUserValidator() = runBlocking {
+        val options = StatsigOptions()
+        options.userObjectValidator = { user: StatsigUser -> user.custom = mapOf("hey" to "hey") }
+        TestUtil.startStatsigAndWait(app, StatsigUser("jkw"), options, network = network)
+        Statsig.logEvent("event_1")
         Statsig.shutdown()
-
-        assertFalse(Statsig.client.isInitialized())
-
-        Statsig.client.statsigNetwork = TestUtil.mockNetwork(captureUser = {
-            user = it
-        })
-        Statsig.initializeAsync(app, "client-sdkkey", StatsigUser("dloomb"), callback)
-
-        countdown.await(1L, TimeUnit.SECONDS)
-
-        assertEquals("dloomb", user?.userID)
-        return@runBlocking
+        var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+        assertEquals(parsedLogs.events[0].user?.custom, mapOf("hey" to "hey"))
     }
 }

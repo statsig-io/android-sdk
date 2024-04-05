@@ -83,6 +83,10 @@ class StatsigOptions(
      * Note: This requires special authorization from Statsig
      */
     @SerializedName("disableHashing") var disableHashing: Boolean? = false,
+    /**
+     * Callback function when user is being set (with updateUser/initialize)  to validate user object
+     */
+    @SerializedName("userObjectValidator") var userObjectValidator: ((user: StatsigUser) -> Unit)? = null,
 
     var evaluationCallback: ((BaseConfig) -> Unit)? = null,
 ) {
