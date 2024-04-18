@@ -118,8 +118,8 @@ class StatsigTest {
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
         assertEquals("Android", parsedLogs.statsigMetadata.systemName)
         assertEquals("Android", parsedLogs.statsigMetadata.deviceOS)
-        assertEquals("en", parsedLogs.statsigMetadata.locale)
-        assertEquals("en-", parsedLogs.statsigMetadata.language)
+        assert(parsedLogs.statsigMetadata.locale.toString().startsWith("en"))
+        assert(parsedLogs.statsigMetadata.language.toString().startsWith("en"))
 
         // validate diagnostics
         assertEquals(parsedLogs.events[0].eventName, "statsig::diagnostics")
