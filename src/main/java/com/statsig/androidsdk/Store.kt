@@ -30,7 +30,7 @@ private data class Cache(
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis(),
 )
 
-internal class Store(private val statsigScope: CoroutineScope, private val sharedPrefs: SharedPreferences, user: StatsigUser, private val sdkKey: String) {
+internal class Store(private val statsigScope: CoroutineScope, private val sharedPrefs: SharedPreferences, user: StatsigUser, private val sdkKey: String, private val options: StatsigOptions) {
     var reason: EvaluationReason
 
     private val gson = StatsigUtil.getGson()
@@ -46,7 +46,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
     init {
         currentUserCacheKeyDeprecated = user.getCacheKeyDEPRECATED()
-        currentUserCacheKeyV2 = user.getCacheKeyWithSDKKey(this.sdkKey)
+        currentUserCacheKeyV2 = this.getScopedCacheKey(user)
         cacheById = ConcurrentHashMap()
         currentCache = createEmptyCache()
         stickyDeviceExperiments = ConcurrentHashMap()
@@ -99,7 +99,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     fun loadAndResetForUser(user: StatsigUser) {
         reason = EvaluationReason.Uninitialized
         currentUserCacheKeyDeprecated = user.getCacheKeyDEPRECATED()
-        currentUserCacheKeyV2 = user.getCacheKeyWithSDKKey(this.sdkKey)
+        currentUserCacheKeyV2 = this.getScopedCacheKey(user)
         currentCache = loadCacheForCurrentUser()
     }
 
@@ -129,7 +129,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     fun getLastUpdateTime(user: StatsigUser): Long? {
-        var cachedValues = cacheById[user.getCacheKeyWithSDKKey(this.sdkKey)] ?: cacheById[user.getCacheKeyDEPRECATED()]
+        var cachedValues = cacheById[this.getScopedCacheKey(user)] ?: cacheById[user.getCacheKeyDEPRECATED()]
         if (cachedValues?.userHash != user.toHashString()) {
             return null
         }
@@ -137,15 +137,19 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     fun getPreviousDerivedFields(user: StatsigUser): Map<String, String> {
-        var cachedValues = cacheById[user.getCacheKeyWithSDKKey(this.sdkKey)] ?: cacheById[user.getCacheKeyDEPRECATED()]
+        var cachedValues = cacheById[this.getScopedCacheKey(user)] ?: cacheById[user.getCacheKeyDEPRECATED()]
         if (cachedValues?.userHash != user.toHashString()) {
             return mapOf()
         }
         return cachedValues?.values?.derivedFields ?: mapOf()
     }
 
+    private fun getScopedCacheKey(user: StatsigUser): String {
+        return StatsigUtil.getScopedCacheKey(this.options, user, this.sdkKey)
+    }
+
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
-        val cacheKey = user.getCacheKeyWithSDKKey(this.sdkKey)
+        val cacheKey = this.getScopedCacheKey(user)
         val cache = cacheById[cacheKey] ?: createEmptyCache()
         cache.values = data
         cache.evaluationTime = System.currentTimeMillis()

@@ -358,7 +358,7 @@ class TestUtil {
 
             coEvery {
                 statsigNetwork.initialize(
-                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(),
                 )
             } answers {
                 throw IOException("Example exception in StatsigNetwork initialize")
@@ -398,7 +398,7 @@ class TestUtil {
 
             coEvery {
                 statsigNetwork.initialize(
-                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(),
                 )
             } coAnswers {
                 captureUser?.invoke(secondArg())

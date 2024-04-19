@@ -89,6 +89,8 @@ class StatsigOptions(
     @SerializedName("userObjectValidator") var userObjectValidator: ((user: StatsigUser) -> Unit)? = null,
 
     var evaluationCallback: ((BaseConfig) -> Unit)? = null,
+
+    var customCacheKey: ((StatsigUser) -> String) = { user -> user.getCacheKey() },
 ) {
 
     private var environment: MutableMap<String, String>? = null

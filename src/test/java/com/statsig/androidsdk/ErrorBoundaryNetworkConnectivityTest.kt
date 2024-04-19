@@ -54,7 +54,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)),
         )
 
-        network = StatsigNetwork(app, "client-key", eb)
+        network = StatsigNetwork(app, "client-key", eb, app.getSharedPreferences("", Context.MODE_PRIVATE))
     }
 
     @Test
@@ -92,11 +92,10 @@ class ErrorBoundaryNetworkConnectivityTest {
         try {
             network.initialize(
                 wireMockRule.baseUrl(),
-                null,
+                StatsigUser(),
                 null,
                 StatsigMetadata(),
-                999,
-                app.getSharedPreferences("SHARED_PREFERENCES_KEY", Context.MODE_PRIVATE),
+                StatsigOptions(initTimeoutMs = 999),
                 ContextType.INITIALIZE,
                 null,
                 HashAlgorithm.NONE,

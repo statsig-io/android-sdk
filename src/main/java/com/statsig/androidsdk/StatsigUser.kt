@@ -2,7 +2,7 @@ package com.statsig.androidsdk
 
 import com.google.gson.annotations.SerializedName
 
-private const val STATSIG_NULL_USER: String = "Statsig.NULL_USER"
+internal const val STATSIG_NULL_USER: String = "Statsig.NULL_USER"
 
 /**
  * An object of properties relating to the current user
@@ -98,13 +98,13 @@ data class StatsigUser(
         return id
     }
 
-    internal fun getCacheKeyWithSDKKey(sdkKey: String): String {
+    fun getCacheKey(): String {
         var id = userID ?: STATSIG_NULL_USER
 
         for ((k, v) in customIDs ?: mapOf()) {
             id = "$id$k:$v"
         }
-        return "$id:$sdkKey"
+        return id
     }
 
     internal fun toHashString(): String {

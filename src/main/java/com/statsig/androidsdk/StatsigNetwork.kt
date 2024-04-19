@@ -66,11 +66,10 @@ internal interface StatsigNetwork {
 
     suspend fun initialize(
         api: String,
-        user: StatsigUser?,
+        user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
-        initTimeoutMs: Long,
-        sharedPrefs: SharedPreferences,
+        options: StatsigOptions,
         context: ContextType,
         diagnostics: Diagnostics? = null,
         hashUsed: HashAlgorithm,
@@ -79,7 +78,7 @@ internal interface StatsigNetwork {
 
     fun pollForChanges(
         api: String,
-        user: StatsigUser?,
+        user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
@@ -95,34 +94,35 @@ internal fun StatsigNetwork(
     context: Context,
     sdkKey: String,
     errorBoundary: ErrorBoundary,
-): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary)
+    sharedPrefs: SharedPreferences,
+): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs)
 
 private class StatsigNetworkImpl(
     context: Context,
     private val sdkKey: String,
     private val errorBoundary: ErrorBoundary,
+    private val sharedPrefs: SharedPreferences,
 ) : StatsigNetwork {
 
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
-    private var sharedPrefs: SharedPreferences? = null
+    private lateinit var options: StatsigOptions
     private val connectivityListener = StatsigNetworkConnectivityListener(context)
     private val offlineLogsKeyV2 = "$OFFLINE_LOGS_KEY_V1:$sdkKey"
     private var initializeRequestsMap = Collections.synchronizedMap(mutableMapOf<String, HttpURLConnection>())
     override suspend fun initialize(
         api: String,
-        user: StatsigUser?,
+        user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
-        initTimeoutMs: Long,
-        sharedPrefs: SharedPreferences,
+        options: StatsigOptions,
         contextType: ContextType,
         diagnostics: Diagnostics?,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
     ): InitializeResponse {
-        this.sharedPrefs = sharedPrefs
-        if (initTimeoutMs == 0L) {
+        this.options = options
+        if (options.initTimeoutMs == 0L) {
             return initializeImpl(
                 api,
                 user,
@@ -134,7 +134,7 @@ private class StatsigNetworkImpl(
                 previousDerivedFields = previousDerivedFields,
             )
         }
-        return withTimeout(initTimeoutMs) {
+        return withTimeout(options.initTimeoutMs) {
             initializeImpl(
                 api,
                 user,
@@ -142,7 +142,7 @@ private class StatsigNetworkImpl(
                 metadata,
                 contextType,
                 diagnostics,
-                initTimeoutMs.toInt(),
+                options.initTimeoutMs.toInt(),
                 hashUsed = hashUsed,
                 previousDerivedFields = previousDerivedFields,
             )
@@ -151,7 +151,7 @@ private class StatsigNetworkImpl(
 
     private suspend fun initializeImpl(
         api: String,
-        user: StatsigUser?,
+        user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
         contextType: ContextType,
@@ -162,8 +162,8 @@ private class StatsigNetworkImpl(
     ): InitializeResponse {
         val retries = 0
         return try {
-            val userCopy = user?.getCopyForEvaluation()
-            val userCacheKey = user?.getCacheKeyWithSDKKey(sdkKey)
+            val userCopy = user.getCopyForEvaluation()
+            val userCacheKey = StatsigUtil.getScopedCacheKey(this.options, userCopy, sdkKey)
             val metadataCopy = metadata.copy()
             val body = mapOf(
                 USER to userCopy,
@@ -173,7 +173,7 @@ private class StatsigNetworkImpl(
                 PREVIOUS_DERIVED_FIELDS to previousDerivedFields,
             )
             var statusCode: Int? = null
-            if (userCacheKey != null) initializeRequestsMap[userCacheKey]?.disconnect()
+            initializeRequestsMap[userCacheKey]?.disconnect()
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(
                 api,
                 INITIALIZE_ENDPOINT,
@@ -230,14 +230,14 @@ private class StatsigNetworkImpl(
 
     override fun pollForChanges(
         api: String,
-        user: StatsigUser?,
+        user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
         return flow<InitializeResponse.SuccessfulInitializeResponse?> {
-            val userCopy = user?.getCopyForEvaluation()
-            val userCacheKey = user?.getCacheKeyWithSDKKey(sdkKey)
+            val userCopy = user.getCopyForEvaluation()
+            val userCacheKey = StatsigUtil.getScopedCacheKey(this@StatsigNetworkImpl.options, userCopy, sdkKey)
             val metadataCopy = metadata.copy()
             while (true) {
                 delay(POLLING_INTERVAL_MS) // If coroutine is cancelled, this delay will exit the while loop
@@ -257,7 +257,7 @@ private class StatsigNetworkImpl(
                             gson.toJson(body),
                             0,
                             ContextType.CONFIG_SYNC,
-                            requestCacheKey = user?.getCacheKeyWithSDKKey(sdkKey),
+                            requestCacheKey = StatsigUtil.getScopedCacheKey(this@StatsigNetworkImpl.options, userCopy, sdkKey),
                         ),
                     )
                 } catch (_: Exception) {

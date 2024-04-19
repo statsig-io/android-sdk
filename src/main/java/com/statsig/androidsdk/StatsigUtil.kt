@@ -24,6 +24,11 @@ internal object StatsigUtil {
         }
     }
 
+    fun getScopedCacheKey(options: StatsigOptions, user: StatsigUser, key: String): String {
+        val userCacheKey = user.let { options.customCacheKey(it) }
+        return "$userCacheKey:$key"
+    }
+
     internal fun syncGetFromSharedPrefs(sharedPrefs: SharedPreferences?, key: String): String? {
         if (sharedPrefs == null) {
             return null

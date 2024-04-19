@@ -653,8 +653,7 @@ class StatsigClient() : LifecycleEventListener {
                         user,
                         this@StatsigClient.store.getLastUpdateTime(this@StatsigClient.user),
                         this@StatsigClient.statsigMetadata,
-                        this@StatsigClient.options.initTimeoutMs,
-                        this@StatsigClient.getSharedPrefs(),
+                        this@StatsigClient.options,
                         ContextType.INITIALIZE,
                         this@StatsigClient.diagnostics,
                         if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
@@ -718,7 +717,7 @@ class StatsigClient() : LifecycleEventListener {
         options.userObjectValidator?.let { it(this.user) }
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
-            statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary)
+            statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary, getSharedPrefs())
         }
         statsigMetadata = StatsigMetadata()
         errorBoundary.setMetadata(statsigMetadata)
@@ -726,7 +725,7 @@ class StatsigClient() : LifecycleEventListener {
 
         exceptionHandler = errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
-        store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey)
+        store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
         this.initialized.set(true)
 
         lifecycleListener = StatsigActivityLifecycleListener(application, this)
@@ -781,8 +780,7 @@ class StatsigClient() : LifecycleEventListener {
                         this@StatsigClient.user,
                         sinceTime,
                         statsigMetadata,
-                        options.initTimeoutMs,
-                        getSharedPrefs(),
+                        options,
                         ContextType.UPDATE_USER,
                         diagnostics = this@StatsigClient.diagnostics,
                         hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
