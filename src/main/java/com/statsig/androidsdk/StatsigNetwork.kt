@@ -163,7 +163,7 @@ private class StatsigNetworkImpl(
         val retries = 0
         return try {
             val userCopy = user.getCopyForEvaluation()
-            val userCacheKey = StatsigUtil.getScopedCacheKey(this.options, userCopy, sdkKey)
+            val userCacheKey = this.options.customCacheKey(sdkKey, userCopy)
             val metadataCopy = metadata.copy()
             val body = mapOf(
                 USER to userCopy,
@@ -237,7 +237,7 @@ private class StatsigNetworkImpl(
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
         return flow<InitializeResponse.SuccessfulInitializeResponse?> {
             val userCopy = user.getCopyForEvaluation()
-            val userCacheKey = StatsigUtil.getScopedCacheKey(this@StatsigNetworkImpl.options, userCopy, sdkKey)
+            val userCacheKey = this@StatsigNetworkImpl.options.customCacheKey(this@StatsigNetworkImpl.sdkKey, userCopy)
             val metadataCopy = metadata.copy()
             while (true) {
                 delay(POLLING_INTERVAL_MS) // If coroutine is cancelled, this delay will exit the while loop
@@ -257,7 +257,7 @@ private class StatsigNetworkImpl(
                             gson.toJson(body),
                             0,
                             ContextType.CONFIG_SYNC,
-                            requestCacheKey = StatsigUtil.getScopedCacheKey(this@StatsigNetworkImpl.options, userCopy, sdkKey),
+                            requestCacheKey = this@StatsigNetworkImpl.options.customCacheKey(this@StatsigNetworkImpl.sdkKey, userCopy),
                         ),
                     )
                 } catch (_: Exception) {

@@ -90,7 +90,7 @@ class StatsigOptions(
 
     var evaluationCallback: ((BaseConfig) -> Unit)? = null,
 
-    var customCacheKey: ((StatsigUser) -> String) = { user -> user.getCacheKey() },
+    var customCacheKey: ((String, StatsigUser) -> String) = { sdkKey, user -> "${user.getCacheKey()}:$sdkKey" },
 ) {
 
     private var environment: MutableMap<String, String>? = null

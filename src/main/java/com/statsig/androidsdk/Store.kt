@@ -145,7 +145,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     private fun getScopedCacheKey(user: StatsigUser): String {
-        return StatsigUtil.getScopedCacheKey(this.options, user, this.sdkKey)
+        return this.options.customCacheKey(this.sdkKey, user)
     }
 
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
