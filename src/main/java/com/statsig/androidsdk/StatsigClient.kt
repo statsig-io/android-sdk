@@ -611,7 +611,7 @@ class StatsigClient() : LifecycleEventListener {
         return result ?: StatsigOverrides.empty()
     }
 
-    fun openDebugView(context: Context) {
+    fun openDebugView(context: Context, callback: DebugViewCallback? = null) {
         errorBoundary.capture({
             val currentValues = store.getCurrentValuesAsString()
             val map = mapOf(
@@ -620,7 +620,7 @@ class StatsigClient() : LifecycleEventListener {
                 "user" to user.getCopyForEvaluation(),
                 "options" to options.toMap(),
             )
-            DebugView.show(context, sdkKey, map)
+            DebugView.show(context, sdkKey, map, callback)
         })
     }
 

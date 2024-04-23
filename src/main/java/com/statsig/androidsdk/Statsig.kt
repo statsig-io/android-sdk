@@ -399,8 +399,8 @@ object Statsig {
         return client.getAllOverrides()
     }
 
-    fun openDebugView(context: Context) {
-        client.openDebugView(context)
+    fun openDebugView(context: Context, callback: DebugViewCallback) {
+        client.openDebugView(context, callback)
     }
 
     private fun enforceInitialized(functionName: String) {

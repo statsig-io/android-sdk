@@ -9,18 +9,17 @@ import android.view.ViewGroup
 import android.view.Window
 import android.webkit.ConsoleMessage
 import android.webkit.CookieManager
-import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.google.gson.Gson
-
+typealias DebugViewCallback = (Boolean) -> Unit // RELOAD_REQUIRED -> callback
 class DebugView {
     companion object {
-        fun show(context: Context, sdkKey: String, state: Map<String, Any?>) {
+        fun show(context: Context, sdkKey: String, state: Map<String, Any?>, callback: DebugViewCallback?) {
             val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
             val client = DebugWebViewClient(Gson().toJson(state))
-            val chromeClient = DebugWebChromeClient(dialog)
+            val chromeClient = DebugWebChromeClient(dialog, callback)
             val webView = getConfiguredWebView(context, client, chromeClient)
 
             dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -76,13 +75,6 @@ class DebugView {
         }
     }
 
-    private class DebugViewJsBridge(private val context: Context, private val dialog: Dialog) {
-        @JavascriptInterface
-        fun closeDialog() {
-            dialog.dismiss()
-        }
-    }
-
     private class DebugWebViewClient(private val json: String) : WebViewClient() {
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
@@ -94,13 +86,17 @@ class DebugView {
         }
     }
 
-    private class DebugWebChromeClient(private val dialog: Dialog) : WebChromeClient() {
+    private class DebugWebChromeClient(private val dialog: Dialog, private val callback: DebugViewCallback?) : WebChromeClient() {
         private val closeAction = "STATSIG_ANDROID_DEBUG_CLOSE_DIALOG"
+        private val reloadRequired = "STATSIG_ANDROID_DEBUG_RELOAD_REQUIRED"
 
         override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
             consoleMessage?.message()?.let {
                 if (it.contentEquals(closeAction, ignoreCase = true)) {
                     dialog.dismiss()
+                }
+                if (it.contentEquals(reloadRequired, ignoreCase = true)) {
+                    callback?.invoke(true)
                 }
             }
 
