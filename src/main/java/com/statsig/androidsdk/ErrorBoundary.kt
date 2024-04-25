@@ -24,6 +24,10 @@ internal class ErrorBoundary() {
         this.apiKey = apiKey
     }
 
+    fun getUrl(): String {
+        return urlString
+    }
+
     fun setMetadata(statsigMetadata: StatsigMetadata) {
         this.statsigMetadata = statsigMetadata
     }
@@ -103,7 +107,7 @@ internal class ErrorBoundary() {
             seen.add(name)
 
             val metadata = statsigMetadata ?: StatsigMetadata("")
-            val url = URL(urlString)
+            val url = URL(getUrl())
             val body = mapOf(
                 "exception" to name,
                 "info" to RuntimeException(exception).stackTraceToString(),
