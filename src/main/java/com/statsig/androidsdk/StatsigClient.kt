@@ -660,7 +660,6 @@ class StatsigClient() : LifecycleEventListener {
                         this@StatsigClient.store.getPreviousDerivedFields(this@StatsigClient.user),
                     )
                 }
-
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates && !options.initializeOffline) {
                     this@StatsigClient.diagnostics.markStart(KeyType.INITIALIZE, StepType.PROCESS)
                     this@StatsigClient.store.save(initResponse, user)
@@ -754,7 +753,6 @@ class StatsigClient() : LifecycleEventListener {
             this@StatsigClient.store.bootstrap(initializeValues, this@StatsigClient.user)
             this@StatsigClient.isBootstrapped.set(true)
         }
-
         return normalizedUser
     }
 
@@ -961,7 +959,7 @@ class StatsigClient() : LifecycleEventListener {
             if (this::diagnostics.isInitialized && this::logger.isInitialized) {
                 this@StatsigClient.diagnostics.markEnd(KeyType.OVERALL, false, additionalMarker = Marker(error = Marker.ErrorMessage(message = "${e?.javaClass?.name}: ${e?.message}")), overrideContext = context)
                 this@StatsigClient.logger.logDiagnostics(context)
-                runBlocking {
+                statsigScope.launch {
                     this@StatsigClient.logger.flush()
                 }
             }

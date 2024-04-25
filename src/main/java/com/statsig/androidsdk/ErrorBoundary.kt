@@ -10,7 +10,6 @@ import kotlin.math.floor
 
 const val MAX_DIAGNOSTICS_MARKERS = 30
 const val SAMPLING_RATE = 10_000
-
 internal class ExternalException(message: String? = null) : Exception(message)
 
 internal class ErrorBoundary() {

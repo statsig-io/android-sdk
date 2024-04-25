@@ -13,7 +13,6 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
-import java.lang.Exception
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -25,7 +24,8 @@ class StatsigInitializationFailureTest {
     private var initDetails: InitializationDetails? = null
     private var logEventRequests = mutableListOf<LogEventData>()
     private var app: Application = mockk()
-    private var countdown: CountDownLatch = CountDownLatch(1)
+    private var initializationCountdown: CountDownLatch = CountDownLatch(1)
+    private var logEventCountdown = CountDownLatch(1)
 
     @Before
     internal fun setup() {
@@ -34,6 +34,7 @@ class StatsigInitializationFailureTest {
         eb = client.errorBoundary
         network = TestUtil.mockNetwork {
             logEventRequests.add(it)
+            logEventCountdown.countDown()
         }
         client.statsigNetwork = network
         TestUtil.mockDispatchers()
@@ -45,7 +46,7 @@ class StatsigInitializationFailureTest {
 
             override fun onStatsigInitialize(initDetails: InitializationDetails) {
                 this@StatsigInitializationFailureTest.initDetails = initDetails
-                countdown.countDown()
+                initializationCountdown.countDown()
             }
         }
     }
@@ -55,7 +56,8 @@ class StatsigInitializationFailureTest {
         initDetails = null
         logEventRequests = mutableListOf()
         unmockkAll()
-        countdown = CountDownLatch(1)
+        initializationCountdown = CountDownLatch(1)
+        logEventCountdown = CountDownLatch(1)
     }
 
     @Test
@@ -70,6 +72,8 @@ class StatsigInitializationFailureTest {
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
         assert(initDetails?.failureDetails?.exception?.message == "Throwing exceptions from bootstrap")
+        // Wait for logEvent to happen
+        logEventCountdown.await(3, TimeUnit.SECONDS)
         assert(logEventRequests.size === 1)
         assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
         verify {
@@ -113,10 +117,12 @@ class StatsigInitializationFailureTest {
         }
         assert(initDetails === null)
         client.initializeAsync(app, "client-key", StatsigUser("test_user"), callback, StatsigOptions(initializeValues = mapOf()))
-        countdown.await(1, TimeUnit.SECONDS)
+        initializationCountdown.await(1, TimeUnit.SECONDS)
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
         assert(initDetails?.failureDetails?.exception?.message == "Throwing exceptions from bootstrap")
+        // Wait for logEvent to happen
+        logEventCountdown.await(3, TimeUnit.SECONDS)
         assert(logEventRequests.size === 1)
         assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
         verify {
@@ -138,10 +144,12 @@ class StatsigInitializationFailureTest {
         }
         assert(initDetails === null)
         client.initializeAsync(app, "client-key", StatsigUser("test_user"), callback)
-        countdown.await(100, TimeUnit.SECONDS)
+        initializationCountdown.await(100, TimeUnit.SECONDS)
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
         assert(initDetails?.failureDetails?.exception?.message == "Something wrong happen when connecting to network")
+        // Wait for logEvent to happen
+        logEventCountdown.await(3, TimeUnit.SECONDS)
         assert(logEventRequests.size === 1)
         assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
         verify {
@@ -162,7 +170,7 @@ class StatsigInitializationFailureTest {
         }
         assert(initDetails === null)
         client.initializeAsync(app, "client-key", StatsigUser("test_user"), callback)
-        countdown.await(1, TimeUnit.SECONDS)
+        logEventCountdown.await(3, TimeUnit.SECONDS)
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
         assert(initDetails?.failureDetails?.exception?.message == "Mock throwing exception when registering lifecycle callbacks")
@@ -190,8 +198,42 @@ class StatsigInitializationFailureTest {
             throw Exception("Unsuccessful setup")
         }
         client.initializeAsync(app, "client-key", StatsigUser("test_user"), callback)
-        countdown.await(3, TimeUnit.SECONDS)
+        initializationCountdown.await(3, TimeUnit.SECONDS)
         assert(initDetails == null)
         assert(client.isInitialized() === false)
+    }
+
+    @Test
+    fun testIntializeNetworkRequestTimeout() = runBlocking {
+        val countDownLatch = CountDownLatch(1)
+        coEvery {
+            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
+        } coAnswers {
+            throw Exception("Fake timeout exception")
+        }
+        coEvery {
+            network.apiPostLogs(any(), any(), any())
+        } coAnswers {
+            // Blocking logevent
+            countDownLatch.await()
+            val logs = StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java)
+            logEventRequests.add(logs)
+            logEventCountdown.countDown()
+        }
+        initDetails = client.initialize(app, "client-key", StatsigUser("test_user"), StatsigOptions())
+        countDownLatch.countDown()
+        assert(initDetails?.success === false)
+        assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
+        assert(initDetails?.failureDetails?.exception?.message == "Fake timeout exception")
+        logEventCountdown.await()
+        assert(logEventRequests.size === 1)
+        assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
+        verify {
+            eb.logException(any())
+        }
+        val markers = Gson().fromJson(logEventRequests[0].events[0].metadata?.get("markers") ?: "", Array<Marker>::class.java)
+        assert(markers.size === 2)
+        assert(markers[1].success === false)
+        assert(client.isInitialized())
     }
 }
