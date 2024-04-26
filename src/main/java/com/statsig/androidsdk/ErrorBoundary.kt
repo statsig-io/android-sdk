@@ -2,6 +2,9 @@ package com.statsig.androidsdk
 
 import com.google.gson.Gson
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.DataOutputStream
 import java.lang.RuntimeException
 import java.net.HttpURLConnection
@@ -62,6 +65,12 @@ internal class ErrorBoundary() {
         }
     }
 
+    fun getNoopExceptionHandler(): CoroutineExceptionHandler {
+        return CoroutineExceptionHandler { _, _ ->
+            // No-op
+        }
+    }
+
     fun capture(task: () -> Unit, tag: String? = null, recover: ((exception: Exception?) -> Unit)? = null, configName: String? = null) {
         var markerID = ""
         try {
@@ -95,35 +104,36 @@ internal class ErrorBoundary() {
 
     internal fun logException(exception: Throwable) {
         try {
-            if (apiKey == null) {
-                return
+            CoroutineScope(this.getNoopExceptionHandler() + Dispatchers.IO).launch {
+                if (apiKey == null) {
+                    return@launch
+                }
+
+                val name = exception.javaClass.canonicalName ?: exception.javaClass.name
+                if (seen.contains(name)) {
+                    return@launch
+                }
+
+                seen.add(name)
+
+                val metadata = statsigMetadata ?: StatsigMetadata("")
+                val url = URL(getUrl())
+                val body = mapOf(
+                    "exception" to name,
+                    "info" to RuntimeException(exception).stackTraceToString(),
+                    "statsigMetadata" to metadata,
+                )
+                val postData = Gson().toJson(body)
+
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.setRequestProperty("STATSIG-API-KEY", apiKey)
+                conn.useCaches = false
+                DataOutputStream(conn.outputStream).use { it.writeBytes(postData) }
+                conn.responseCode // triggers request
             }
-
-            val name = exception.javaClass.canonicalName ?: exception.javaClass.name
-            if (seen.contains(name)) {
-                return
-            }
-
-            seen.add(name)
-
-            val metadata = statsigMetadata ?: StatsigMetadata("")
-            val url = URL(getUrl())
-            val body = mapOf(
-                "exception" to name,
-                "info" to RuntimeException(exception).stackTraceToString(),
-                "statsigMetadata" to metadata,
-            )
-            val postData = Gson().toJson(body)
-
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "POST"
-            conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("STATSIG-API-KEY", apiKey)
-            conn.useCaches = false
-
-            DataOutputStream(conn.outputStream).use { it.writeBytes(postData) }
-            conn.responseCode // triggers request
         } catch (e: Exception) {
             // noop
         }
