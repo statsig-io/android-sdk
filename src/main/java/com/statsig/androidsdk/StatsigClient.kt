@@ -392,18 +392,23 @@ class StatsigClient() : LifecycleEventListener {
      * Log Events will be dropped
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
+    fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null, values: Map<String, Any>? = null) {
         val functionName = "updateUserAsync"
         enforceInitialized(functionName)
         errorBoundary.capture({
-            updateUserCache(user)
-            statsigScope.launch {
-                updateUserImpl()
-                withContext(dispatcherProvider.main) {
-                    try {
-                        callback?.onStatsigUpdateUser()
-                    } catch (e: Exception) {
-                        throw ExternalException(e.message)
+            if (values != null) {
+                updateUserWithValuesImpl(user, values)
+                callback?.onStatsigUpdateUser()
+            } else {
+                updateUserCache(user)
+                statsigScope.launch {
+                    updateUserImpl()
+                    withContext(dispatcherProvider.main) {
+                        try {
+                            callback?.onStatsigUpdateUser()
+                        } catch (e: Exception) {
+                            throw ExternalException(e.message)
+                        }
                     }
                 }
             }
@@ -417,11 +422,15 @@ class StatsigClient() : LifecycleEventListener {
      * @param user the updated user
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    suspend fun updateUser(user: StatsigUser?) {
+    suspend fun updateUser(user: StatsigUser?, values: Map<String, Any>? = null) {
         enforceInitialized("updateUser")
         errorBoundary.captureAsync {
-            updateUserCache(user)
-            updateUserImpl()
+            if (values != null) {
+                updateUserWithValuesImpl(user, values)
+            } else {
+                updateUserCache(user)
+                updateUserImpl()
+            }
             options.userObjectValidator?.let { it(this.user) }
         }
     }
@@ -764,6 +773,12 @@ class StatsigClient() : LifecycleEventListener {
             this@StatsigClient.user = normalizeUser(user)
             store.loadAndResetForUser(this@StatsigClient.user)
         })
+    }
+
+    private fun updateUserWithValuesImpl(user: StatsigUser?, values: Map<String, Any>) {
+        val normalizedUser = normalizeUser(user)
+        this.user = normalizedUser
+        this.store.bootstrap(values, this.user)
     }
 
     private suspend fun updateUserImpl() {

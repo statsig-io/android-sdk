@@ -276,8 +276,8 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null) {
-        client.updateUserAsync(user, callback)
+    fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null, values: Map<String, Any>? = null) {
+        client.updateUserAsync(user, callback, values)
     }
 
     /**
@@ -288,8 +288,8 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmSynthetic // Hide this from Java files
-    suspend fun updateUser(user: StatsigUser?) {
-        client.updateUser(user)
+    suspend fun updateUser(user: StatsigUser?, values: Map<String, Any>? = null) {
+        client.updateUser(user, values)
     }
 
     /**
