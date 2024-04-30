@@ -396,6 +396,7 @@ class StatsigClient() : LifecycleEventListener {
         val functionName = "updateUserAsync"
         enforceInitialized(functionName)
         errorBoundary.capture({
+            diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
             if (values != null) {
                 updateUserWithValuesImpl(user, values)
                 callback?.onStatsigUpdateUser()
@@ -425,6 +426,7 @@ class StatsigClient() : LifecycleEventListener {
     suspend fun updateUser(user: StatsigUser?, values: Map<String, Any>? = null) {
         enforceInitialized("updateUser")
         errorBoundary.captureAsync {
+            diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
             if (values != null) {
                 updateUserWithValuesImpl(user, values)
             } else {
@@ -779,13 +781,13 @@ class StatsigClient() : LifecycleEventListener {
         val normalizedUser = normalizeUser(user)
         this.user = normalizedUser
         this.store.bootstrap(values, this.user)
+        logEndDiagnostics(true, ContextType.UPDATE_USER, null)
     }
 
     private suspend fun updateUserImpl() {
         withContext(dispatcherProvider.io) {
             errorBoundary.captureAsync(
                 {
-                    diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
                     val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
                     val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
                     val initResponse = statsigNetwork.initialize(

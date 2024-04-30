@@ -61,7 +61,7 @@ internal class StatsigLogger(
 
     fun onUpdateUser() {
         this.loggedExposures = ConcurrentHashMap()
-        diagnostics.clearAllContext()
+        diagnostics.clearContext(ContextType.API_CALL)
     }
 
     suspend fun flush() {

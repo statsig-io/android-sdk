@@ -34,10 +34,6 @@ internal class Diagnostics(private var isDisabled: Boolean) {
         )
     }
 
-    fun clearAllContext() {
-        this.markers = mutableMapOf()
-    }
-
     fun markStart(key: KeyType, step: StepType? = null, additionalMarker: Marker? = null, overrideContext: ContextType? = null): Boolean {
         val context = overrideContext ?: this.diagnosticsContext
         if (this.isDisabled && context === ContextType.API_CALL) {
