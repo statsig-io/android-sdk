@@ -62,22 +62,24 @@ class StatsigOfflineInitializationTest {
         var diagnosticMarkers = (gson.fromJson(logs[0].events[0].metadata!!["markers"], Collection::class.java)).map {
             gson.fromJson(gson.toJson(it), Marker::class.java)
         }
-        assert(diagnosticMarkers.size == 2)
+        println(diagnosticMarkers.size)
+        assert(diagnosticMarkers.size == 4)
         assert(diagnosticMarkers[0].key == KeyType.OVERALL)
         assert(diagnosticMarkers[0].action == ActionType.START)
-        assert(diagnosticMarkers[1].key == KeyType.OVERALL)
-        assert(diagnosticMarkers[1].action == ActionType.END)
-        assert(diagnosticMarkers[1].success == true)
+        assert(diagnosticMarkers[3].key == KeyType.OVERALL)
+        assert(diagnosticMarkers[3].action == ActionType.END)
+        assert(diagnosticMarkers[3].success == true)
 
         diagnosticMarkers = (gson.fromJson(logs[1].events[0].metadata!!["markers"], Collection::class.java)).map {
             gson.fromJson(gson.toJson(it), Marker::class.java)
         }
-        assert(diagnosticMarkers.size == 2)
+        println(diagnosticMarkers.size)
+        assert(diagnosticMarkers.size == 4)
         assert(diagnosticMarkers[0].key == KeyType.OVERALL)
         assert(diagnosticMarkers[0].action == ActionType.START)
-        assert(diagnosticMarkers[1].key == KeyType.OVERALL)
-        assert(diagnosticMarkers[1].action == ActionType.END)
-        assert(diagnosticMarkers[1].success == true)
+        assert(diagnosticMarkers[3].key == KeyType.OVERALL)
+        assert(diagnosticMarkers[3].action == ActionType.END)
+        assert(diagnosticMarkers[3].success == true)
     }
 
     @Test

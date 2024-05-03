@@ -24,6 +24,8 @@ data class Marker(
     @SerializedName("evaluationDetails") var evaluationDetails: EvaluationDetails? = null,
     @SerializedName("error") var error: ErrorMessage? = null,
     @SerializedName("hasNetwork") var hasNetwork: Boolean? = null,
+    @SerializedName("timeoutMS") var timeoutMS: Int? = null,
+    @SerializedName("isBlocking") var isBlocking: Boolean? = null,
 ) {
     data class ErrorMessage(
         @SerializedName("message") val message: String? = null,
@@ -71,6 +73,9 @@ enum class KeyType {
     @SerializedName("get_layer")
     GET_LAYER,
 
+    @SerializedName("retry_failed_log")
+    RETRY_FAILED_LOG,
+
     ;
 
     companion object {
@@ -97,6 +102,9 @@ enum class StepType {
 
     @SerializedName("network_request")
     NETWORK_REQUEST,
+
+    @SerializedName("load_cache")
+    LOAD_CACHE,
 }
 
 enum class ActionType {

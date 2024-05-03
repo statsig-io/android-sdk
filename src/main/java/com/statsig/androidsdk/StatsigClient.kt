@@ -655,7 +655,9 @@ class StatsigClient() : LifecycleEventListener {
                     )
                 }
                 if (this@StatsigClient.options.loadCacheAsync) {
+                    diagnostics.markStart(KeyType.INITIALIZE, StepType.LOAD_CACHE, Marker(isBlocking = false))
                     this@StatsigClient.store.syncLoadFromLocalStorage()
+                    diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
                 }
                 val initResponse = if (this@StatsigClient.options.initializeOffline) {
                     store.getCachedInitializationResponse()
@@ -767,7 +769,9 @@ class StatsigClient() : LifecycleEventListener {
         }
 
         if (!this@StatsigClient.options.loadCacheAsync) {
+            diagnostics.markStart(KeyType.INITIALIZE, StepType.LOAD_CACHE, Marker(isBlocking = true))
             this@StatsigClient.store.syncLoadFromLocalStorage()
+            diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
         }
 
         if (initializeValues != null) {

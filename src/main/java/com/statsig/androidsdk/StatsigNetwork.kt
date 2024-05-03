@@ -209,6 +209,7 @@ internal class StatsigNetworkImpl(
                 null,
                 1,
                 Marker.ErrorMessage(e.message.toString(), e.javaClass.name, e.javaClass.name),
+                timeoutMs,
             )
             when (e) {
                 is SocketTimeoutException, is ConnectException -> {
@@ -429,6 +430,7 @@ internal class StatsigNetworkImpl(
                         connection.headerFields["x-statsig-region"]?.get(0),
                         retryAttempt,
                         errorMarker,
+                        timeout,
                     )
                     when (code) {
                         in 200..299 -> {
@@ -493,12 +495,13 @@ internal class StatsigNetworkImpl(
         sdkRegion: String?,
         attempt: Int?,
         error: Marker.ErrorMessage? = null,
+        timeoutMs: Int? = null,
     ) {
         if (diagnostics == null) {
             return
         }
         val marker =
-            Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode, error = error, hasNetwork = connectivityListener.isNetworkAvailable())
+            Marker(attempt = attempt, sdkRegion = sdkRegion, statusCode = statusCode, error = error, hasNetwork = connectivityListener.isNetworkAvailable(), timeoutMS = timeoutMs)
         val wasSuccessful = statusCode in 200..299
 
         diagnostics.markEnd(
