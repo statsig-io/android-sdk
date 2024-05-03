@@ -54,7 +54,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)),
         )
 
-        network = StatsigNetwork(app, "client-key", eb, app.getSharedPreferences("", Context.MODE_PRIVATE))
+        network = StatsigNetwork(app, "client-key", eb, app.getSharedPreferences("", Context.MODE_PRIVATE), StatsigOptions())
     }
 
     @Test
@@ -95,7 +95,6 @@ class ErrorBoundaryNetworkConnectivityTest {
                 StatsigUser(),
                 null,
                 StatsigMetadata(),
-                StatsigOptions(initTimeoutMs = 999),
                 ContextType.INITIALIZE,
                 null,
                 HashAlgorithm.NONE,

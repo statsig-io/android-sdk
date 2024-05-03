@@ -69,7 +69,6 @@ internal interface StatsigNetwork {
         user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
-        options: StatsigOptions,
         context: ContextType,
         diagnostics: Diagnostics? = null,
         hashUsed: HashAlgorithm,
@@ -95,18 +94,19 @@ internal fun StatsigNetwork(
     sdkKey: String,
     errorBoundary: ErrorBoundary,
     sharedPrefs: SharedPreferences,
-): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs)
+    options: StatsigOptions,
+): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs, options)
 
 private class StatsigNetworkImpl(
     context: Context,
     private val sdkKey: String,
     private val errorBoundary: ErrorBoundary,
     private val sharedPrefs: SharedPreferences,
+    private val options: StatsigOptions,
 ) : StatsigNetwork {
 
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
-    private lateinit var options: StatsigOptions
     private val connectivityListener = StatsigNetworkConnectivityListener(context)
     private val offlineLogsKeyV2 = "$OFFLINE_LOGS_KEY_V1:$sdkKey"
     private var initializeRequestsMap = Collections.synchronizedMap(mutableMapOf<String, HttpURLConnection>())
@@ -115,13 +115,11 @@ private class StatsigNetworkImpl(
         user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
-        options: StatsigOptions,
         contextType: ContextType,
         diagnostics: Diagnostics?,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
     ): InitializeResponse {
-        this.options = options
         if (options.initTimeoutMs == 0L) {
             return initializeImpl(
                 api,
@@ -277,6 +275,9 @@ private class StatsigNetworkImpl(
     }
 
     override suspend fun apiRetryFailedLogs(api: String) {
+        if (this.options.disableLogEventRetries) {
+            return
+        }
         val savedLogs = getSavedLogs()
         if (savedLogs.isEmpty()) {
             return

@@ -91,6 +91,8 @@ class StatsigOptions(
     var evaluationCallback: ((BaseConfig) -> Unit)? = null,
 
     var customCacheKey: ((String, StatsigUser) -> String) = { sdkKey, user -> "${user.getCacheKey()}:$sdkKey" },
+
+    var disableLogEventRetries: Boolean = false,
 ) {
 
     private var environment: MutableMap<String, String>? = null

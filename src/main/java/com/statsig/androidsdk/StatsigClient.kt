@@ -664,7 +664,6 @@ class StatsigClient() : LifecycleEventListener {
                         user,
                         this@StatsigClient.store.getLastUpdateTime(this@StatsigClient.user),
                         this@StatsigClient.statsigMetadata,
-                        this@StatsigClient.options,
                         ContextType.INITIALIZE,
                         this@StatsigClient.diagnostics,
                         if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
@@ -683,7 +682,16 @@ class StatsigClient() : LifecycleEventListener {
 
                 this@StatsigClient.pollForUpdates()
 
-                this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI)
+                if (this@StatsigClient.options.disableLogEventRetries != true) {
+                    launch(dispatcherProvider.io) {
+                        try {
+                            this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI)
+                        } catch (e: Exception) {
+                            // best effort attempt to capture failed log events
+                        }
+                    }
+                }
+
                 val success = initResponse is InitializeResponse.SuccessfulInitializeResponse
                 logEndDiagnostics(success, ContextType.INITIALIZE, initResponse)
                 InitializationDetails(
@@ -727,7 +735,7 @@ class StatsigClient() : LifecycleEventListener {
         options.userObjectValidator?.let { it(this.user) }
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
-            statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary, getSharedPrefs())
+            statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary, getSharedPrefs(), options)
         }
         statsigMetadata = StatsigMetadata()
         errorBoundary.setMetadata(statsigMetadata)
@@ -795,7 +803,6 @@ class StatsigClient() : LifecycleEventListener {
                         this@StatsigClient.user,
                         sinceTime,
                         statsigMetadata,
-                        options,
                         ContextType.UPDATE_USER,
                         diagnostics = this@StatsigClient.diagnostics,
                         hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
@@ -986,8 +993,11 @@ class StatsigClient() : LifecycleEventListener {
     }
 
     override fun onAppFocus() {
+        if (this.options.disableLogEventRetries) {
+            return
+        }
         statsigScope.launch {
-            statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.api)
+            statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI)
         }
     }
 
