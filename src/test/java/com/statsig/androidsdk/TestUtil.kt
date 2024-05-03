@@ -313,6 +313,12 @@ class TestUtil {
             } returns null
             mockAppLifecycleCallbacks(app)
 
+            val connectivityManager = mockk<ConnectivityManager>()
+            val networkInfo = mockk<NetworkInfo>()
+            every { app.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
+            every { networkInfo.isConnectedOrConnecting } returns true
+            every { connectivityManager.activeNetworkInfo } returns networkInfo
+
             return sharedPrefs
         }
 
