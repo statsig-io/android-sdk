@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -664,6 +665,7 @@ class StatsigClient() : LifecycleEventListener {
                         user,
                         this@StatsigClient.store.getLastUpdateTime(this@StatsigClient.user),
                         this@StatsigClient.statsigMetadata,
+                        statsigScope,
                         ContextType.INITIALIZE,
                         this@StatsigClient.diagnostics,
                         if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
@@ -705,7 +707,7 @@ class StatsigClient() : LifecycleEventListener {
                     0,
                     false,
                     InitializeResponse.FailedInitializeResponse(
-                        InitializeFailReason.InternalError,
+                        if (e is TimeoutCancellationException) InitializeFailReason.CoroutineTimeout else InitializeFailReason.InternalError,
                         e,
                     ),
                 )
@@ -803,6 +805,7 @@ class StatsigClient() : LifecycleEventListener {
                         this@StatsigClient.user,
                         sinceTime,
                         statsigMetadata,
+                        statsigScope,
                         ContextType.UPDATE_USER,
                         diagnostics = this@StatsigClient.diagnostics,
                         hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,

@@ -4,12 +4,16 @@ import android.app.Application
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.spyk
 import io.mockk.unmockkAll
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import java.lang.Exception
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -260,5 +264,34 @@ class StatsigTest {
         Statsig.shutdown()
         var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
         assertEquals(parsedLogs.events[0].user?.custom, mapOf("hey" to "hey"))
+    }
+
+    @Test
+    fun testInitializationTimeout() = runBlocking {
+        val user = StatsigUser("test-user")
+        val timeout = 800L
+        val option = StatsigOptions(initTimeoutMs = timeout)
+        val setupMethod = client.javaClass.getDeclaredMethod("setup", Application::class.java, String::class.java, StatsigUser::class.java, StatsigOptions::class.java)
+        setupMethod.isAccessible = true
+        setupMethod.invoke(client, app, "client-key", user, option)
+        // initialize function blocking timeout
+        val network = spyk(client.statsigNetwork)
+        client.statsigNetwork = network
+        coEvery { network["initializeImpl"](allAny<String>(), allAny<StatsigUser>(), allAny<Long>(), allAny<StatsigMetadata>(), allAny<ContextType>(), allAny<Diagnostics>(), allAny<Int>(), allAny<HashAlgorithm>(), allAny<Map<String, String>>()) } coAnswers {
+            Thread.sleep(timeout) // Block the thread
+            InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, Exception("eXAMPLE"))
+        }
+        val scope = client.javaClass.getDeclaredField("statsigScope")
+        scope.isAccessible = true
+        val statsigScope = scope.get(client)
+
+        try {
+            client.statsigNetwork.initialize(option.api, user, 0, StatsigMetadata(), statsigScope as CoroutineScope, ContextType.INITIALIZE, null, HashAlgorithm.DJB2, mapOf())
+        } catch (e: Exception) {
+            assert(e is TimeoutCancellationException)
+            assert(e.message!!.contains("Timed out waiting for $timeout ms"))
+            return@runBlocking
+        }
+        assert(false)
     }
 }

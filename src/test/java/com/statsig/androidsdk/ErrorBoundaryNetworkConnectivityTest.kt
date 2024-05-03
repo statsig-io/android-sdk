@@ -25,7 +25,7 @@ import java.lang.reflect.Modifier
 class ErrorBoundaryNetworkConnectivityTest {
     private lateinit var eb: ErrorBoundary
     private lateinit var app: Application
-    private lateinit var network: StatsigNetwork
+    private lateinit var network: StatsigNetworkImpl
     private lateinit var connectivityManager: ConnectivityManager
 
     private var ebCalled = false
@@ -54,7 +54,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)),
         )
 
-        network = StatsigNetwork(app, "client-key", eb, app.getSharedPreferences("", Context.MODE_PRIVATE), StatsigOptions())
+        network = StatsigNetworkImpl(app, "client-key", eb, app.getSharedPreferences("", Context.MODE_PRIVATE), StatsigOptions())
     }
 
     @Test
@@ -90,13 +90,14 @@ class ErrorBoundaryNetworkConnectivityTest {
 
     private suspend fun makeNetworkRequest() {
         try {
-            network.initialize(
+            network.initializeImpl(
                 wireMockRule.baseUrl(),
                 StatsigUser(),
                 null,
                 StatsigMetadata(),
                 ContextType.INITIALIZE,
                 null,
+                50,
                 HashAlgorithm.NONE,
                 mapOf(),
             )

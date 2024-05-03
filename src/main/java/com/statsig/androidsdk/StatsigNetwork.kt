@@ -2,11 +2,13 @@ package com.statsig.androidsdk
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.io.BufferedReader
@@ -69,6 +71,7 @@ internal interface StatsigNetwork {
         user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
+        coroutineScope: CoroutineScope,
         context: ContextType,
         diagnostics: Diagnostics? = null,
         hashUsed: HashAlgorithm,
@@ -97,7 +100,7 @@ internal fun StatsigNetwork(
     options: StatsigOptions,
 ): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs, options)
 
-private class StatsigNetworkImpl(
+internal class StatsigNetworkImpl(
     context: Context,
     private val sdkKey: String,
     private val errorBoundary: ErrorBoundary,
@@ -115,6 +118,7 @@ private class StatsigNetworkImpl(
         user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
+        coroutineScope: CoroutineScope,
         contextType: ContextType,
         diagnostics: Diagnostics?,
         hashUsed: HashAlgorithm,
@@ -133,21 +137,26 @@ private class StatsigNetworkImpl(
             )
         }
         return withTimeout(options.initTimeoutMs) {
-            initializeImpl(
-                api,
-                user,
-                sinceTime,
-                metadata,
-                contextType,
-                diagnostics,
-                options.initTimeoutMs.toInt(),
-                hashUsed = hashUsed,
-                previousDerivedFields = previousDerivedFields,
-            )
+            var response: InitializeResponse = InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, null, null)
+            coroutineScope.launch {
+                response = initializeImpl(
+                    api,
+                    user,
+                    sinceTime,
+                    metadata,
+                    contextType,
+                    diagnostics,
+                    options.initTimeoutMs.toInt(),
+                    hashUsed = hashUsed,
+                    previousDerivedFields = previousDerivedFields,
+                )
+            }.join()
+
+            return@withTimeout response
         }
     }
 
-    private suspend fun initializeImpl(
+    internal suspend fun initializeImpl(
         api: String,
         user: StatsigUser,
         sinceTime: Long?,

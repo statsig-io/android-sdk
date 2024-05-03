@@ -106,7 +106,7 @@ class StatsigOfflineInitializationTest {
         } answers {}
 
         coEvery {
-            statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any())
+            statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
             initializeNetworkCalled++
             TestUtil.makeInitializeResponse()
