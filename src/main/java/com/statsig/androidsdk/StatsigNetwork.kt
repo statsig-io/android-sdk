@@ -188,6 +188,10 @@ private class StatsigNetworkImpl(
                 statusCode,
             )
         } catch (e: Exception) {
+            if (connectivityListener.isNetworkAvailable()) {
+                errorBoundary.logException(e)
+            }
+
             this.endDiagnostics(
                 diagnostics,
                 contextType,
