@@ -10,6 +10,7 @@ enum class EvaluationReason {
     Bootstrap,
     InvalidBootstrap,
     NetworkNotModified,
+    Error,
 }
 
 data class EvaluationDetails(

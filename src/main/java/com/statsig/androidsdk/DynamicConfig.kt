@@ -33,8 +33,8 @@ class DynamicConfig(
     )
 
     internal companion object {
-        fun getUninitialized(name: String): DynamicConfig {
-            return DynamicConfig(name, EvaluationDetails(EvaluationReason.Uninitialized))
+        fun getError(name: String): DynamicConfig {
+            return DynamicConfig(name, EvaluationDetails(EvaluationReason.Error))
         }
     }
 

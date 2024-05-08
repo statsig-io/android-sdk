@@ -102,6 +102,30 @@ object Statsig {
     }
 
     /**
+     * Check the value of a Feature Gate configured in the Statsig console for the initialized
+     * user
+     * @param gateName the name of the feature gate to check
+     * @return a feature gate object containing the value of the gate and additional metadata
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmStatic
+    fun getFeatureGate(gateName: String): FeatureGate {
+        return client.getFeatureGate(gateName)
+    }
+
+    /**
+     * Check the value of a Feature Gate configured in the Statsig console for the initialized
+     * user, but do not log an exposure
+     * @param gateName the name of the feature gate to check
+     * @return a feature gate object containing the value of the gate and additional metadata
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmStatic
+    fun getFeatureGateWithExposureLoggingDisabled(gateName: String): FeatureGate {
+        return client.getFeatureGateWithExposureLoggingDisabled(gateName)
+    }
+
+    /**
      * Check the value of a Dynamic Config configured in the Statsig console for the initialized
      * user
      * @param configName the name of the Dynamic Config to check

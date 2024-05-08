@@ -33,6 +33,7 @@ internal data class APIFeatureGate(
     @SerializedName("rule_id") val ruleID: String = "",
     @SerializedName("group_name") val groupName: String? = null,
     @SerializedName("secondary_exposures") val secondaryExposures: Array<Map<String, String>> = arrayOf(),
+    @SerializedName("id_type") val idType: String? = null,
 )
 
 internal data class APIDynamicConfig(

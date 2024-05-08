@@ -153,15 +153,15 @@ class StatsigClient() : LifecycleEventListener {
     fun checkGate(gateName: String): Boolean {
         val functionName = "checkGate"
         enforceInitialized(functionName)
-        var result = false
+        var result: FeatureGate? = null
         errorBoundary.capture({
             val gate = store.checkGate(gateName)
-            options.evaluationCallback?.invoke(gate)
-            result = gate.getValue()
             logExposure(gateName, gate)
+            result = gate
         }, tag = functionName, configName = gateName)
-        options.evaluationCallback?.invoke(FeatureGate(gateName, EvaluationDetails(EvaluationReason.Uninitialized), false, ""))
-        return result
+        val res = result ?: FeatureGate.getError(gateName)
+        options.evaluationCallback?.invoke(res)
+        return res.getValue()
     }
 
     /**
@@ -174,15 +174,43 @@ class StatsigClient() : LifecycleEventListener {
     fun checkGateWithExposureLoggingDisabled(gateName: String): Boolean {
         val functionName = "checkGateWithExposureLoggingDisabled"
         enforceInitialized(functionName)
-        var result = false
+        var result: FeatureGate? = null
         errorBoundary.capture({
             this.logger.addNonExposedCheck(gateName)
             val gate = store.checkGate(gateName)
-            options.evaluationCallback?.invoke(gate)
-            result = gate.getValue()
+            result = gate
         }, tag = functionName, configName = gateName)
-        options.evaluationCallback?.invoke(FeatureGate(gateName, EvaluationDetails(EvaluationReason.Uninitialized), false, ""))
-        return result
+        val res = result ?: FeatureGate.getError(gateName)
+        options.evaluationCallback?.invoke(res)
+        return res.getValue()
+    }
+
+    fun getFeatureGate(gateName: String): FeatureGate {
+        val functionName = "getFeatureGate"
+        enforceInitialized(functionName)
+        var result: FeatureGate? = null
+        errorBoundary.capture({
+            val gate = store.checkGate(gateName)
+            logExposure(gateName, gate)
+            result = gate
+        }, tag = functionName, configName = gateName)
+        val res = result ?: FeatureGate.getError(gateName)
+        options.evaluationCallback?.invoke(res)
+        return res
+    }
+
+    fun getFeatureGateWithExposureLoggingDisabled(gateName: String): FeatureGate {
+        val functionName = "getFeatureGateWithExposureLoggingDisabled"
+        enforceInitialized(functionName)
+        var result: FeatureGate? = null
+        errorBoundary.capture({
+            this.logger.addNonExposedCheck(gateName)
+            val gate = store.checkGate(gateName)
+            result = gate
+        }, tag = functionName, configName = gateName)
+        val res = result ?: FeatureGate.getError(gateName)
+        options.evaluationCallback?.invoke(res)
+        return res
     }
 
     /**
@@ -195,7 +223,7 @@ class StatsigClient() : LifecycleEventListener {
     fun getConfig(configName: String): DynamicConfig {
         val functionName = "getConfig"
         enforceInitialized(functionName)
-        var result: DynamicConfig = DynamicConfig.getUninitialized(configName)
+        var result: DynamicConfig = DynamicConfig.getError(configName)
         errorBoundary.capture({
             result = store.getConfig(configName)
             logExposure(configName, result)
@@ -214,7 +242,7 @@ class StatsigClient() : LifecycleEventListener {
     fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig {
         val functionName = "getConfigWithExposureLoggingDisabled"
         enforceInitialized(functionName)
-        var result: DynamicConfig = DynamicConfig.getUninitialized(configName)
+        var result: DynamicConfig = DynamicConfig.getError(configName)
         errorBoundary.capture({
             this.logger.addNonExposedCheck(configName)
             result = store.getConfig(configName)
@@ -234,7 +262,7 @@ class StatsigClient() : LifecycleEventListener {
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         val functionName = "getExperiment"
         enforceInitialized(functionName)
-        var res: DynamicConfig = DynamicConfig.getUninitialized(experimentName)
+        var res: DynamicConfig = DynamicConfig.getError(experimentName)
         errorBoundary.capture({
             res = store.getExperiment(experimentName, keepDeviceValue)
             updateStickyValues()
@@ -258,7 +286,7 @@ class StatsigClient() : LifecycleEventListener {
     ): DynamicConfig {
         val functionName = "getExperimentWithExposureLoggingDisabled"
         enforceInitialized(functionName)
-        var exp: DynamicConfig = DynamicConfig.getUninitialized(experimentName)
+        var exp: DynamicConfig = DynamicConfig.getError(experimentName)
         errorBoundary.capture({
             this.logger.addNonExposedCheck(experimentName)
             exp = store.getExperiment(experimentName, keepDeviceValue)
@@ -279,7 +307,7 @@ class StatsigClient() : LifecycleEventListener {
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
         val functionName = "getLayer"
         enforceInitialized(functionName)
-        var layer: Layer = Layer.getUninitialized(layerName)
+        var layer: Layer = Layer.getError(layerName)
         errorBoundary.capture({
             layer = store.getLayer(this, layerName, keepDeviceValue)
             updateStickyValues()
@@ -302,7 +330,7 @@ class StatsigClient() : LifecycleEventListener {
     ): Layer {
         val functionName = "getLayerWithExposureLoggingDisabled"
         enforceInitialized(functionName)
-        var layer: Layer = Layer.getUninitialized(layerName)
+        var layer: Layer = Layer.getError(layerName)
         errorBoundary.capture({
             this.logger.addNonExposedCheck(layerName)
             layer = store.getLayer(null, layerName, keepDeviceValue)

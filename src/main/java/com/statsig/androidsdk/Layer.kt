@@ -40,8 +40,8 @@ class Layer internal constructor(
     )
 
     companion object {
-        fun getUninitialized(name: String): Layer {
-            return Layer(null, name, EvaluationDetails(EvaluationReason.Uninitialized))
+        fun getError(name: String): Layer {
+            return Layer(null, name, EvaluationDetails(EvaluationReason.Error))
         }
     }
 

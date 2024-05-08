@@ -10,6 +10,7 @@ class FeatureGate(
     private val rule: String = "",
     private val groupName: String? = null,
     private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
+    private val idType: String? = null,
 ) : BaseConfig(name, details) {
     internal constructor(
         gateName: String,
@@ -22,7 +23,14 @@ class FeatureGate(
         apiFeatureGate.ruleID,
         apiFeatureGate.groupName,
         apiFeatureGate.secondaryExposures,
+        apiFeatureGate.idType,
     )
+
+    internal companion object {
+        fun getError(name: String): FeatureGate {
+            return FeatureGate(name, EvaluationDetails(EvaluationReason.Error), false, "")
+        }
+    }
 
     fun getValue(): Boolean {
         return this.value
@@ -38,5 +46,9 @@ class FeatureGate(
 
     fun getSecondaryExposures(): Array<Map<String, String>> {
         return this.secondaryExposures
+    }
+
+    fun getIDType(): String? {
+        return this.idType
     }
 }
