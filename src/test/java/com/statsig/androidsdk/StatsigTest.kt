@@ -258,12 +258,38 @@ class StatsigTest {
     @Test
     fun testUserValidator() = runBlocking {
         val options = StatsigOptions()
-        options.userObjectValidator = { user: StatsigUser -> user.custom = mapOf("hey" to "hey") }
+        var userValidatorCalled = 0
+        val updateCountdown = CountDownLatch(1)
+        options.userObjectValidator = { user: StatsigUser ->
+            user.custom = mapOf("hey" to "hey")
+            userValidatorCalled++
+        }
         TestUtil.startStatsigAndWait(app, StatsigUser("jkw"), options, network = network)
+        assertEquals(initUser?.userID, "jkw")
+        assertEquals(initUser?.custom, mapOf("hey" to "hey"))
+        Statsig.logEvent("event_1")
+        Statsig.updateUser(StatsigUser("test-user-1"))
+        assertEquals(initUser?.userID, "test-user-1")
+        assertEquals(initUser?.custom, mapOf("hey" to "hey"))
+        Statsig.logEvent("event_1")
+        Statsig.updateUserAsync(
+            StatsigUser("test-user-2"),
+            object : IStatsigCallback {
+                override fun onStatsigUpdateUser() {
+                    updateCountdown.countDown()
+                }
+            },
+        )
+        updateCountdown.await(1, TimeUnit.SECONDS)
+        assertEquals(initUser?.userID, "test-user-2")
+        assertEquals(initUser?.custom, mapOf("hey" to "hey"))
         Statsig.logEvent("event_1")
         Statsig.shutdown()
+        assertEquals(userValidatorCalled, 3)
         var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
         assertEquals(parsedLogs.events[0].user?.custom, mapOf("hey" to "hey"))
+        assertEquals(parsedLogs.events[1].user?.custom, mapOf("hey" to "hey"))
+        assertEquals(parsedLogs.events[2].user?.custom, mapOf("hey" to "hey"))
     }
 
     @Test

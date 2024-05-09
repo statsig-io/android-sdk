@@ -85,6 +85,7 @@ class StatsigOptions(
     @SerializedName("disableHashing") var disableHashing: Boolean? = false,
     /**
      * Callback function when user is being set (with updateUser/initialize)  to validate user object
+     * If user object is modified, modified version will be used for evaluation and logging
      */
     @SerializedName("userObjectValidator") var userObjectValidator: ((user: StatsigUser) -> Unit)? = null,
 
