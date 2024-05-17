@@ -447,6 +447,43 @@ class StoreTest {
         assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
     }
 
+    @Test
+    fun testStoreUpdatesWithRefreshCache() = runBlocking {
+        val networkTime = 123456789L
+        var network: StatsigNetwork = TestUtil.mockNetwork(
+            dynamicConfigs = mapOf(
+                "test_config!" to APIDynamicConfig(
+                    "test_config!",
+                    mutableMapOf("key" to "first"),
+                    "default",
+                ),
+            ),
+            time = networkTime,
+            hasUpdates = true,
+        )
+        val user = StatsigUser("123")
+        TestUtil.startStatsigAndWait(app, user, StatsigOptions(), network)
+        coVerify { network.initialize(any(), any(), null, any(), any(), any(), any(), any(), any()) }
+        assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
+        assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
+        network = TestUtil.mockNetwork(
+            dynamicConfigs = mapOf(
+                "test_config!" to APIDynamicConfig(
+                    "test_config!",
+                    mutableMapOf("key" to "second"),
+                    "default",
+                ),
+            ),
+            time = networkTime + 1,
+            hasUpdates = true,
+        )
+        Statsig.client.statsigNetwork = network
+        runBlocking { Statsig.refreshCache() }
+        coVerify { network.initialize(any(), any(), networkTime, any(), any(), any(), any(), any(), any()) }
+        assertEquals(networkTime + 1, Statsig.client.getStore().getLastUpdateTime(user))
+        assertEquals("second", Statsig.getConfig("test_config").getString("key", ""))
+    }
+
     private fun newConfigUpdatingValue(
         config: APIDynamicConfig,
         newValue: Map<String, Any>,

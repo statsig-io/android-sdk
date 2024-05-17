@@ -317,6 +317,29 @@ object Statsig {
     }
 
     /**
+     * Update the Statsig SDK with Feature Gate and Dynamic Configs for the current user
+     *
+     * @param callback a callback to invoke upon update completion. Before this callback is
+     * invoked, checking Gates will return false, getting Configs will return null, and
+     * Log Events will be dropped
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmStatic
+    suspend fun refreshCacheAsync(callback: IStatsigCallback? = null) {
+        client.refreshCacheAsync(callback)
+    }
+
+    /**
+     * Update the Statsig SDK with Feature Gate and Dynamic Configs for the current user
+     *
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmSynthetic // Hide this from Java files
+    suspend fun refreshCache() {
+        client.refreshCache()
+    }
+
+    /**
      * @return Initialize response currently being used in JSON and evaluation details
      * @throws IllegalStateException if the SDK has not been initialized
      */

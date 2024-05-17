@@ -466,6 +466,45 @@ class StatsigClient() : LifecycleEventListener {
     }
 
     /**
+     * Update the Statsig SDK with Feature Gate and Dynamic Configs for the current user
+     *
+     * @param callback a callback to invoke upon update completion. Before this callback is
+     * invoked, checking Gates will return false, getting Configs will return null, and
+     * Log Events will be dropped
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    suspend fun refreshCacheAsync(callback: IStatsigCallback? = null) {
+        val functionName = "refreshCacheAsync"
+        enforceInitialized(functionName)
+        errorBoundary.capture({
+            diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
+            statsigScope.launch {
+                updateUserImpl()
+                withContext(dispatcherProvider.main) {
+                    try {
+                        callback?.onStatsigUpdateUser()
+                    } catch (e: Exception) {
+                        throw ExternalException(e.message)
+                    }
+                }
+            }
+        }, tag = functionName)
+    }
+
+    /**
+     * Update the Statsig SDK with Feature Gate and Dynamic Configs for the current user
+     *
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    suspend fun refreshCache() {
+        enforceInitialized("refreshCache")
+        errorBoundary.captureAsync {
+            diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
+            updateUserImpl()
+        }
+    }
+
+    /**
      * @return Initialize response currently being used in JSON and evaluation details
      * @throws IllegalStateException if the SDK has not been initialized
      */
