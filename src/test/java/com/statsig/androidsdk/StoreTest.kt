@@ -109,13 +109,16 @@ class StoreTest {
         val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey", StatsigOptions())
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
-        store.loadAndResetForUser(userDloomb)
+        store.resetUser(userDloomb)
+        store.loadCacheForCurrentUser()
         store.save(getInitValue("v0", inExperiment = false, active = true), userDloomb)
 
-        store.loadAndResetForUser(userJkw)
+        store.resetUser(userJkw)
+        store.loadCacheForCurrentUser()
         assertEquals(true, store.checkGate("gate").getValue())
 
-        store.loadAndResetForUser(userDloomb)
+        store.resetUser(userDloomb)
+        store.loadCacheForCurrentUser()
         assertEquals(false, store.checkGate("gate").getValue())
     }
 
@@ -325,7 +328,8 @@ class StoreTest {
         assertEquals("v1", nonStickExp.getString("key", ""))
 
         // reset to a different user. Only device exp should stick
-        store.loadAndResetForUser(userTore)
+        store.resetUser(userTore)
+        store.loadCacheForCurrentUser()
         store.save(getInitValue("v2", inExperiment = true, active = true), userTore)
 
         config = store.getExperiment("config", true)

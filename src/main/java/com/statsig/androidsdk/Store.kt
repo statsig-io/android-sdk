@@ -93,14 +93,13 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
                 }
             }
         }
-        currentCache = loadCacheForCurrentUser()
+        loadCacheForCurrentUser()
     }
 
-    fun loadAndResetForUser(user: StatsigUser) {
+    fun resetUser(user: StatsigUser) {
         reason = EvaluationReason.Uninitialized
         currentUserCacheKeyDeprecated = user.getCacheKeyDEPRECATED()
         currentUserCacheKeyV2 = this.getScopedCacheKey(user)
-        currentCache = loadCacheForCurrentUser()
     }
 
     fun bootstrap(initializeValues: Map<String, Any>, user: StatsigUser) {
@@ -118,13 +117,13 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         }
     }
 
-    private fun loadCacheForCurrentUser(): Cache {
+    fun loadCacheForCurrentUser() {
         var cachedValues = cacheById[currentUserCacheKeyV2] ?: cacheById[currentUserCacheKeyDeprecated]
-        return if (cachedValues != null) {
+        if (cachedValues != null) {
             reason = EvaluationReason.Cache
-            cachedValues
+            currentCache = cachedValues
         } else {
-            createEmptyCache()
+            currentCache = createEmptyCache()
         }
     }
 

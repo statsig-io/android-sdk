@@ -426,11 +426,14 @@ class StatsigClient() : LifecycleEventListener {
         enforceInitialized(functionName)
         errorBoundary.capture({
             diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
+            this.user = normalizeUser(user)
+            this.resetUser()
             if (values != null) {
-                updateUserWithValuesImpl(user, values)
+                this.store.bootstrap(values, this.user)
+                logEndDiagnostics(true, ContextType.UPDATE_USER, null)
                 callback?.onStatsigUpdateUser()
             } else {
-                updateUserCache(user)
+                this.store.loadCacheForCurrentUser()
                 statsigScope.launch {
                     updateUserImpl()
                     withContext(dispatcherProvider.main) {
@@ -456,10 +459,13 @@ class StatsigClient() : LifecycleEventListener {
         enforceInitialized("updateUser")
         errorBoundary.captureAsync {
             diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
+            this.user = normalizeUser(user)
+            this.resetUser()
             if (values != null) {
-                updateUserWithValuesImpl(user, values)
+                this.store.bootstrap(values, this.user)
+                logEndDiagnostics(true, ContextType.UPDATE_USER, null)
             } else {
-                updateUserCache(user)
+                this.store.loadCacheForCurrentUser()
                 updateUserImpl()
             }
         }
@@ -846,21 +852,12 @@ class StatsigClient() : LifecycleEventListener {
         return normalizedUser
     }
 
-    private fun updateUserCache(user: StatsigUser?) {
+    private fun resetUser() {
         errorBoundary.capture({
-            enforceInitialized("updateUser")
             logger.onUpdateUser()
             pollingJob?.cancel()
-            this@StatsigClient.user = normalizeUser(user)
-            store.loadAndResetForUser(this@StatsigClient.user)
+            this.store.resetUser(this.user)
         })
-    }
-
-    private fun updateUserWithValuesImpl(user: StatsigUser?, values: Map<String, Any>) {
-        val normalizedUser = normalizeUser(user)
-        this.user = normalizedUser
-        this.store.bootstrap(values, this.user)
-        logEndDiagnostics(true, ContextType.UPDATE_USER, null)
     }
 
     private suspend fun updateUserImpl() {
