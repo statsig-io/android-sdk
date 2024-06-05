@@ -185,11 +185,10 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
                 "override",
             )
         }
-
-        val hashName = Hashing.getHashedString(gateName, currentCache.values.hashUsed)
-        val gate = currentCache.values.featureGates?.get(hashName)
-            ?: return FeatureGate(gateName, getEvaluationDetails(false), false)
-        return FeatureGate(gateName, gate, getEvaluationDetails(true))
+        var gate = currentCache.values.featureGates?.get(gateName)
+            ?: currentCache.values.featureGates?.get(Hashing.getHashedString(gateName, currentCache.values.hashUsed))
+        val gateOrDefault = gate ?: return FeatureGate(gateName, getEvaluationDetails(false), false)
+        return FeatureGate(gateName, gateOrDefault, getEvaluationDetails(true))
     }
 
     fun getConfig(configName: String): DynamicConfig {
@@ -203,20 +202,14 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             )
         }
 
-        val hashName = Hashing.getHashedString(configName, currentCache.values.hashUsed)
-        val data = getConfigData(hashName)
+        val data = getConfigData(configName)
         return hydrateDynamicConfig(configName, getEvaluationDetails(data != null), data)
     }
 
-    private fun getConfigData(hashedConfigName: String): APIDynamicConfig? {
-        val values = currentCache.values
-        if (
-            values.configs == null ||
-            !values.configs.containsKey(hashedConfigName)
-        ) {
-            return null
+    private fun getConfigData(name: String): APIDynamicConfig? {
+        return currentCache.values.let {
+            it.configs?.get(name) ?: it.configs?.get(Hashing.getHashedString(name, currentCache.values.hashUsed))
         }
-        return values.configs[hashedConfigName]
     }
 
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
@@ -230,8 +223,8 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             )
         }
 
-        val hashName = Hashing.getHashedString(experimentName, currentCache.values.hashUsed)
-        val latestValue = currentCache.values.configs?.get(hashName)
+        val latestValue = currentCache.values.configs?.get(experimentName)
+            ?: currentCache.values.configs?.get(Hashing.getHashedString(experimentName, currentCache.values.hashUsed))
         val details = getEvaluationDetails(latestValue != null)
         val finalValue = getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
         return hydrateDynamicConfig(
@@ -253,8 +246,8 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             )
         }
 
-        val hashedLayerName = Hashing.getHashedString(layerName, currentCache.values.hashUsed)
-        val latestValue = currentCache.values.layerConfigs?.get(hashedLayerName)
+        val latestValue = currentCache.values.layerConfigs?.get(layerName)
+            ?: currentCache.values.layerConfigs?.get(Hashing.getHashedString(layerName, currentCache.values.hashUsed))
         val details = getEvaluationDetails(latestValue != null)
         val finalValue = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, details, true)
         return if (finalValue != null) {
