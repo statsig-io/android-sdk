@@ -22,7 +22,7 @@ class FeatureGate(
         apiFeatureGate.value,
         apiFeatureGate.ruleID,
         apiFeatureGate.groupName,
-        apiFeatureGate.secondaryExposures,
+        apiFeatureGate.secondaryExposures ?: arrayOf(),
         apiFeatureGate.idType,
     )
 

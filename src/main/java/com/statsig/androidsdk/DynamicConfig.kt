@@ -25,7 +25,7 @@ class DynamicConfig(
         apiDynamicConfig.value,
         apiDynamicConfig.ruleID,
         apiDynamicConfig.groupName,
-        apiDynamicConfig.secondaryExposures,
+        apiDynamicConfig.secondaryExposures ?: arrayOf(),
         apiDynamicConfig.isUserInExperiment,
         apiDynamicConfig.isExperimentActive,
         apiDynamicConfig.isDeviceBased,
