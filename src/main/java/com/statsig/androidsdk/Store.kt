@@ -257,6 +257,28 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         }
     }
 
+    fun getParamStore(client: StatsigClient, paramStoreName: String): ParameterStore {
+        val values = currentCache.values
+        if (values.paramStores == null) {
+            return ParameterStore(client, HashMap(), getEvaluationDetails(false))
+        }
+        var paramStore = values.paramStores[paramStoreName]
+        if (paramStore != null) {
+            return ParameterStore(client, paramStore, getEvaluationDetails(true))
+        }
+
+        val hashedParamStoreName = Hashing.getHashedString(
+            paramStoreName,
+            currentCache.values.hashUsed,
+        )
+        paramStore = values.paramStores[hashedParamStoreName]
+        return ParameterStore(
+            client,
+            paramStore ?: HashMap(),
+            getEvaluationDetails(paramStore != null),
+        )
+    }
+
     internal fun getGlobalEvaluationDetails(): EvaluationDetails {
         return EvaluationDetails(this.reason, currentCache.evaluationTime ?: System.currentTimeMillis())
     }
@@ -385,7 +407,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
     private fun createEmptyCache(): Cache {
         val emptyInitResponse =
-            InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0, mapOf())
+            InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0, mapOf(), null)
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
         return Cache(emptyInitResponse, emptyStickyUserExperiments, "", System.currentTimeMillis())
     }

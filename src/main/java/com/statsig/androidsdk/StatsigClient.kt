@@ -340,6 +340,17 @@ class StatsigClient() : LifecycleEventListener {
         return layer
     }
 
+    fun getParameterStore(parameterStoreName: String): ParameterStore {
+        val functionName = "getLayerWithExposureLoggingDisabled"
+        enforceInitialized(functionName)
+        var paramStore = ParameterStore(this, HashMap(), store.getEvaluationDetails(false))
+        errorBoundary.capture({
+            this.logger.addNonExposedCheck(parameterStoreName)
+            paramStore = store.getParamStore(this, parameterStoreName)
+        }, tag = functionName, configName = parameterStoreName)
+        return paramStore
+    }
+
     /**
      * Log an event to Statsig for the current user
      * @param eventName the name of the event to track

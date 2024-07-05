@@ -72,6 +72,8 @@ internal object StatsigUtil {
     }
 
     internal fun getGson(): Gson {
-        return GsonBuilder().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create()
+        return GsonBuilder()
+            .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+            .create()
     }
 }

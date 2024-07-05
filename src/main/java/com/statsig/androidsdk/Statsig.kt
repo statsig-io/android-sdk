@@ -195,6 +195,19 @@ object Statsig {
     }
 
     /**
+     * Get the values of all parameters configured in the Statsig console for the initialized
+     * user and for the given parameter store
+     * @param parameterStoreName the name of the ParameterStore to get
+     * @return the current layer values as a Layer object
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmOverloads
+    @JvmStatic
+    fun getParameterStore(parameterStoreName: String): ParameterStore {
+        return client.getParameterStore(parameterStoreName)
+    }
+
+    /**
      * Check the value of a Layer configured in the Statsig console for the initialized
      * user, but never log exposures from this Layer
      * @param layerName the name of the Layer to check

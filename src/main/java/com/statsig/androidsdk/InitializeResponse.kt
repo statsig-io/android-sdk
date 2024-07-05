@@ -24,6 +24,7 @@ sealed class InitializeResponse {
         @SerializedName("hash_used") val hashUsed: HashAlgorithm? = null,
         @SerializedName("time") val time: Long,
         @SerializedName("derived_fields") val derivedFields: Map<String, String>?,
+        @SerializedName("param_stores") val paramStores: Map<String, Map<String, Map<String, Any>>>? = null,
     ) : InitializeResponse()
 }
 
