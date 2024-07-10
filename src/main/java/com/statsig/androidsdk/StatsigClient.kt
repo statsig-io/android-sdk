@@ -341,7 +341,7 @@ class StatsigClient() : LifecycleEventListener {
     }
 
     fun getParameterStore(parameterStoreName: String): ParameterStore {
-        val functionName = "getLayerWithExposureLoggingDisabled"
+        val functionName = "getParameterStore"
         enforceInitialized(functionName)
         var paramStore = ParameterStore(this, HashMap(), store.getEvaluationDetails(false))
         errorBoundary.capture({
