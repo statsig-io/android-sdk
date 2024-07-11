@@ -120,10 +120,10 @@ class StatsigTest {
         assertEquals(15, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
-        assertEquals("Android", parsedLogs.statsigMetadata.systemName)
-        assertEquals("Android", parsedLogs.statsigMetadata.deviceOS)
-        assert(parsedLogs.statsigMetadata.locale.toString().startsWith("en"))
-        assert(parsedLogs.statsigMetadata.language.toString().startsWith("en"))
+        assertEquals("Android", (parsedLogs.statsigMetadata as StatsigMetadata).systemName)
+        assertEquals("Android", (parsedLogs.statsigMetadata as StatsigMetadata).deviceOS)
+        assert((parsedLogs.statsigMetadata as StatsigMetadata).locale.toString().startsWith("en"))
+        assert((parsedLogs.statsigMetadata as StatsigMetadata).language.toString().startsWith("en"))
 
         // validate diagnostics
         assertEquals(parsedLogs.events[0].eventName, "statsig::diagnostics")
@@ -227,6 +227,34 @@ class StatsigTest {
         assertEquals(parsedLogs.events[11].metadata!!["isManualExposure"], "true")
         assertEquals(parsedLogs.events[12].eventName, "statsig::layer_exposure")
         assertEquals(parsedLogs.events[12].metadata!!["isManualExposure"], "true")
+    }
+
+    @Test
+    fun testInitializeWithOptOutNonSdkMetadata() {
+        val user = StatsigUser("123")
+        user.customIDs = mapOf("random_id" to "abcde")
+
+        // Initialize Statsig with optOutNonSdkMetadata set to true
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(optOutNonSdkMetadata = true, overrideStableID = "custom_stable_id"),
+            network = network,
+        )
+        client = Statsig.client
+        assertTrue(client.checkGate("always_on"))
+
+        client.shutdown()
+
+        var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+        assertNull(parsedLogs.statsigMetadata.appIdentifier)
+        assertNull(parsedLogs.statsigMetadata.appVersion)
+        assertNull(parsedLogs.statsigMetadata.deviceModel)
+        assertNull(parsedLogs.statsigMetadata.locale)
+        assertNull(parsedLogs.statsigMetadata.language)
+        assertNull(parsedLogs.statsigMetadata.deviceOS)
+        assertNull(parsedLogs.statsigMetadata.systemVersion)
+        assertNull(parsedLogs.statsigMetadata.systemName)
     }
 
     @Test

@@ -823,7 +823,11 @@ class StatsigClient() : LifecycleEventListener {
         if (!this::statsigNetwork.isInitialized) {
             statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary, getSharedPrefs(), options)
         }
-        statsigMetadata = StatsigMetadata()
+        statsigMetadata = if (options.optOutNonSdkMetadata) {
+            createCoreStatsigMetadata()
+        } else {
+            createStatsigMetadata()
+        }
         errorBoundary.setMetadata(statsigMetadata)
         errorBoundary.setDiagnostics(diagnostics)
 
@@ -1010,7 +1014,7 @@ class StatsigClient() : LifecycleEventListener {
     private fun populateStatsigMetadata() {
         statsigMetadata.overrideStableID(options.overrideStableID)
         try {
-            if (application.packageManager != null) {
+            if (application.packageManager != null && !options.optOutNonSdkMetadata) {
                 val pInfo: PackageInfo =
                     application.packageManager.getPackageInfo(application.packageName, 0)
                 statsigMetadata.appVersion = pInfo.versionName

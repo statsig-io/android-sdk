@@ -94,6 +94,8 @@ class StatsigOptions(
     var customCacheKey: ((String, StatsigUser) -> String) = { sdkKey, user -> "${user.getCacheKey()}:$sdkKey" },
 
     var disableLogEventRetries: Boolean = false,
+
+    var optOutNonSdkMetadata: Boolean = false,
 ) {
 
     private var environment: MutableMap<String, String>? = null
