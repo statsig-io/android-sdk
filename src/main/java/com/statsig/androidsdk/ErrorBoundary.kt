@@ -1,10 +1,7 @@
 package com.statsig.androidsdk
 
 import com.google.gson.Gson
-import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.io.DataOutputStream
 import java.lang.RuntimeException
 import java.net.HttpURLConnection

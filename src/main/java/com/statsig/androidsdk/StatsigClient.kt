@@ -44,6 +44,7 @@ class StatsigClient() : LifecycleEventListener {
     private var dispatcherProvider = CoroutineDispatcherProvider()
     private var initialized = AtomicBoolean(false)
     private var isBootstrapped = AtomicBoolean(false)
+    private var isInitializing = AtomicBoolean(false)
 
     @VisibleForTesting
     internal lateinit var statsigNetwork: StatsigNetwork
@@ -71,7 +72,7 @@ class StatsigClient() : LifecycleEventListener {
         callback: IStatsigCallback? = null,
         options: StatsigOptions = StatsigOptions(),
     ) {
-        if (isInitialized()) {
+        if (isInitializing.getAndSet(true)) {
             return
         }
         errorBoundary.setKey(sdkKey)
@@ -121,7 +122,7 @@ class StatsigClient() : LifecycleEventListener {
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions(),
     ): InitializationDetails? {
-        if (this@StatsigClient.isInitialized()) {
+        if (isInitializing.getAndSet(true)) {
             return null
         }
         errorBoundary.setKey(sdkKey)
@@ -1034,13 +1035,14 @@ class StatsigClient() : LifecycleEventListener {
     }
 
     private suspend fun shutdownImpl() {
+        initialized.set(false)
         pollingJob?.cancel()
         logger.shutdown()
         lifecycleListener.shutdown()
-        initialized = AtomicBoolean()
-        isBootstrapped = AtomicBoolean()
+        isBootstrapped.set(false)
         errorBoundary = ErrorBoundary()
         statsigJob = SupervisorJob()
+        isInitializing.set(false)
     }
 
     private fun logEndDiagnostics(success: Boolean, context: ContextType, initResponse: InitializeResponse?) {

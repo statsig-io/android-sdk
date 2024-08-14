@@ -6,6 +6,7 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runBlockingTest
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -19,6 +20,7 @@ class ErrorBoundaryTest {
 
     @Before
     internal fun setup() {
+        TestUtil.mockDispatchers()
         boundary = ErrorBoundary()
         boundary.setKey("client-key")
         boundary.urlString = wireMockRule.url("/v1/sdk_exception")
@@ -26,7 +28,6 @@ class ErrorBoundaryTest {
         stubFor(post(urlMatching("/v1/sdk_exception")).willReturn(aResponse().withStatus(202)))
 
         app = mockk()
-        TestUtil.mockDispatchers()
         TestUtil.stubAppFunctions(app)
         val network = TestUtil.mockBrokenNetwork()
         Statsig.client = StatsigClient()
@@ -44,7 +45,7 @@ class ErrorBoundaryTest {
     val wireMockRule = WireMockRule()
 
     @Test
-    fun testLoggingToEndpoint() {
+    fun testLoggingToEndpoint() = runBlockingTest {
         boundary.capture({
             throw IOException("Test")
         })
@@ -70,11 +71,7 @@ class ErrorBoundaryTest {
     }
 
     @Test
-    fun testItDoesNotLogTheSameExceptionMultipleTimes() {
-        boundary.capture({
-            throw IOException("Test")
-        })
-
+    fun testItDoesNotLogTheSameExceptionMultipleTimes() = runBlockingTest {
         boundary.capture({
             throw IOException("Test")
         })
