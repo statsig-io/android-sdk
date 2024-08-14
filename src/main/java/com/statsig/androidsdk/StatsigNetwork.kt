@@ -7,7 +7,6 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -19,7 +18,6 @@ import java.net.URL
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
-import kotlin.math.pow
 
 private val RETRY_CODES: IntArray = intArrayOf(
     HttpURLConnection.HTTP_CLIENT_TIMEOUT,
@@ -36,6 +34,7 @@ private val RETRY_CODES: IntArray = intArrayOf(
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
 private const val POLLING_INTERVAL_MS: Long = 10000
 private const val MAX_INITIALIZE_REQUESTS: Int = 50
+private const val LOG_EVENT_RETRY: Int = 3
 
 // JSON keys
 private const val USER = "user"
@@ -167,7 +166,6 @@ internal class StatsigNetworkImpl(
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
     ): InitializeResponse {
-        val retries = 0
         return try {
             val userCopy = user.getCopyForEvaluation()
             val userCacheKey = this.options.customCacheKey(sdkKey, userCopy)
@@ -185,7 +183,7 @@ internal class StatsigNetworkImpl(
                 api,
                 INITIALIZE_ENDPOINT,
                 gson.toJson(body),
-                retries,
+                1,
                 contextType,
                 diagnostics,
                 timeoutMs,
@@ -275,16 +273,35 @@ internal class StatsigNetworkImpl(
     }
 
     override suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String?) {
+        var currRetry = 1
+        var backoff = 100L
+        var statusCode: Int? = null
         try {
-            postRequest<LogEventResponse>(
-                api,
-                LOGGING_ENDPOINT,
-                bodyString,
-                3,
-                ContextType.EVENT_LOGGING,
-                eventsCount = eventsCount,
-            )
+            while (currRetry <= LOG_EVENT_RETRY) {
+                ++currRetry
+                val response = postRequest<LogEventResponse>(
+                    api,
+                    LOGGING_ENDPOINT,
+                    bodyString,
+                    currRetry,
+                    ContextType.EVENT_LOGGING,
+                    eventsCount = eventsCount,
+                ) {
+                    statusCode = it
+                }
+                if (response?.success == true || statusCode?.let { it in 200..299 } == true) {
+                    return
+                }
+                if (statusCode?.let { RETRY_CODES.contains(it) } == true) {
+                    backoff *= 100L
+                    delay(backoff)
+                } else {
+                    addFailedLogRequest(bodyString)
+                    return
+                }
+            }
         } catch (_: Exception) {
+            addFailedLogRequest(bodyString)
         }
     }
 
@@ -347,7 +364,7 @@ internal class StatsigNetworkImpl(
         api: String,
         endpoint: String,
         bodyString: String,
-        retries: Int,
+        retries: Int, // for logging purpose
         contextType: ContextType,
         diagnostics: Diagnostics? = null,
         timeout: Int? = null,
@@ -356,128 +373,101 @@ internal class StatsigNetworkImpl(
         crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> },
     ): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
-            var retryAttempt = 1
             var connection: HttpURLConnection? = null
             try {
-                while (isActive) {
-                    val urlStr = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
-                    val url = URL(urlStr)
-                    connection = url.openConnection() as HttpURLConnection
-                    if (requestCacheKey != null && !endpoint.contains(LOGGING_ENDPOINT)) {
-                        if (initializeRequestsMap.size > MAX_INITIALIZE_REQUESTS) {
-                            initializeRequestsMap.values.forEach { it.disconnect() }
-                            initializeRequestsMap = Collections.synchronizedMap(mutableMapOf())
+                val urlStr = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
+                val url = URL(urlStr)
+                connection = url.openConnection() as HttpURLConnection
+                if (requestCacheKey != null && !endpoint.contains(LOGGING_ENDPOINT)) {
+                    if (initializeRequestsMap.size > MAX_INITIALIZE_REQUESTS) {
+                        initializeRequestsMap.values.forEach { it.disconnect() }
+                        initializeRequestsMap = Collections.synchronizedMap(mutableMapOf())
+                    }
+                    initializeRequestsMap[requestCacheKey] = connection
+                }
+                if (url.protocol == "http") {
+                    connection.doOutput = true
+                }
+
+                connection.requestMethod = POST
+                if (timeout != null) {
+                    connection.connectTimeout = timeout
+                    connection.readTimeout = timeout
+                }
+                connection.setRequestProperty(
+                    CONTENT_TYPE_HEADER_KEY,
+                    CONTENT_TYPE_HEADER_VALUE,
+                )
+                connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
+                connection.setRequestProperty(STATSIG_SDK_TYPE_KEY, "android-client")
+                connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
+                connection.setRequestProperty(
+                    STATSIG_CLIENT_TIME_HEADER_KEY,
+                    System.currentTimeMillis().toString(),
+                )
+
+                if (eventsCount != null) {
+                    connection.setRequestProperty(STATSIG_EVENT_COUNT, eventsCount)
+                }
+
+                connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
+                connection.setRequestProperty("Accept-Encoding", "gzip")
+
+                diagnostics?.markStart(
+                    KeyType.INITIALIZE,
+                    StepType.NETWORK_REQUEST,
+                    Marker(attempt = retries),
+                    contextType,
+                )
+
+                connection.outputStream.bufferedWriter(Charsets.UTF_8)
+                    .use { it.write(bodyString) }
+                val code = connection.responseCode
+                val inputStream = if (code < HttpURLConnection.HTTP_BAD_REQUEST) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                }
+
+                val errorMarker = if (code >= HttpURLConnection.HTTP_BAD_REQUEST) {
+                    val errorMessage =
+                        inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
+                    Marker.ErrorMessage(errorMessage, code.toString(), null)
+                } else {
+                    null
+                }
+
+                endDiagnostics(
+                    diagnostics,
+                    contextType,
+                    KeyType.INITIALIZE,
+                    code,
+                    connection.headerFields["x-statsig-region"]?.get(0),
+                    retries,
+                    errorMarker,
+                    timeout,
+                )
+                callback(code)
+                when (code) {
+                    in 200..299 -> {
+                        if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
+                            return@withContext gson.fromJson(
+                                "{has_updates: false}",
+                                T::class.java,
+                            )
                         }
-                        initializeRequestsMap[requestCacheKey] = connection
-                    }
-                    if (url.protocol == "http") {
-                        connection.doOutput = true
-                    }
+                        val encoding = connection.getHeaderField("Content-Encoding")
 
-                    connection.requestMethod = POST
-                    if (timeout != null) {
-                        connection.connectTimeout = timeout
-                        connection.readTimeout = timeout
-                    }
-                    connection.setRequestProperty(
-                        CONTENT_TYPE_HEADER_KEY,
-                        CONTENT_TYPE_HEADER_VALUE,
-                    )
-                    connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
-                    connection.setRequestProperty(STATSIG_SDK_TYPE_KEY, "android-client")
-                    connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
-                    connection.setRequestProperty(
-                        STATSIG_CLIENT_TIME_HEADER_KEY,
-                        System.currentTimeMillis().toString(),
-                    )
-
-                    if (eventsCount != null) {
-                        connection.setRequestProperty(STATSIG_EVENT_COUNT, eventsCount)
-                    }
-
-                    connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
-                    connection.setRequestProperty("Accept-Encoding", "gzip")
-
-                    diagnostics?.markStart(
-                        KeyType.INITIALIZE,
-                        StepType.NETWORK_REQUEST,
-                        Marker(attempt = retryAttempt),
-                        contextType,
-                    )
-
-                    connection.outputStream.bufferedWriter(Charsets.UTF_8)
-                        .use { it.write(bodyString) }
-                    val code = connection.responseCode
-                    val inputStream = if (code < HttpURLConnection.HTTP_BAD_REQUEST) {
-                        connection.inputStream
-                    } else {
-                        connection.errorStream
-                    }
-
-                    val errorMarker = if (code >= HttpURLConnection.HTTP_BAD_REQUEST) {
-                        val errorMessage =
-                            inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
-                        Marker.ErrorMessage(errorMessage, code.toString(), null)
-                    } else {
-                        null
-                    }
-
-                    endDiagnostics(
-                        diagnostics,
-                        contextType,
-                        KeyType.INITIALIZE,
-                        code,
-                        connection.headerFields["x-statsig-region"]?.get(0),
-                        retryAttempt,
-                        errorMarker,
-                        timeout,
-                    )
-                    when (code) {
-                        in 200..299 -> {
-                            if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
-                                return@withContext gson.fromJson(
-                                    "{has_updates: false}",
-                                    T::class.java,
-                                )
-                            }
-                            val encoding = connection.getHeaderField("Content-Encoding")
-
-                            var stream = inputStream
-                            if (encoding != null && encoding.equals("gzip")) {
-                                stream = GZIPInputStream(stream)
-                            }
-
-                            return@withContext stream.bufferedReader(Charsets.UTF_8)
-                                .use { gson.fromJson(it, T::class.java) }
+                        var stream = inputStream
+                        if (encoding != null && encoding.equals("gzip")) {
+                            stream = GZIPInputStream(stream)
                         }
 
-                        in RETRY_CODES -> {
-                            if (retries > 0 && retryAttempt++ < retries) {
-                                // Don't return, just allow the loop to happen
-                                delay(100.0.pow(retryAttempt + 1).toLong())
-                            } else if (endpoint == LOGGING_ENDPOINT) {
-                                addFailedLogRequest(bodyString)
-                                callback(code)
-                                return@withContext null
-                            } else {
-                                callback(code)
-                                return@withContext null
-                            }
-                        }
-
-                        else -> {
-                            if (endpoint == LOGGING_ENDPOINT) {
-                                addFailedLogRequest(bodyString)
-                            }
-                            callback(code)
-                            return@withContext null
-                        }
+                        return@withContext stream.bufferedReader(Charsets.UTF_8)
+                            .use { gson.fromJson(it, T::class.java) }
                     }
                 }
             } catch (e: Exception) {
-                if (endpoint == LOGGING_ENDPOINT) {
-                    addFailedLogRequest(bodyString)
-                }
                 throw e
             } finally {
                 connection?.disconnect()
