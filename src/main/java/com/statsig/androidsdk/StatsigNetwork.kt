@@ -33,7 +33,7 @@ private val RETRY_CODES: IntArray = intArrayOf(
 // Constants
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
 private const val POLLING_INTERVAL_MS: Long = 10000
-private const val MAX_INITIALIZE_REQUESTS: Int = 50
+private const val MAX_INITIALIZE_REQUESTS: Int = 10
 private const val LOG_EVENT_RETRY: Int = 3
 
 // JSON keys
@@ -179,6 +179,7 @@ internal class StatsigNetworkImpl(
             )
             var statusCode: Int? = null
             initializeRequestsMap[userCacheKey]?.disconnect()
+            initializeRequestsMap.remove(userCacheKey)
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(
                 api,
                 INITIALIZE_ENDPOINT,
@@ -254,7 +255,10 @@ internal class StatsigNetworkImpl(
                     SINCE_TIME to sinceTime,
                     HASH to HashAlgorithm.DJB2.value,
                 )
-                if (userCacheKey != null) initializeRequestsMap[userCacheKey]?.disconnect()
+                if (userCacheKey != null) {
+                    initializeRequestsMap[userCacheKey]?.disconnect()
+                    initializeRequestsMap.remove(userCacheKey)
+                }
                 try {
                     emit(
                         postRequest(
