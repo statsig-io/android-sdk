@@ -80,8 +80,8 @@ class LogEventTest {
 
     private fun verifyAPI(initializeApi: String, logEventAPI: String) = runBlocking {
         val options = StatsigOptions()
-        var expectedInitializeAPI = "https://api.statsig.com/v1"
-        var expectedLogEventApi = "https://api.statsig.com/v1"
+        var expectedInitializeAPI = "https://featureassets.org/v1/"
+        var expectedLogEventApi = "https://prodregistryv2.org/v1/"
         if (initializeApi != "default") {
             options.api = initializeApi
             expectedInitializeAPI = initializeApi

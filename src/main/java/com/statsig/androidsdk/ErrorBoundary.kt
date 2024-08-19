@@ -13,7 +13,7 @@ const val SAMPLING_RATE = 10_000
 internal class ExternalException(message: String? = null) : Exception(message)
 
 internal class ErrorBoundary() {
-    internal var urlString = "https://statsigapi.net/v1/sdk_exception"
+    internal var urlString = "https://prodregistryv2.org/v1/rgstr_e"
 
     private var apiKey: String? = null
     private var statsigMetadata: StatsigMetadata? = null
