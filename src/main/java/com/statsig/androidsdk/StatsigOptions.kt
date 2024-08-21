@@ -54,6 +54,13 @@ class StatsigOptions(
      */
     @SerializedName("initTimeoutMs") var initTimeoutMs: Long = 5000L,
     /**
+     * Used to decide how many retries sdk attempt before successfully initialized.
+     * Default is 0, sdk does not retry, if set initRetryLimit = 2, SDK will hit initialization
+     * endpoint 3 times = 1 + 2 retries. Retry is applied with exponential backoff
+     * Timeout should be independent initTimeoutMs will control network step including retries.
+     */
+    @SerializedName("initRetryLimit") var initRetryLimit: Int = 0,
+    /**
      * By default, feature values for a user are fetched once during Statsig.start and don't change
      * throughout the session. Setting this value to true will make Statsig periodically fetch updated
      * values for the current user.

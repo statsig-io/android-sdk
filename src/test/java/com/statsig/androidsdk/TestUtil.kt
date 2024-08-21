@@ -23,7 +23,7 @@ class TestUtil {
     companion object {
         private val dispatcher = TestCoroutineDispatcher()
 
-        fun mockDispatchers() {
+        fun mockDispatchers(): TestCoroutineDispatcher {
             Dispatchers.setMain(dispatcher)
             mockkConstructor(CoroutineDispatcherProvider::class)
             mockkConstructor(MainCoroutineDispatcher::class)
@@ -36,6 +36,7 @@ class TestUtil {
             every {
                 anyConstructed<CoroutineDispatcherProvider>().default
             } returns dispatcher
+            return dispatcher
         }
 
         fun getConfigValueMap(): Map<String, Any> {

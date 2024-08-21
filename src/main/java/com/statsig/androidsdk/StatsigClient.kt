@@ -33,7 +33,7 @@ class StatsigClient() : LifecycleEventListener {
     private lateinit var logger: StatsigLogger
     private lateinit var statsigMetadata: StatsigMetadata
     private lateinit var exceptionHandler: CoroutineExceptionHandler
-    private lateinit var statsigScope: CoroutineScope
+
     private lateinit var diagnostics: Diagnostics
     private var initTime: Long = System.currentTimeMillis()
 
@@ -45,6 +45,9 @@ class StatsigClient() : LifecycleEventListener {
     private var initialized = AtomicBoolean(false)
     private var isBootstrapped = AtomicBoolean(false)
     private var isInitializing = AtomicBoolean(false)
+
+    @VisibleForTesting
+    internal lateinit var statsigScope: CoroutineScope
 
     @VisibleForTesting
     internal lateinit var statsigNetwork: StatsigNetwork

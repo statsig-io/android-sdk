@@ -36,6 +36,9 @@ private const val POLLING_INTERVAL_MS: Long = 10000
 private const val MAX_INITIALIZE_REQUESTS: Int = 10
 private const val LOG_EVENT_RETRY: Int = 3
 
+private const val INITIALIZE_RETRY_BACKOFF = 100L
+private const val INITIALIZE_RETRY_BACKOFF_MULTIPLIER = 5
+
 // JSON keys
 private const val USER = "user"
 private const val STATSIG_METADATA = "statsigMetadata"
@@ -123,14 +126,16 @@ internal class StatsigNetworkImpl(
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
     ): InitializeResponse {
+        val retry = options.initRetryLimit
         if (options.initTimeoutMs == 0L) {
-            return initializeImpl(
+            return initializeImplWithRetry(
                 api,
                 user,
                 sinceTime,
                 metadata,
                 contextType,
                 diagnostics,
+                retryLimit = retry,
                 hashUsed = hashUsed,
                 previousDerivedFields = previousDerivedFields,
             )
@@ -138,7 +143,7 @@ internal class StatsigNetworkImpl(
         return withTimeout(options.initTimeoutMs) {
             var response: InitializeResponse = InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, null, null)
             coroutineScope.launch {
-                response = initializeImpl(
+                response = initializeImplWithRetry(
                     api,
                     user,
                     sinceTime,
@@ -146,6 +151,7 @@ internal class StatsigNetworkImpl(
                     contextType,
                     diagnostics,
                     options.initTimeoutMs.toInt(),
+                    retryLimit = retry,
                     hashUsed = hashUsed,
                     previousDerivedFields = previousDerivedFields,
                 )
@@ -155,6 +161,33 @@ internal class StatsigNetworkImpl(
         }
     }
 
+    private suspend fun initializeImplWithRetry(
+        api: String,
+        user: StatsigUser,
+        sinceTime: Long?,
+        metadata: StatsigMetadata,
+        contextType: ContextType,
+        diagnostics: Diagnostics?,
+        timeoutMs: Int? = null,
+        retryLimit: Int = 0,
+        hashUsed: HashAlgorithm,
+        previousDerivedFields: Map<String, String>,
+    ): InitializeResponse {
+        var retry = 0
+        var response: InitializeResponse
+        var backoff = INITIALIZE_RETRY_BACKOFF
+        do {
+            response = initializeImpl(api, user, sinceTime, metadata, contextType, diagnostics, retry + 1, timeoutMs, hashUsed, previousDerivedFields)
+            if (response is InitializeResponse.SuccessfulInitializeResponse || retryLimit == 0) {
+                return response
+            }
+            delay(backoff)
+            ++retry
+            backoff *= INITIALIZE_RETRY_BACKOFF_MULTIPLIER
+        } while (retry <= retryLimit)
+        return response
+    }
+
     internal suspend fun initializeImpl(
         api: String,
         user: StatsigUser,
@@ -162,6 +195,7 @@ internal class StatsigNetworkImpl(
         metadata: StatsigMetadata,
         contextType: ContextType,
         diagnostics: Diagnostics?,
+        retries: Int,
         timeoutMs: Int? = null,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
@@ -184,7 +218,7 @@ internal class StatsigNetworkImpl(
                 api,
                 INITIALIZE_ENDPOINT,
                 gson.toJson(body),
-                1,
+                retries,
                 contextType,
                 diagnostics,
                 timeoutMs,

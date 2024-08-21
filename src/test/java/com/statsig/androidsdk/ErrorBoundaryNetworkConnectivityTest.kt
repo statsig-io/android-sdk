@@ -97,6 +97,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 StatsigMetadata(),
                 ContextType.INITIALIZE,
                 null,
+                1,
                 50,
                 HashAlgorithm.NONE,
                 mapOf(),

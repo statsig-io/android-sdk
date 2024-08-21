@@ -331,7 +331,7 @@ class StatsigTest {
         // initialize function blocking timeout
         val network = spyk(client.statsigNetwork)
         client.statsigNetwork = network
-        coEvery { network["initializeImpl"](allAny<String>(), allAny<StatsigUser>(), allAny<Long>(), allAny<StatsigMetadata>(), allAny<ContextType>(), allAny<Diagnostics>(), allAny<Int>(), allAny<HashAlgorithm>(), allAny<Map<String, String>>()) } coAnswers {
+        coEvery { network["initializeImpl"](allAny<String>(), allAny<StatsigUser>(), allAny<Long>(), allAny<StatsigMetadata>(), allAny<ContextType>(), allAny<Diagnostics>(), allAny<Int>(), allAny<Int>(), allAny<HashAlgorithm>(), allAny<Map<String, String>>()) } coAnswers {
             Thread.sleep(timeout) // Block the thread
             InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, Exception("eXAMPLE"))
         }
