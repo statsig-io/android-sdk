@@ -188,7 +188,7 @@ class StatsigInitializationFailureTest {
             throw Exception("Unsuccessful setup")
         }
         initDetails = client.initialize(app, "client-key", StatsigUser("test_user"))
-        assert(initDetails == null)
+        assert(initDetails?.failureDetails?.exception?.message === "Unsuccessful setup")
         assert(client.isInitialized() === false)
     }
 
@@ -199,7 +199,7 @@ class StatsigInitializationFailureTest {
         }
         client.initializeAsync(app, "client-key", StatsigUser("test_user"), callback)
         initializationCountdown.await(3, TimeUnit.SECONDS)
-        assert(initDetails == null)
+        assert(initDetails?.failureDetails?.exception?.message === "Unsuccessful setup")
         assert(client.isInitialized() === false)
     }
 

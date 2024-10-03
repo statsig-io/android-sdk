@@ -96,13 +96,11 @@ class StatsigClient() : LifecycleEventListener {
             }
         }, recover = {
             logEndDiagnosticsWhenException(ContextType.INITIALIZE, it)
-            if (isInitialized()) {
-                try {
-                    val initDetails = InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
-                    callback?.onStatsigInitialize(initDetails)
-                } catch (e: Exception) {
-                    throw ExternalException(e.message)
-                }
+            try {
+                val initDetails = InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
+                callback?.onStatsigInitialize(initDetails)
+            } catch (e: Exception) {
+                throw ExternalException(e.message)
             }
         })
     }
@@ -138,11 +136,7 @@ class StatsigClient() : LifecycleEventListener {
             },
             {
                 logEndDiagnosticsWhenException(ContextType.INITIALIZE, it)
-                if (isInitialized()) {
-                    return@captureAsync InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
-                } else {
-                    return@captureAsync null
-                }
+                return@captureAsync InitializationDetails(System.currentTimeMillis() - initTime, false, InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, it))
             },
         )
     }
