@@ -338,13 +338,13 @@ class StatsigClient() : LifecycleEventListener {
         return layer
     }
 
-    fun getParameterStore(parameterStoreName: String): ParameterStore {
+    fun getParameterStore(parameterStoreName: String, options: ParameterStoreEvaluationOptions? = null): ParameterStore {
         val functionName = "getParameterStore"
         enforceInitialized(functionName)
-        var paramStore = ParameterStore(this, HashMap(), store.getEvaluationDetails(false))
+        var paramStore = ParameterStore(this, HashMap(), store.getEvaluationDetails(false), options)
         errorBoundary.capture({
             this.logger.addNonExposedCheck(parameterStoreName)
-            paramStore = store.getParamStore(this, parameterStoreName)
+            paramStore = store.getParamStore(this, parameterStoreName, options)
         }, tag = functionName, configName = parameterStoreName)
         return paramStore
     }

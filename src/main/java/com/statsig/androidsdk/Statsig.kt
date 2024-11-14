@@ -203,8 +203,8 @@ object Statsig {
      */
     @JvmOverloads
     @JvmStatic
-    fun getParameterStore(parameterStoreName: String): ParameterStore {
-        return client.getParameterStore(parameterStoreName)
+    fun getParameterStore(parameterStoreName: String, options: ParameterStoreEvaluationOptions? = null): ParameterStore {
+        return client.getParameterStore(parameterStoreName, options)
     }
 
     /**

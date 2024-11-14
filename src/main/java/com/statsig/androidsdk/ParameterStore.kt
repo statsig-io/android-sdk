@@ -1,5 +1,14 @@
 package com.statsig.androidsdk
 
+data class ParameterStoreEvaluationOptions(
+    /**
+     * Prevents an exposure log being created for checks on this parameter store
+     *
+     * default: `false`
+     */
+    val disableExposureLog: Boolean = false,
+)
+
 enum class RefType(val value: String) {
     GATE("gate"),
     EXPERIMENT("experiment"),
@@ -44,6 +53,7 @@ class ParameterStore(
     private val statsigClient: StatsigClient,
     private val paramStore: Map<String, Map<String, Any>>,
     public val evaluationDetails: EvaluationDetails,
+    public val options: ParameterStoreEvaluationOptions?,
 ) {
     fun getBoolean(paramName: String, fallback: Boolean): Boolean {
         return getValue(paramName, fallback)
@@ -107,7 +117,11 @@ class ParameterStore(
         if (passValue == null || failValue == null || gateName == null) {
             return fallback
         }
-        val passes = statsigClient.checkGate(gateName)
+        val passes = if (options?.disableExposureLog == true) {
+            statsigClient.checkGateWithExposureLoggingDisabled(gateName)
+        } else {
+            statsigClient.checkGate(gateName)
+        }
         val retVal = if (passes) passValue else failValue
         if (paramType == ParamType.NUMBER) {
             return (retVal as Number).toDouble() as T
@@ -152,7 +166,11 @@ class ParameterStore(
         if (layerName == null || paramName == null) {
             return fallback
         }
-        val layer = statsigClient.getLayer(layerName)
+        val layer = if (options?.disableExposureLog == true) {
+            statsigClient.getLayerWithExposureLoggingDisabled(layerName)
+        } else {
+            statsigClient.getLayer(layerName)
+        }
         return when (paramType) {
             ParamType.BOOLEAN -> layer.getBoolean(
                 paramName,
@@ -188,7 +206,11 @@ class ParameterStore(
         if (configName == null || paramName == null) {
             return fallback
         }
-        val config = statsigClient.getConfig(configName)
+        val config = if (options?.disableExposureLog == true) {
+            statsigClient.getConfigWithExposureLoggingDisabled(configName)
+        } else {
+            statsigClient.getConfig(configName)
+        }
         return when (paramType) {
             ParamType.BOOLEAN -> config.getBoolean(
                 paramName,
@@ -224,7 +246,11 @@ class ParameterStore(
         if (experimentName == null || paramName == null) {
             return fallback
         }
-        val experiment = statsigClient.getExperiment(experimentName)
+        val experiment = if (options?.disableExposureLog == true) {
+            statsigClient.getExperimentWithExposureLoggingDisabled(experimentName)
+        } else {
+            statsigClient.getExperiment(experimentName)
+        }
         return when (paramType) {
             ParamType.BOOLEAN -> experiment.getBoolean(
                 paramName,
