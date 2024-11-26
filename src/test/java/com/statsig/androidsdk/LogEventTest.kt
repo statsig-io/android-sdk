@@ -7,6 +7,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.unmockkAll
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Test
@@ -97,8 +98,9 @@ class LogEventTest {
         coVerify { network.apiPostLogs(expectedLogEventApi, any(), any()) }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun mockAppOnPause() {
-        val network = spyk(StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary, testSharedPrefs, StatsigOptions()))
+        val network = spyk(StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary, testSharedPrefs, StatsigOptions(), mockk(), TestUtil.coroutineScope))
         coEvery {
             network.apiPostLogs(any(), any(), any())
         } answers {

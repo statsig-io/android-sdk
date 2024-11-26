@@ -15,6 +15,7 @@ import io.mockk.every
 import io.mockk.mockk
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
@@ -34,6 +35,7 @@ class ErrorBoundaryNetworkConnectivityTest {
     @JvmField
     val wireMockRule = WireMockRule()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     internal fun setup() {
         clearAllMocks()
@@ -54,7 +56,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)),
         )
 
-        network = StatsigNetworkImpl(app, "client-key", eb, app.getSharedPreferences("", Context.MODE_PRIVATE), StatsigOptions())
+        network = StatsigNetworkImpl(app, "client-key", eb, app.getSharedPreferences("", Context.MODE_PRIVATE), StatsigOptions(), mockk(), TestUtil.coroutineScope)
     }
 
     @Test

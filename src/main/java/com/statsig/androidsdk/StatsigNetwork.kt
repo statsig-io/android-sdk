@@ -50,10 +50,6 @@ private const val PREVIOUS_DERIVED_FIELDS = "previousDerivedFields"
 // SharedPref keys
 private const val OFFLINE_LOGS_KEY_V1: String = "StatsigNetwork.OFFLINE_LOGS"
 
-// Endpoints
-private const val LOGGING_ENDPOINT: String = "log_event"
-private const val INITIALIZE_ENDPOINT: String = "initialize"
-
 // HTTP
 private const val POST = "POST"
 private const val CONTENT_TYPE_HEADER_KEY = "Content-Type"
@@ -85,11 +81,12 @@ internal interface StatsigNetwork {
         user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
+        fallbackUrls: List<String>? = null,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
 
-    suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String? = null)
+    suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String? = null, fallbackUrls: List<String>? = null)
 
-    suspend fun apiRetryFailedLogs(api: String)
+    suspend fun apiRetryFailedLogs(api: String, fallbackUrls: List<String>? = null)
 
     suspend fun addFailedLogRequest(requestBody: String)
 }
@@ -100,7 +97,9 @@ internal fun StatsigNetwork(
     errorBoundary: ErrorBoundary,
     sharedPrefs: SharedPreferences,
     options: StatsigOptions,
-): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs, options)
+    networkFallbackResolver: NetworkFallbackResolver,
+    coroutineScope: CoroutineScope,
+): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs, options, networkFallbackResolver, coroutineScope)
 
 internal class StatsigNetworkImpl(
     context: Context,
@@ -108,6 +107,8 @@ internal class StatsigNetworkImpl(
     private val errorBoundary: ErrorBoundary,
     private val sharedPrefs: SharedPreferences,
     private val options: StatsigOptions,
+    private val networkResolver: NetworkFallbackResolver,
+    private val coroutineScope: CoroutineScope,
 ) : StatsigNetwork {
 
     private val gson = StatsigUtil.getGson()
@@ -127,6 +128,7 @@ internal class StatsigNetworkImpl(
         previousDerivedFields: Map<String, String>,
     ): InitializeResponse {
         val retry = options.initRetryLimit
+        networkResolver.initializeFallbackInfo()
         if (options.initTimeoutMs == 0L) {
             return initializeImplWithRetry(
                 api,
@@ -138,6 +140,7 @@ internal class StatsigNetworkImpl(
                 retryLimit = retry,
                 hashUsed = hashUsed,
                 previousDerivedFields = previousDerivedFields,
+                fallbackUrls = options.initializeFallbackUrls,
             )
         }
         return withTimeout(options.initTimeoutMs) {
@@ -154,6 +157,7 @@ internal class StatsigNetworkImpl(
                     retryLimit = retry,
                     hashUsed = hashUsed,
                     previousDerivedFields = previousDerivedFields,
+                    fallbackUrls = options.initializeFallbackUrls,
                 )
             }.join()
 
@@ -172,12 +176,13 @@ internal class StatsigNetworkImpl(
         retryLimit: Int = 0,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
+        fallbackUrls: List<String>? = null,
     ): InitializeResponse {
         var retry = 0
         var response: InitializeResponse
         var backoff = INITIALIZE_RETRY_BACKOFF
         do {
-            response = initializeImpl(api, user, sinceTime, metadata, contextType, diagnostics, retry + 1, timeoutMs, hashUsed, previousDerivedFields)
+            response = initializeImpl(api, user, sinceTime, metadata, contextType, diagnostics, retry + 1, timeoutMs, hashUsed, previousDerivedFields, fallbackUrls)
             if (response is InitializeResponse.SuccessfulInitializeResponse || retryLimit == 0) {
                 return response
             }
@@ -199,6 +204,7 @@ internal class StatsigNetworkImpl(
         timeoutMs: Int? = null,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
+        fallbackUrls: List<String>? = null,
     ): InitializeResponse {
         return try {
             val userCopy = user.getCopyForEvaluation()
@@ -215,8 +221,7 @@ internal class StatsigNetworkImpl(
             initializeRequestsMap[userCacheKey]?.disconnect()
             initializeRequestsMap.remove(userCacheKey)
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(
-                api,
-                INITIALIZE_ENDPOINT,
+                UrlConfig(Endpoint.Initialize, api, fallbackUrls),
                 gson.toJson(body),
                 retries,
                 contextType,
@@ -274,6 +279,7 @@ internal class StatsigNetworkImpl(
         user: StatsigUser,
         sinceTime: Long?,
         metadata: StatsigMetadata,
+        fallbackUrls: List<String>?,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
         return flow<InitializeResponse.SuccessfulInitializeResponse?> {
@@ -296,8 +302,7 @@ internal class StatsigNetworkImpl(
                 try {
                     emit(
                         postRequest(
-                            api,
-                            INITIALIZE_ENDPOINT,
+                            UrlConfig(Endpoint.Initialize, api, fallbackUrls),
                             gson.toJson(body),
                             0,
                             ContextType.CONFIG_SYNC,
@@ -310,7 +315,7 @@ internal class StatsigNetworkImpl(
         }
     }
 
-    override suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String?) {
+    override suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String?, fallbackUrls: List<String>?) {
         var currRetry = 1
         var backoff = 100L
         var statusCode: Int? = null
@@ -318,8 +323,7 @@ internal class StatsigNetworkImpl(
             while (currRetry <= LOG_EVENT_RETRY) {
                 ++currRetry
                 val response = postRequest<LogEventResponse>(
-                    api,
-                    LOGGING_ENDPOINT,
+                    UrlConfig(Endpoint.Rgstr, api, fallbackUrls),
                     bodyString,
                     currRetry,
                     ContextType.EVENT_LOGGING,
@@ -343,7 +347,7 @@ internal class StatsigNetworkImpl(
         }
     }
 
-    override suspend fun apiRetryFailedLogs(api: String) {
+    override suspend fun apiRetryFailedLogs(api: String, fallbackUrls: List<String>?) {
         if (this.options.disableLogEventRetries) {
             return
         }
@@ -355,7 +359,7 @@ internal class StatsigNetworkImpl(
         StatsigUtil.removeFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
 
         val eventsCount = savedLogs.size.toString()
-        savedLogs.map { apiPostLogs(api, it.requestBody, eventsCount) }
+        savedLogs.map { apiPostLogs(api, it.requestBody, eventsCount, fallbackUrls) }
     }
 
     override suspend fun addFailedLogRequest(requestBody: String) {
@@ -399,8 +403,7 @@ internal class StatsigNetworkImpl(
     // https://youtrack.jetbrains.com/issue/KTIJ-838
     @Suppress("BlockingMethodInNonBlockingContext")
     private suspend inline fun <reified T : Any> postRequest(
-        api: String,
-        endpoint: String,
+        urlConfig: UrlConfig,
         bodyString: String,
         retries: Int, // for logging purpose
         contextType: ContextType,
@@ -412,11 +415,14 @@ internal class StatsigNetworkImpl(
     ): T? {
         return withContext(dispatcherProvider.io) { // Perform network calls in IO thread
             var connection: HttpURLConnection? = null
+            var errorMessage: String? = null
+            val start = System.nanoTime()
+            var end = start
             try {
-                val urlStr = if (api.endsWith("/")) "$api$endpoint" else "$api/$endpoint"
-                val url = URL(urlStr)
+                urlConfig.fallbackUrl = networkResolver.getActiveFallbackUrlFromMemory(urlConfig)
+                val url = URL(urlConfig.fallbackUrl ?: urlConfig.getUrl())
                 connection = url.openConnection() as HttpURLConnection
-                if (requestCacheKey != null && !endpoint.contains(LOGGING_ENDPOINT)) {
+                if (requestCacheKey != null && urlConfig.endpoint != Endpoint.Rgstr) {
                     if (initializeRequestsMap.size > MAX_INITIALIZE_REQUESTS) {
                         initializeRequestsMap.values.forEach { it.disconnect() }
                         initializeRequestsMap = Collections.synchronizedMap(mutableMapOf())
@@ -468,7 +474,7 @@ internal class StatsigNetworkImpl(
                 }
 
                 val errorMarker = if (code >= HttpURLConnection.HTTP_BAD_REQUEST) {
-                    val errorMessage =
+                    errorMessage =
                         inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
                     Marker.ErrorMessage(errorMessage, code.toString(), null)
                 } else {
@@ -488,7 +494,8 @@ internal class StatsigNetworkImpl(
                 callback(code)
                 when (code) {
                     in 200..299 -> {
-                        if (code == 204 && endpoint == INITIALIZE_ENDPOINT) {
+                        networkResolver.tryBumpExpiryTime(sdkKey, urlConfig)
+                        if (code == 204 && urlConfig.endpoint == Endpoint.Initialize) {
                             return@withContext gson.fromJson(
                                 "{has_updates: false}",
                                 T::class.java,
@@ -506,11 +513,25 @@ internal class StatsigNetworkImpl(
                     }
                 }
             } catch (e: Exception) {
+                errorMessage = e.message
                 throw e
             } finally {
+                end = System.nanoTime()
                 connection?.disconnect()
+                coroutineScope.launch(dispatcherProvider.io) {
+                    val timedOut = (end - start) / 1_000_000_000 > (timeout ?: 0)
+                    val fallbackUpdated = networkResolver.tryFetchUpdatedFallbackInfo(
+                        sdkKey,
+                        urlConfig,
+                        errorMessage,
+                        timedOut,
+                        connectivityListener.isNetworkAvailable(),
+                    )
+                    if (fallbackUpdated) {
+                        urlConfig.fallbackUrl = networkResolver.getActiveFallbackUrlFromMemory(urlConfig)
+                    }
+                }
             }
-
             return@withContext null
         }
     }

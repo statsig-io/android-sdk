@@ -33,6 +33,7 @@ internal class StatsigLogger(
     private val statsigNetwork: StatsigNetwork,
     private val statsigUser: StatsigUser,
     private val diagnostics: Diagnostics,
+    private val fallbackUrls: List<String>? = null,
 ) {
     private val gson = StatsigUtil.getGson()
 
@@ -48,7 +49,6 @@ internal class StatsigLogger(
     private var events = ConcurrentLinkedQueue<LogEvent>()
     private var loggedExposures = ConcurrentHashMap<String, Long>()
     private var nonExposedChecks = ConcurrentHashMap<String, Long>()
-
     suspend fun log(event: LogEvent) {
         withContext(singleThreadDispatcher) {
             events.add(event)
@@ -74,7 +74,7 @@ internal class StatsigLogger(
             val eventsCount = events.size.toString()
             val flushEvents = ArrayList(events)
             events = ConcurrentLinkedQueue()
-            statsigNetwork.apiPostLogs(api, gson.toJson(LogEventData(flushEvents, statsigMetadata)), eventsCount)
+            statsigNetwork.apiPostLogs(api, gson.toJson(LogEventData(flushEvents, statsigMetadata)), eventsCount, fallbackUrls)
         }
     }
 

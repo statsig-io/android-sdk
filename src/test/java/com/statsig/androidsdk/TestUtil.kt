@@ -12,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
+import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert
 import java.io.IOException
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit
 class TestUtil {
     companion object {
         private val dispatcher = TestCoroutineDispatcher()
+        val coroutineScope = TestCoroutineScope(dispatcher)
 
         fun mockDispatchers(): TestCoroutineDispatcher {
             Dispatchers.setMain(dispatcher)
@@ -349,6 +351,7 @@ class TestUtil {
                 StatsigUtil.removeFromSharedPrefs(any(), any())
             } coAnswers {
                 firstArg<SharedPreferences>().edit().remove(secondArg<String>())
+                firstArg<SharedPreferences>().edit().apply()
             }
         }
 

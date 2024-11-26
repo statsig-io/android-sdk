@@ -770,7 +770,7 @@ class StatsigClient() : LifecycleEventListener {
                 if (this@StatsigClient.options.disableLogEventRetries != true) {
                     launch(dispatcherProvider.io) {
                         try {
-                            this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI)
+                            this@StatsigClient.statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI, this@StatsigClient.options.logEventFallbackUrls)
                         } catch (e: Exception) {
                             // best effort attempt to capture failed log events
                         }
@@ -817,9 +817,12 @@ class StatsigClient() : LifecycleEventListener {
         val normalizedUser = normalizeUser(user)
         val initializeValues = options.initializeValues
         this.user = normalizedUser
+        exceptionHandler = errorBoundary.getExceptionHandler()
+        statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
+        val networkFallbackResolver = NetworkFallbackResolver(errorBoundary, getSharedPrefs(), statsigScope)
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
-            statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary, getSharedPrefs(), options)
+            statsigNetwork = StatsigNetwork(application, sdkKey, errorBoundary, getSharedPrefs(), options, networkFallbackResolver, statsigScope)
         }
         statsigMetadata = if (options.optOutNonSdkMetadata) {
             createCoreStatsigMetadata()
@@ -829,8 +832,6 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.setMetadata(statsigMetadata)
         errorBoundary.setDiagnostics(diagnostics)
 
-        exceptionHandler = errorBoundary.getExceptionHandler()
-        statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
         this.initialized.set(true)
 
@@ -844,6 +845,7 @@ class StatsigClient() : LifecycleEventListener {
             statsigNetwork,
             normalizedUser,
             diagnostics,
+            options.logEventFallbackUrls,
         )
         populateStatsigMetadata()
 
@@ -1002,7 +1004,7 @@ class StatsigClient() : LifecycleEventListener {
         pollingJob?.cancel()
         val sinceTime = store.getLastUpdateTime(user)
         pollingJob =
-            statsigNetwork.pollForChanges(options.api, user, sinceTime, statsigMetadata).onEach {
+            statsigNetwork.pollForChanges(options.api, user, sinceTime, statsigMetadata, options.initializeFallbackUrls).onEach {
                 if (it?.hasUpdates == true) {
                     store.save(it, user)
                 }
@@ -1081,7 +1083,7 @@ class StatsigClient() : LifecycleEventListener {
             return
         }
         statsigScope.launch {
-            statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI)
+            statsigNetwork.apiRetryFailedLogs(this@StatsigClient.options.eventLoggingAPI, this@StatsigClient.options.logEventFallbackUrls)
         }
     }
 

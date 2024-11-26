@@ -9,8 +9,8 @@ enum class Tier {
 }
 
 private const val TIER_KEY: String = "tier"
-private const val DEFAULT_INIT_API = "https://featureassets.org/v1/"
-private const val DEFAULT_EVENT_API = "https://prodregistryv2.org/v1/"
+const val DEFAULT_INIT_API = "https://featureassets.org/v1/"
+const val DEFAULT_EVENT_API = "https://prodregistryv2.org/v1/"
 
 /**
  * An object of properties for initializing the sdk with advanced options
@@ -96,6 +96,14 @@ class StatsigOptions(
      * If user object is modified, modified version will be used for evaluation and logging
      */
     @SerializedName("userObjectValidator") var userObjectValidator: ((user: StatsigUser) -> Unit)? = null,
+    /**
+     * A list of URLs to try if the primary initializeUrl fails.
+     */
+    @SerializedName("initializeFallbackUrls") var initializeFallbackUrls: List<String>? = null,
+    /**
+     * A list of URLs to try if the primary logEventUrl fails.
+     */
+    @SerializedName("logEventFallbackUrls") var logEventFallbackUrls: List<String>? = null,
 
     var evaluationCallback: ((BaseConfig) -> Unit)? = null,
 

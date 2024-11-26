@@ -41,6 +41,7 @@ class TestSharedPreferences : SharedPreferences {
 
             removedValues.forEach { k -> values.remove(k) }
             removedValues = mutableSetOf()
+
             return true
         }
 

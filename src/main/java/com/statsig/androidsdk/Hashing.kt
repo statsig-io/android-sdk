@@ -31,7 +31,7 @@ internal object Hashing {
         return android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
     }
 
-    private fun getDJB2HashString(input: String): String {
+    fun getDJB2HashString(input: String): String {
         var hash = 0
         for (c in input.toCharArray()) {
             hash = (hash shl 5) - hash + c.code
