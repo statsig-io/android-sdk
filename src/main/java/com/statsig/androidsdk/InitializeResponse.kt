@@ -49,4 +49,5 @@ internal data class APIDynamicConfig(
     @SerializedName("is_experiment_active") val isExperimentActive: Boolean = false,
     @SerializedName("allocated_experiment_name") val allocatedExperimentName: String? = null,
     @SerializedName("explicit_parameters") val explicitParameters: Array<String>? = arrayOf(),
+    @SerializedName("passed") val rulePassed: Boolean? = null,
 )

@@ -14,6 +14,7 @@ class DynamicConfig(
     private val isExperimentActive: Boolean = false,
     private val isDeviceBased: Boolean = false,
     private val allocatedExperimentName: String? = null,
+    private val rulePassed: Boolean? = null,
 ) : BaseConfig(name, details) {
     internal constructor(
         configName: String,
@@ -30,6 +31,7 @@ class DynamicConfig(
         apiDynamicConfig.isExperimentActive,
         apiDynamicConfig.isDeviceBased,
         apiDynamicConfig.allocatedExperimentName,
+        apiDynamicConfig.rulePassed,
     )
 
     internal companion object {
@@ -189,6 +191,10 @@ class DynamicConfig(
 
     fun getGroupName(): String? {
         return this.groupName
+    }
+
+    fun getRulePassed(): Boolean? {
+        return this.rulePassed
     }
 
     internal fun getSecondaryExposures(): Array<Map<String, String>> {

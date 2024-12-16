@@ -118,6 +118,11 @@ internal class StatsigLogger(
                 "reason" to config.getEvaluationDetails().reason.toString(),
                 "time" to config.getEvaluationDetails().time.toString(),
             )
+
+            config.getRulePassed()?.let {
+                metadata["rulePassed"] = it.toString()
+            }
+
             addManualFlag(metadata, isManual)
 
             event.metadata = metadata

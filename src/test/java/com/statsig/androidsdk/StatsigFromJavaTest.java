@@ -207,6 +207,7 @@ public class StatsigFromJavaTest {
                 true,
                 true,
                 null,
-                new String[] {});
+                new String[] {},
+                null);
     }
 }
