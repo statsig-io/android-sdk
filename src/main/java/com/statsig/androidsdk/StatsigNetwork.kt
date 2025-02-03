@@ -46,6 +46,7 @@ private const val LAST_SYNC_TIME_FOR_USER = "lastSyncTimeForUser"
 private const val SINCE_TIME = "sinceTime"
 private const val HASH = "hash"
 private const val PREVIOUS_DERIVED_FIELDS = "previousDerivedFields"
+private const val FULL_CHECKSUM = "full_checksum"
 
 // SharedPref keys
 private const val OFFLINE_LOGS_KEY_V1: String = "StatsigNetwork.OFFLINE_LOGS"
@@ -74,6 +75,7 @@ internal interface StatsigNetwork {
         diagnostics: Diagnostics? = null,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
+        fullChecksum: String?,
     ): InitializeResponse?
 
     fun pollForChanges(
@@ -82,6 +84,8 @@ internal interface StatsigNetwork {
         sinceTime: Long?,
         metadata: StatsigMetadata,
         fallbackUrls: List<String>? = null,
+        previousDerivedFields: Map<String, String>,
+        fullChecksum: String? = null,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
 
     suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String? = null, fallbackUrls: List<String>? = null)
@@ -126,6 +130,7 @@ internal class StatsigNetworkImpl(
         diagnostics: Diagnostics?,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
+        fullChecksum: String?,
     ): InitializeResponse {
         val retry = options.initRetryLimit
         networkResolver.initializeFallbackInfo()
@@ -141,6 +146,7 @@ internal class StatsigNetworkImpl(
                 hashUsed = hashUsed,
                 previousDerivedFields = previousDerivedFields,
                 fallbackUrls = options.initializeFallbackUrls,
+                fullChecksum = fullChecksum,
             )
         }
         return withTimeout(options.initTimeoutMs) {
@@ -158,6 +164,7 @@ internal class StatsigNetworkImpl(
                     hashUsed = hashUsed,
                     previousDerivedFields = previousDerivedFields,
                     fallbackUrls = options.initializeFallbackUrls,
+                    fullChecksum = fullChecksum,
                 )
             }.join()
 
@@ -176,13 +183,14 @@ internal class StatsigNetworkImpl(
         retryLimit: Int = 0,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
+        fullChecksum: String?,
         fallbackUrls: List<String>? = null,
     ): InitializeResponse {
         var retry = 0
         var response: InitializeResponse
         var backoff = INITIALIZE_RETRY_BACKOFF
         do {
-            response = initializeImpl(api, user, sinceTime, metadata, contextType, diagnostics, retry + 1, timeoutMs, hashUsed, previousDerivedFields, fallbackUrls)
+            response = initializeImpl(api, user, sinceTime, metadata, contextType, diagnostics, retry + 1, timeoutMs, hashUsed, previousDerivedFields, fullChecksum, fallbackUrls)
             if (response is InitializeResponse.SuccessfulInitializeResponse || retryLimit == 0) {
                 return response
             }
@@ -204,6 +212,7 @@ internal class StatsigNetworkImpl(
         timeoutMs: Int? = null,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
+        fullChecksum: String?,
         fallbackUrls: List<String>? = null,
     ): InitializeResponse {
         return try {
@@ -216,6 +225,7 @@ internal class StatsigNetworkImpl(
                 SINCE_TIME to sinceTime,
                 HASH to hashUsed,
                 PREVIOUS_DERIVED_FIELDS to previousDerivedFields,
+                FULL_CHECKSUM to fullChecksum,
             )
             var statusCode: Int? = null
             initializeRequestsMap[userCacheKey]?.disconnect()
@@ -280,6 +290,8 @@ internal class StatsigNetworkImpl(
         sinceTime: Long?,
         metadata: StatsigMetadata,
         fallbackUrls: List<String>?,
+        previousDerivedFields: Map<String, String>,
+        fullChecksum: String?,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
         return flow<InitializeResponse.SuccessfulInitializeResponse?> {
@@ -294,6 +306,8 @@ internal class StatsigNetworkImpl(
                     LAST_SYNC_TIME_FOR_USER to sinceTime,
                     SINCE_TIME to sinceTime,
                     HASH to HashAlgorithm.DJB2.value,
+                    PREVIOUS_DERIVED_FIELDS to previousDerivedFields,
+                    FULL_CHECKSUM to fullChecksum,
                 )
                 if (userCacheKey != null) {
                     initializeRequestsMap[userCacheKey]?.disconnect()

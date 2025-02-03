@@ -138,7 +138,7 @@ class StatsigInitializationFailureTest {
     @Test
     fun testInitializeAsyncSetupAsyncException() = runBlocking {
         coEvery {
-            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
+            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
             throw Exception("Something wrong happen when connecting to network")
         }
@@ -207,7 +207,7 @@ class StatsigInitializationFailureTest {
     fun testIntializeNetworkRequestTimeout() = runBlocking {
         val countDownLatch = CountDownLatch(1)
         coEvery {
-            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
+            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
             throw Exception("Fake timeout exception")
         }

@@ -33,6 +33,7 @@ class StatsigMultipleInitializeTest {
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
+                fullChecksum = any(),
             )
         } coAnswers {
             TestUtil.makeInitializeResponse()
@@ -67,6 +68,7 @@ class StatsigMultipleInitializeTest {
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
+                fullChecksum = any(),
             )
         }
     }
@@ -99,6 +101,7 @@ class StatsigMultipleInitializeTest {
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
+                fullChecksum = any(),
             )
         }
     }
@@ -132,6 +135,7 @@ class StatsigMultipleInitializeTest {
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
+                fullChecksum = any(),
             )
         }
     }
@@ -164,6 +168,7 @@ class StatsigMultipleInitializeTest {
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
+                fullChecksum = any(),
             )
         }
     }

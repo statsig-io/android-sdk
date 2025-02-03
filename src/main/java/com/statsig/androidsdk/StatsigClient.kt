@@ -753,6 +753,7 @@ class StatsigClient() : LifecycleEventListener {
                         this@StatsigClient.diagnostics,
                         if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
                         this@StatsigClient.store.getPreviousDerivedFields(this@StatsigClient.user),
+                        this@StatsigClient.store.getFullChecksum(this@StatsigClient.user),
                     )
                 }
                 if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates && !options.initializeOffline) {
@@ -881,6 +882,7 @@ class StatsigClient() : LifecycleEventListener {
                 {
                     val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
                     val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
+                    val fullChecksum = store.getFullChecksum(this@StatsigClient.user)
                     val initResponse = statsigNetwork.initialize(
                         options.api,
                         this@StatsigClient.user,
@@ -891,6 +893,7 @@ class StatsigClient() : LifecycleEventListener {
                         diagnostics = this@StatsigClient.diagnostics,
                         hashUsed = if (this@StatsigClient.options.disableHashing == true) HashAlgorithm.NONE else HashAlgorithm.DJB2,
                         previousDerivedFields = previousDerivedFields,
+                        fullChecksum = fullChecksum,
                     )
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse && initResponse.hasUpdates) {
                         diagnostics.markStart(
@@ -1003,8 +1006,10 @@ class StatsigClient() : LifecycleEventListener {
         }
         pollingJob?.cancel()
         val sinceTime = store.getLastUpdateTime(user)
+        val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
+        val fullChecksum = store.getFullChecksum(this@StatsigClient.user)
         pollingJob =
-            statsigNetwork.pollForChanges(options.api, user, sinceTime, statsigMetadata, options.initializeFallbackUrls).onEach {
+            statsigNetwork.pollForChanges(options.api, user, sinceTime, statsigMetadata, options.initializeFallbackUrls, previousDerivedFields, fullChecksum).onEach {
                 if (it?.hasUpdates == true) {
                     store.save(it, user)
                 }

@@ -143,6 +143,14 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         return cachedValues?.values?.derivedFields ?: mapOf()
     }
 
+    fun getFullChecksum(user: StatsigUser): String? {
+        var cachedValues = cacheById[this.getScopedCacheKey(user)] ?: cacheById[user.getCacheKeyDEPRECATED()]
+        if (cachedValues?.userHash != user.toHashString()) {
+            return null
+        }
+        return cachedValues?.values?.fullChecksum ?: null
+    }
+
     private fun getScopedCacheKey(user: StatsigUser): String {
         return this.options.customCacheKey(this.sdkKey, user)
     }

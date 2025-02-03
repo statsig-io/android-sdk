@@ -334,7 +334,7 @@ class StatsigTest {
         coEvery {
             network["initializeImpl"](
                 allAny<String>(), allAny<StatsigUser>(), allAny<Long>(), allAny<StatsigMetadata>(), allAny<ContextType>(), allAny<Diagnostics>(),
-                allAny<Int>(), allAny<Int>(), allAny<HashAlgorithm>(), allAny<Map<String, String>>(), allAny<List<String>>(),
+                allAny<Int>(), allAny<Int>(), allAny<HashAlgorithm>(), allAny<Map<String, String>>(), allAny<String>(), allAny<List<String>>(),
             )
         } coAnswers {
             Thread.sleep(timeout) // Block the thread
@@ -345,7 +345,7 @@ class StatsigTest {
         val statsigScope = scope.get(client)
 
         try {
-            client.statsigNetwork.initialize(option.api, user, 0, StatsigMetadata(), statsigScope as CoroutineScope, ContextType.INITIALIZE, null, HashAlgorithm.DJB2, mapOf())
+            client.statsigNetwork.initialize(option.api, user, 0, StatsigMetadata(), statsigScope as CoroutineScope, ContextType.INITIALIZE, null, HashAlgorithm.DJB2, mapOf(), null)
         } catch (e: Exception) {
             assert(e is TimeoutCancellationException)
             assert(e.message!!.contains("Timed out waiting for $timeout ms"))

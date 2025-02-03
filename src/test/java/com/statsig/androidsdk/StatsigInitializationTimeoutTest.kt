@@ -55,7 +55,7 @@ class StatsigInitializationTimeoutTest {
         TestUtil.stubAppFunctions(app)
 
         coEvery {
-            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any())
+            network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
             TestUtil.makeInitializeResponse()
         }

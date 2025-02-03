@@ -94,7 +94,7 @@ class LogEventTest {
         setup(options)
         Statsig.logEvent("viewCartIcon")
         Statsig.shutdown()
-        coVerify { network.initialize(expectedInitializeAPI, any(), any(), any(), any(), any(), any(), any(), any()) }
+        coVerify { network.initialize(expectedInitializeAPI, any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         coVerify { network.apiPostLogs(expectedLogEventApi, any(), any()) }
     }
 

@@ -103,6 +103,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 50,
                 HashAlgorithm.NONE,
                 mapOf(),
+                null,
             )
         } catch (e: Exception) {
             // noop
