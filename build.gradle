@@ -24,6 +24,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 apply plugin: 'maven-publish'
 apply plugin: "org.jlleitschuh.gradle.ktlint"
+apply plugin: "signing"
 
 android {
     compileSdkVersion 30
@@ -111,6 +112,7 @@ afterEvaluate {
                 groupId 'com.statsig'
                 artifactId 'android-sdk'
                 version project.getProperty('libraryVersion')
+
                 pom {
                     name = "Statsig Android SDK"
                     description = "A SDK for integrating Statsig with Android Apps"
@@ -133,13 +135,32 @@ afterEvaluate {
                             email = "tore@statsig.com"
                         }
                     }
+                    scm {
+                        connection.set("scm:git:git://github.com/statsig-io/android-sdk.git")
+                        developerConnection.set("scm:git:ssh://git@github.com:statsig-io/android-sdk.git")
+                        url.set("https://github.com/statsig-io/android-sdk")
+                    }
                 }
             }
         }
         repositories {
             maven {
-                url "$buildDir/repo"
+                name = "sonatype"
+                url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+                credentials {
+                    username = System.getenv("ORG_GRADLE_PROJECT_MAVEN_USERNAME")
+                    password = System.getenv("ORG_GRADLE_PROJECT_MAVEN_PASSWORD")
+                }
             }
         }
     }
+
+    signing {
+        def signingKeyId = System.getenv("ORG_GRADLE_PROJECT_SIGNING_KEY_ID") ?: ""
+        def signingKey = System.getenv("ORG_GRADLE_PROJECT_SIGNING_KEY") ?: ""
+        def signingPassword = System.getenv("ORG_GRADLE_PROJECT_SIGNING_PASSWORD") ?: ""
+        useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        sign publishing.publications['release']
+    }
 }
+
