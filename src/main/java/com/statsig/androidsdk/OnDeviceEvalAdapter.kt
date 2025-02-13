@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import com.statsig.androidsdk.evaluator.ConfigEvaluation
 import com.statsig.androidsdk.evaluator.Evaluator
 import com.statsig.androidsdk.evaluator.SpecStore
 import com.statsig.androidsdk.evaluator.SpecsResponse
@@ -31,12 +32,28 @@ class OnDeviceEvalAdapter(private val data: String?) {
 
         val gateName = current.getName()
         val evaluation = evaluator.evaluateGate(gateName, user)
+        val details = getEvaluationDetails(evaluation)
 
-        return null
+        return FeatureGate(gateName, evaluation, details)
     }
 
     private fun shouldTryOnDeviceEvaluation(details: EvaluationDetails): Boolean {
         val specs = store.getRawSpecs() ?: return false
         return specs.time > details.lcut
+    }
+
+    private fun getEvaluationDetails(evaluation: ConfigEvaluation): EvaluationDetails {
+        val lcut = store.getLcut() ?: 0
+        if (evaluation.isUnrecognized) {
+            return EvaluationDetails(
+                EvaluationReason.OnDeviceEvalAdapterBootstrapUnrecognized,
+                lcut
+            )
+        }
+
+        return EvaluationDetails(
+            EvaluationReason.OnDeviceEvalAdapterBootstrapRecognized,
+            lcut
+        )
     }
 }

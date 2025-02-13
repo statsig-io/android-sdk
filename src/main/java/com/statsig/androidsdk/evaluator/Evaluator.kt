@@ -20,6 +20,7 @@ internal class ConfigEvaluation(
     val configDelegate: String? = null,
     var isExperimentGroup: Boolean = false,
     var configVersion: Int? = null,
+    var isUnrecognized: Boolean = false
 )
 
 internal enum class ConfigCondition {
@@ -42,7 +43,7 @@ internal class Evaluator(private val store: SpecStore) {
     private var hashLookupTable: MutableMap<String, ULong> = HashMap()
 
     internal fun evaluateGate(name: String, user: StatsigUser): ConfigEvaluation {
-        val spec = store.getGate(name) ?: return ConfigEvaluation()
+        val spec = store.getGate(name) ?: return ConfigEvaluation(isUnrecognized = true)
         return evaluate(user, spec)
     }
 

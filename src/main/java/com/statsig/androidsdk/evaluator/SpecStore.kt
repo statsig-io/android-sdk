@@ -10,6 +10,10 @@ internal class SpecStore {
         return rawSpecs
     }
 
+    fun getLcut(): Long? {
+        return rawSpecs?.time
+    }
+
     fun setSpecs(specs: SpecsResponse) {
         rawSpecs = specs
 
