@@ -26,7 +26,6 @@ interface IStatsigCallback {
  */
 object Statsig {
 
-    @VisibleForTesting
     internal var client: StatsigClient = StatsigClient()
 
     /**

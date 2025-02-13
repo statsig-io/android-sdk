@@ -112,6 +112,9 @@ class StatsigOptions(
     var disableLogEventRetries: Boolean = false,
 
     var optOutNonSdkMetadata: Boolean = false,
+
+
+    var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null,
 ) {
 
     private var environment: MutableMap<String, String>? = null
