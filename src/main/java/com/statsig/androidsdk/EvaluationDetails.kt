@@ -16,4 +16,5 @@ enum class EvaluationReason {
 data class EvaluationDetails(
     var reason: EvaluationReason,
     val time: Long = System.currentTimeMillis(),
+    @Transient val lcut: Long,
 )

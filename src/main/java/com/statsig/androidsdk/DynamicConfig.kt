@@ -36,7 +36,7 @@ class DynamicConfig(
 
     internal companion object {
         fun getError(name: String): DynamicConfig {
-            return DynamicConfig(name, EvaluationDetails(EvaluationReason.Error))
+            return DynamicConfig(name, EvaluationDetails(EvaluationReason.Error, lcut = 0))
         }
     }
 

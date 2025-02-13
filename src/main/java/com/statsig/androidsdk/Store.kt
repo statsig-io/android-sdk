@@ -289,7 +289,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     internal fun getGlobalEvaluationDetails(): EvaluationDetails {
-        return EvaluationDetails(this.reason, currentCache.evaluationTime ?: System.currentTimeMillis())
+        return EvaluationDetails(this.reason, currentCache.evaluationTime ?: System.currentTimeMillis(), lcut = currentCache.values.time)
     }
 
     internal fun getEvaluationDetails(
@@ -308,6 +308,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         return EvaluationDetails(
             reason = reasonOverride ?: reason,
             time = System.currentTimeMillis(),
+            lcut = this.currentCache.values.time,
         )
     }
 

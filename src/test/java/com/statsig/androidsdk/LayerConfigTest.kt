@@ -30,7 +30,7 @@ class LayerConfigTest {
         layer = Layer(
             client,
             "a_layer",
-            EvaluationDetails(EvaluationReason.Network),
+            EvaluationDetails(EvaluationReason.Network, lcut = 0),
             TestUtil.getConfigValueMap(),
             "default",
         )
@@ -48,7 +48,7 @@ class LayerConfigTest {
     @Test
     fun testDummy() {
         val dummyConfig =
-            Layer(client, "", EvaluationDetails(EvaluationReason.Unrecognized))
+            Layer(client, "", EvaluationDetails(EvaluationReason.Unrecognized, lcut = 0))
         assertEquals("provided default", dummyConfig.getString("test", "provided default"))
         assertEquals(true, dummyConfig.getBoolean("test", true))
         assertEquals(12, dummyConfig.getInt("test", 12))
@@ -68,7 +68,7 @@ class LayerConfigTest {
         val emptyConfig = Layer(
             client,
             "test_config",
-            EvaluationDetails(EvaluationReason.Uninitialized),
+            EvaluationDetails(EvaluationReason.Uninitialized, lcut = 0),
             mapOf(),
             "default",
         )

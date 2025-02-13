@@ -41,7 +41,7 @@ class Layer internal constructor(
 
     companion object {
         fun getError(name: String): Layer {
-            return Layer(null, name, EvaluationDetails(EvaluationReason.Error))
+            return Layer(null, name, EvaluationDetails(EvaluationReason.Error, lcut = 0))
         }
     }
 

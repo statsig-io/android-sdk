@@ -9,7 +9,7 @@ class ExternalInitializeResponse(
 ) {
     internal companion object {
         fun getUninitialized(): ExternalInitializeResponse {
-            return ExternalInitializeResponse(null, EvaluationDetails(EvaluationReason.Uninitialized))
+            return ExternalInitializeResponse(null, EvaluationDetails(EvaluationReason.Uninitialized, lcut = 0))
         }
     }
     fun getInitializeResponseJSON(): String? {

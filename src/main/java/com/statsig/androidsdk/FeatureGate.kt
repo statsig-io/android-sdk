@@ -28,7 +28,7 @@ class FeatureGate(
 
     internal companion object {
         fun getError(name: String): FeatureGate {
-            return FeatureGate(name, EvaluationDetails(EvaluationReason.Error), false, "")
+            return FeatureGate(name, EvaluationDetails(EvaluationReason.Error, lcut = 0), false, "")
         }
     }
 
