@@ -1,5 +1,7 @@
 package com.statsig.androidsdk
 
+import com.statsig.androidsdk.evaluator.ConfigEvaluation
+
 /**
  * A helper class for interfacing with Dynamic Configs defined in the Statsig console
  */
@@ -33,6 +35,23 @@ class DynamicConfig(
         apiDynamicConfig.allocatedExperimentName,
         apiDynamicConfig.rulePassed,
     )
+
+    internal constructor(
+        configName: String,
+        evaluation: ConfigEvaluation,
+        details: EvaluationDetails
+    ) : this(
+        name = configName,
+        details = details,
+        jsonValue = evaluation.returnableValue?.mapValue ?: mapOf(),
+        rule = evaluation.ruleID,
+        groupName = evaluation.groupName,
+        secondaryExposures = evaluation.secondaryExposures.toTypedArray(),
+        isExperimentActive = evaluation.isActive,
+        isUserInExperiment = evaluation.isExperimentGroup,
+        isDeviceBased = false,
+    )
+
 
     internal companion object {
         fun getError(name: String): DynamicConfig {

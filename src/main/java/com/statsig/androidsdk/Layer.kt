@@ -1,5 +1,7 @@
 package com.statsig.androidsdk
 
+import com.statsig.androidsdk.evaluator.ConfigEvaluation
+
 /**
  * A helper class for interfacing with Layers defined in the Statsig console
  */
@@ -37,6 +39,27 @@ class Layer internal constructor(
         apiDynamicConfig.isDeviceBased,
         apiDynamicConfig.allocatedExperimentName,
         apiDynamicConfig.explicitParameters?.toSet(),
+    )
+
+    internal constructor(
+        client: StatsigClient?,
+        layerName: String,
+        evaluation: ConfigEvaluation,
+        details: EvaluationDetails
+    ) : this(
+        client = client,
+        name = layerName,
+        details = details,
+        jsonValue = evaluation.returnableValue?.mapValue ?: mapOf(),
+        rule = evaluation.ruleID,
+        groupName = evaluation.groupName,
+        secondaryExposures = evaluation.secondaryExposures.toTypedArray(),
+        undelegatedSecondaryExposures = evaluation.undelegatedSecondaryExposures.toTypedArray(),
+        isExperimentActive = evaluation.isActive,
+        isUserInExperiment = evaluation.isExperimentGroup,
+        isDeviceBased = false,
+        allocatedExperimentName = evaluation.configDelegate,
+        explicitParameters = evaluation.explicitParameters?.toSet(),
     )
 
     companion object {

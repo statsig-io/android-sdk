@@ -1,5 +1,6 @@
 package com.statsig.androidsdk.evaluator
 
+import android.graphics.Bitmap.Config
 import android.util.Log
 import com.statsig.androidsdk.EvaluationDetails
 import com.statsig.androidsdk.Statsig
@@ -18,10 +19,13 @@ internal class ConfigEvaluation(
     val secondaryExposures: ArrayList<Map<String, String>> = arrayListOf(),
     val explicitParameters: List<String>? = null,
     val configDelegate: String? = null,
-    var isExperimentGroup: Boolean = false,
+    val isExperimentGroup: Boolean = false,
+    val isActive: Boolean = false,
+    val isUnrecognized: Boolean = false,
     var configVersion: Int? = null,
-    var isUnrecognized: Boolean = false
-)
+) {
+    var undelegatedSecondaryExposures: ArrayList<Map<String, String>> = secondaryExposures
+}
 
 internal enum class ConfigCondition {
     PUBLIC,
@@ -44,6 +48,16 @@ internal class Evaluator(private val store: SpecStore) {
 
     internal fun evaluateGate(name: String, user: StatsigUser): ConfigEvaluation {
         val spec = store.getGate(name) ?: return ConfigEvaluation(isUnrecognized = true)
+        return evaluate(user, spec)
+    }
+
+    internal fun evaluateConfig(name: String, user: StatsigUser): ConfigEvaluation {
+        val spec = store.getConfig(name) ?: return ConfigEvaluation(isUnrecognized = true)
+        return evaluate(user, spec)
+    }
+
+    internal fun evaluateLayer(name: String, user: StatsigUser): ConfigEvaluation {
+        val spec = store.getLayer(name) ?: return ConfigEvaluation(isUnrecognized = true)
         return evaluate(user, spec)
     }
 
@@ -82,6 +96,7 @@ internal class Evaluator(private val store: SpecStore) {
                         result.groupName,
                         secondaryExposures,
                         isExperimentGroup = rule.isExperimentGroup ?: false,
+                        isActive = spec.isActive,
                         configVersion = spec.version,
                     )
                 }
@@ -95,6 +110,7 @@ internal class Evaluator(private val store: SpecStore) {
                 null,
                 secondaryExposures,
                 configVersion = spec.version,
+                isActive = spec.isActive
             )
         } catch (e: UnsupportedEvaluationException) {
             // Return default value for unsupported evaluation
@@ -106,6 +122,7 @@ internal class Evaluator(private val store: SpecStore) {
                 ruleID = "default",
                 explicitParameters = spec.explicitParameters ?: listOf(),
                 configVersion = spec.version,
+                isActive = spec.isActive
             )
         }
     }
@@ -144,15 +161,17 @@ internal class Evaluator(private val store: SpecStore) {
         val evaluation = ConfigEvaluation(
             booleanValue = delegatedResult.booleanValue,
             jsonValue = delegatedResult.jsonValue,
+            returnableValue = delegatedResult.returnableValue,
             ruleID = delegatedResult.ruleID,
             groupName = delegatedResult.groupName,
             secondaryExposures = secondaryExposures,
             configDelegate = configDelegate,
             explicitParameters = config.explicitParameters,
             isExperimentGroup = delegatedResult.isExperimentGroup,
+            isActive = delegatedResult.isActive
         )
 
-//        evaluation.undelegatedSecondaryExposures = undelegatedSecondaryExposures
+        evaluation.undelegatedSecondaryExposures = undelegatedSecondaryExposures
         return evaluation
     }
 

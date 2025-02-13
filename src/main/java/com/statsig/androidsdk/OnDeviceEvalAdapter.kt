@@ -37,6 +37,30 @@ class OnDeviceEvalAdapter(private val data: String?) {
         return FeatureGate(gateName, evaluation, details)
     }
 
+    fun getDynamicConfig(current: DynamicConfig, user: StatsigUser): DynamicConfig? {
+        if (!shouldTryOnDeviceEvaluation(current.getEvaluationDetails())) {
+            return null
+        }
+
+        val configName = current.getName()
+        val evaluation = evaluator.evaluateConfig(configName, user)
+        val details = getEvaluationDetails(evaluation)
+
+        return DynamicConfig(configName, evaluation, details)
+    }
+
+    fun getLayer(client: StatsigClient?, current: Layer, user: StatsigUser): Layer? {
+        if (!shouldTryOnDeviceEvaluation(current.getEvaluationDetails())) {
+            return null
+        }
+
+        val layerName = current.getName()
+        val evaluation = evaluator.evaluateLayer(layerName, user)
+        val details = getEvaluationDetails(evaluation)
+
+        return Layer(client, layerName, evaluation, details)
+    }
+
     private fun shouldTryOnDeviceEvaluation(details: EvaluationDetails): Boolean {
         val specs = store.getRawSpecs() ?: return false
         return specs.time > details.lcut
@@ -47,13 +71,13 @@ class OnDeviceEvalAdapter(private val data: String?) {
         if (evaluation.isUnrecognized) {
             return EvaluationDetails(
                 EvaluationReason.OnDeviceEvalAdapterBootstrapUnrecognized,
-                lcut
+                lcut = lcut
             )
         }
 
         return EvaluationDetails(
             EvaluationReason.OnDeviceEvalAdapterBootstrapRecognized,
-            lcut
+            lcut = lcut
         )
     }
 }

@@ -267,8 +267,9 @@ class StatsigClient() : LifecycleEventListener {
         var result: DynamicConfig = DynamicConfig.getError(configName)
         errorBoundary.capture(
                 {
-                    result = store.getConfig(configName)
-                    logExposure(configName, result)
+                    val config = getDynamicConfigEvaluation(configName)
+                    logExposure(configName, config)
+                    result = config
                 },
                 tag = functionName,
                 configName = configName
@@ -291,7 +292,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture(
                 {
                     this.logger.addNonExposedCheck(configName)
-                    result = store.getConfig(configName)
+                    result = getDynamicConfigEvaluation(configName)
                 },
                 tag = functionName,
                 configName = configName
@@ -314,7 +315,7 @@ class StatsigClient() : LifecycleEventListener {
         var res: DynamicConfig = DynamicConfig.getError(experimentName)
         errorBoundary.capture(
                 {
-                    res = store.getExperiment(experimentName, keepDeviceValue)
+                    res = getExperimentEvaluation(experimentName, keepDeviceValue)
                     updateStickyValues()
                     logExposure(experimentName, res)
                 },
@@ -344,7 +345,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture(
                 {
                     this.logger.addNonExposedCheck(experimentName)
-                    exp = store.getExperiment(experimentName, keepDeviceValue)
+                    exp = getExperimentEvaluation(experimentName, keepDeviceValue)
                     updateStickyValues()
                 },
                 configName = experimentName,
@@ -368,7 +369,7 @@ class StatsigClient() : LifecycleEventListener {
         var layer: Layer = Layer.getError(layerName)
         errorBoundary.capture(
                 {
-                    layer = store.getLayer(this, layerName, keepDeviceValue)
+                    layer = getLayerEvaluation(this, layerName, keepDeviceValue)
                     updateStickyValues()
                 },
                 tag = functionName,
@@ -397,7 +398,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture(
                 {
                     this.logger.addNonExposedCheck(layerName)
-                    layer = store.getLayer(null, layerName, keepDeviceValue)
+                    layer = getLayerEvaluation(null, layerName, keepDeviceValue)
                     updateStickyValues()
                 },
                 tag = functionName,
@@ -1075,6 +1076,21 @@ class StatsigClient() : LifecycleEventListener {
     private fun getFeatureGateEvaluation(gateName: String): FeatureGate {
         val gate = store.checkGate(gateName)
         return onDeviceEvalAdapter?.getGate(gate, user) ?: gate
+    }
+
+    private fun getDynamicConfigEvaluation(configName: String): DynamicConfig {
+        val config = store.getConfig(configName)
+        return onDeviceEvalAdapter?.getDynamicConfig(config, user) ?: config
+    }
+
+    private fun getExperimentEvaluation(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
+        val experiment = store.getExperiment(experimentName, keepDeviceValue)
+        return onDeviceEvalAdapter?.getDynamicConfig(experiment, user) ?: experiment
+    }
+
+    private fun getLayerEvaluation(client: StatsigClient?, layerName: String, keepDeviceValue: Boolean): Layer {
+        val layer = store.getLayer(client, layerName, keepDeviceValue)
+        return onDeviceEvalAdapter?.getLayer(client, layer, user) ?: layer
     }
 
     internal fun logLayerParameterExposure(
