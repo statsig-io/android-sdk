@@ -12,7 +12,7 @@ enum class EvaluationReason {
     OnDeviceEvalAdapterBootstrapUnrecognized,
     InvalidBootstrap,
     NetworkNotModified,
-    Error;
+    Error, ;
 
     override fun toString(): String {
         return when (this) {

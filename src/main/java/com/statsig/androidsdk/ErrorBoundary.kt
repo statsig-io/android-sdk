@@ -1,6 +1,5 @@
 package com.statsig.androidsdk
 
-import android.util.Log
 import com.google.gson.Gson
 import kotlinx.coroutines.*
 import java.io.DataOutputStream
@@ -12,8 +11,6 @@ import kotlin.math.floor
 const val MAX_DIAGNOSTICS_MARKERS = 30
 const val SAMPLING_RATE = 10_000
 internal class ExternalException(message: String? = null) : Exception(message)
-
-const val TAG = "Statsig"
 
 internal class ErrorBoundary {
     internal var urlString = "https://prodregistryv2.org/v1/rgstr_e"
@@ -52,7 +49,8 @@ internal class ErrorBoundary {
     }
 
     private fun handleException(exception: Throwable) {
-        Log.e(TAG, "An unexpected exception occurred.", exception)
+        println("[Statsig]: An unexpected exception occurred.")
+        println(exception)
         if (exception !is ExternalException) {
             this.logException(exception)
         }
@@ -121,7 +119,7 @@ internal class ErrorBoundary {
                     "exception" to name,
                     "info" to RuntimeException(exception).stackTraceToString(),
                     "statsigMetadata" to metadata,
-                    "tag" to (tag ?: "unknown")
+                    "tag" to (tag ?: "unknown"),
                 )
                 val postData = Gson().toJson(body)
 

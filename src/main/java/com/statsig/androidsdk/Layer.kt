@@ -45,7 +45,7 @@ class Layer internal constructor(
         client: StatsigClient?,
         layerName: String,
         evaluation: ConfigEvaluation,
-        details: EvaluationDetails
+        details: EvaluationDetails,
     ) : this(
         client = client,
         name = layerName,
@@ -161,6 +161,7 @@ class Layer internal constructor(
                 this.rule,
                 this.groupName,
             )
+
             else -> null
         }
     }

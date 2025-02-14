@@ -47,17 +47,19 @@ internal object EvaluatorUtils {
             return false
         }
         val iterable: Iterable<*> =
-                when (targets) {
-                    is Iterable<*> -> {
-                        targets
-                    }
-                    is Array<*> -> {
-                        targets.asIterable()
-                    }
-                    else -> {
-                        return false
-                    }
+            when (targets) {
+                is Iterable<*> -> {
+                    targets
                 }
+
+                is Array<*> -> {
+                    targets.asIterable()
+                }
+
+                else -> {
+                    return false
+                }
+            }
         for (option in iterable) {
             if ((option is String) && (value is String) && option.equals(value, ignoreCase)) {
                 return true
@@ -84,15 +86,15 @@ internal object EvaluatorUtils {
 
     fun getFromUser(user: StatsigUser, field: String): Any? {
         var value: Any? =
-                getUserValueForField(user, field) ?: getUserValueForField(user, field.lowercase())
+            getUserValueForField(user, field) ?: getUserValueForField(user, field.lowercase())
 
         if ((value == null || value == "") && user.custom != null) {
             value = user.custom?.get(field) ?: user.custom?.get(field.lowercase())
         }
         if ((value == null || value == "") && user.privateAttributes != null) {
             value =
-                    user.privateAttributes?.get(field)
-                            ?: user.privateAttributes?.get(field.lowercase())
+                user.privateAttributes?.get(field)
+                    ?: user.privateAttributes?.get(field.lowercase())
         }
 
         return value
@@ -100,7 +102,7 @@ internal object EvaluatorUtils {
 
     fun getFromEnvironment(user: StatsigUser, field: String): String? {
         return user.statsigEnvironment?.get(field)
-                ?: user.statsigEnvironment?.get(field.lowercase())
+            ?: user.statsigEnvironment?.get(field.lowercase())
     }
 
     fun getUnitID(user: StatsigUser, idType: String?): String? {
@@ -112,23 +114,25 @@ internal object EvaluatorUtils {
     }
 
     fun matchStringInArray(
-            value: Any?,
-            target: Any?,
-            compare: (value: String, target: String) -> Boolean,
+        value: Any?,
+        target: Any?,
+        compare: (value: String, target: String) -> Boolean,
     ): Boolean {
         val strValue = getValueAsString(value) ?: return false
         val iterable =
-                when (target) {
-                    is Iterable<*> -> {
-                        target
-                    }
-                    is Array<*> -> {
-                        target.asIterable()
-                    }
-                    else -> {
-                        return false
-                    }
+            when (target) {
+                is Iterable<*> -> {
+                    target
                 }
+
+                is Array<*> -> {
+                    target.asIterable()
+                }
+
+                else -> {
+                    return false
+                }
+            }
 
         for (match in iterable) {
             val strMatch = this.getValueAsString(match) ?: continue
@@ -140,9 +144,9 @@ internal object EvaluatorUtils {
     }
 
     fun compareDates(
-            compare: ((a: Date, b: Date) -> Boolean),
-            a: Any?,
-            b: Any?,
+        compare: ((a: Date, b: Date) -> Boolean),
+        a: Any?,
+        b: Any?,
     ): ConfigEvaluation {
         if (a == null || b == null) {
             return ConfigEvaluation(booleanValue = false)
@@ -153,21 +157,21 @@ internal object EvaluatorUtils {
 
         if (firstEpoch == null || secondEpoch == null) {
             return ConfigEvaluation(
-                    booleanValue = false,
+                booleanValue = false,
             )
         }
         return ConfigEvaluation(
-                booleanValue = compare(firstEpoch, secondEpoch),
+            booleanValue = compare(firstEpoch, secondEpoch),
         )
     }
 
     private fun getEpoch(input: Any?): Long? {
         var epoch =
-                when (input) {
-                    is String -> parseLong(input)
-                    is Number -> input.toLong()
-                    else -> return null
-                }
+            when (input) {
+                is String -> parseLong(input)
+                is Number -> input.toLong()
+                else -> return null
+            }
 
         if (epoch.toString().length < 11) {
             // epoch in seconds (milliseconds would be before 1970)

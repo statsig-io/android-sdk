@@ -1,6 +1,5 @@
 package com.statsig.androidsdk
 
-import com.statsig.androidsdk.evaluator.ConfigEvaluation
 import com.statsig.androidsdk.evaluator.Evaluator
 import com.statsig.androidsdk.evaluator.SpecStore
 import com.statsig.androidsdk.evaluator.SpecsResponse
@@ -32,7 +31,7 @@ class OnDeviceEvalAdapter(private val data: String?) {
 
         val gateName = current.getName()
         val evaluation = evaluator.evaluateGate(gateName, user)
-        val details = getEvaluationDetails(evaluation)
+        val details = getEvaluationDetails(evaluation.isUnrecognized)
 
         return FeatureGate(gateName, evaluation, details)
     }
@@ -44,7 +43,7 @@ class OnDeviceEvalAdapter(private val data: String?) {
 
         val configName = current.getName()
         val evaluation = evaluator.evaluateConfig(configName, user)
-        val details = getEvaluationDetails(evaluation)
+        val details = getEvaluationDetails(evaluation.isUnrecognized)
 
         return DynamicConfig(configName, evaluation, details)
     }
@@ -56,9 +55,20 @@ class OnDeviceEvalAdapter(private val data: String?) {
 
         val layerName = current.getName()
         val evaluation = evaluator.evaluateLayer(layerName, user)
-        val details = getEvaluationDetails(evaluation)
+        val details = getEvaluationDetails(evaluation.isUnrecognized)
 
         return Layer(client, layerName, evaluation, details)
+    }
+
+    fun getParamStore(client: StatsigClient, current: ParameterStore): ParameterStore? {
+        if (!shouldTryOnDeviceEvaluation(current.evaluationDetails)) {
+            return null
+        }
+
+        val spec = store.getParamStore(current.name)
+        val details = getEvaluationDetails(spec == null)
+
+        return ParameterStore(client, spec?.parameters ?: mapOf(), current.name, details, null)
     }
 
     private fun shouldTryOnDeviceEvaluation(details: EvaluationDetails): Boolean {
@@ -66,18 +76,18 @@ class OnDeviceEvalAdapter(private val data: String?) {
         return specs.time > details.lcut
     }
 
-    private fun getEvaluationDetails(evaluation: ConfigEvaluation): EvaluationDetails {
+    private fun getEvaluationDetails(isUnrecognized: Boolean): EvaluationDetails {
         val lcut = store.getLcut() ?: 0
-        if (evaluation.isUnrecognized) {
+        if (isUnrecognized) {
             return EvaluationDetails(
                 EvaluationReason.OnDeviceEvalAdapterBootstrapUnrecognized,
-                lcut = lcut
+                lcut = lcut,
             )
         }
 
         return EvaluationDetails(
             EvaluationReason.OnDeviceEvalAdapterBootstrapRecognized,
-            lcut = lcut
+            lcut = lcut,
         )
     }
 }

@@ -268,11 +268,11 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     fun getParamStore(client: StatsigClient, paramStoreName: String, options: ParameterStoreEvaluationOptions?): ParameterStore {
         val values = currentCache.values
         if (values.paramStores == null) {
-            return ParameterStore(client, HashMap(), getEvaluationDetails(false), options)
+            return ParameterStore(client, HashMap(), paramStoreName, getEvaluationDetails(false), options)
         }
         var paramStore = values.paramStores[paramStoreName]
         if (paramStore != null) {
-            return ParameterStore(client, paramStore, getEvaluationDetails(true), options)
+            return ParameterStore(client, paramStore, paramStoreName, getEvaluationDetails(true), options)
         }
 
         val hashedParamStoreName = Hashing.getHashedString(
@@ -283,6 +283,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         return ParameterStore(
             client,
             paramStore ?: HashMap(),
+            paramStoreName,
             getEvaluationDetails(paramStore != null),
             options,
         )

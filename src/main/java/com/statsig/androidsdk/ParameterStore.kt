@@ -52,6 +52,7 @@ enum class ParamType(val value: String) {
 class ParameterStore(
     private val statsigClient: StatsigClient,
     private val paramStore: Map<String, Map<String, Any>>,
+    public val name: String,
     public val evaluationDetails: EvaluationDetails,
     public val options: ParameterStoreEvaluationOptions?,
 ) {

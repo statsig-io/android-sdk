@@ -1,8 +1,6 @@
 package com.statsig.androidsdk.evaluator
 
-import android.graphics.Bitmap.Config
 import android.util.Log
-import com.statsig.androidsdk.EvaluationDetails
 import com.statsig.androidsdk.Statsig
 import com.statsig.androidsdk.StatsigUser
 import java.nio.ByteBuffer
@@ -28,18 +26,8 @@ internal class ConfigEvaluation(
 }
 
 internal enum class ConfigCondition {
-    PUBLIC,
-    FAIL_GATE,
-    PASS_GATE,
-    IP_BASED,
-    UA_BASED,
-    USER_FIELD,
-    CURRENT_TIME,
-    ENVIRONMENT_FIELD,
-    USER_BUCKET,
-    UNIT_ID,
+    PUBLIC, FAIL_GATE, PASS_GATE, IP_BASED, UA_BASED, USER_FIELD, CURRENT_TIME, ENVIRONMENT_FIELD, USER_BUCKET, UNIT_ID,
 }
-
 
 internal class Evaluator(private val store: SpecStore) {
     private val calendarOne = Calendar.getInstance()
@@ -110,7 +98,7 @@ internal class Evaluator(private val store: SpecStore) {
                 null,
                 secondaryExposures,
                 configVersion = spec.version,
-                isActive = spec.isActive
+                isActive = spec.isActive,
             )
         } catch (e: UnsupportedEvaluationException) {
             // Return default value for unsupported evaluation
@@ -122,7 +110,7 @@ internal class Evaluator(private val store: SpecStore) {
                 ruleID = "default",
                 explicitParameters = spec.explicitParameters ?: listOf(),
                 configVersion = spec.version,
-                isActive = spec.isActive
+                isActive = spec.isActive,
             )
         }
     }
@@ -149,7 +137,11 @@ internal class Evaluator(private val store: SpecStore) {
         )
     }
 
-    private fun evaluateDelegate(user: StatsigUser, rule: SpecRule, secondaryExposures: ArrayList<Map<String, String>>): ConfigEvaluation? {
+    private fun evaluateDelegate(
+        user: StatsigUser,
+        rule: SpecRule,
+        secondaryExposures: ArrayList<Map<String, String>>,
+    ): ConfigEvaluation? {
         val configDelegate = rule.configDelegate ?: return null
         val config = store.getConfig(configDelegate) ?: return null
 
@@ -168,7 +160,7 @@ internal class Evaluator(private val store: SpecStore) {
             configDelegate = configDelegate,
             explicitParameters = config.explicitParameters,
             isExperimentGroup = delegatedResult.isExperimentGroup,
-            isActive = delegatedResult.isActive
+            isActive = delegatedResult.isActive,
         )
 
         evaluation.undelegatedSecondaryExposures = undelegatedSecondaryExposures
@@ -186,8 +178,7 @@ internal class Evaluator(private val store: SpecStore) {
             }
 
             when (conditionEnum) {
-                ConfigCondition.PUBLIC ->
-                    return ConfigEvaluation(booleanValue = true)
+                ConfigCondition.PUBLIC -> return ConfigEvaluation(booleanValue = true)
 
                 ConfigCondition.FAIL_GATE, ConfigCondition.PASS_GATE -> {
                     val name = condition.targetValue?.toString() ?: ""
@@ -197,12 +188,11 @@ internal class Evaluator(private val store: SpecStore) {
                     secondaryExposures.addAll(result.secondaryExposures)
 
                     if (!name.startsWith("segment:")) {
-                        val newExposure =
-                            mapOf(
-                                "gate" to name,
-                                "gateValue" to result.booleanValue.toString(),
-                                "ruleID" to result.ruleID,
-                            )
+                        val newExposure = mapOf(
+                            "gate" to name,
+                            "gateValue" to result.booleanValue.toString(),
+                            "ruleID" to result.ruleID,
+                        )
                         secondaryExposures.add(newExposure)
                     }
 
@@ -434,10 +424,9 @@ internal class Evaluator(private val store: SpecStore) {
                         )
 
                     val strValue =
-                        EvaluatorUtils.getValueAsString(value)
-                            ?: return ConfigEvaluation(
-                                booleanValue = false,
-                            )
+                        EvaluatorUtils.getValueAsString(value) ?: return ConfigEvaluation(
+                            booleanValue = false,
+                        )
 
                     return ConfigEvaluation(
                         booleanValue = Regex(targetValue).containsMatchIn(strValue),
@@ -477,10 +466,7 @@ internal class Evaluator(private val store: SpecStore) {
                         { a: Date, b: Date ->
                             calendarOne.time = a
                             calendarTwo.time = b
-                            return@compareDates calendarOne[Calendar.YEAR] ==
-                                    calendarTwo[Calendar.YEAR] &&
-                                    calendarOne[Calendar.DAY_OF_YEAR] ==
-                                    calendarTwo[Calendar.DAY_OF_YEAR]
+                            return@compareDates calendarOne[Calendar.YEAR] == calendarTwo[Calendar.YEAR] && calendarOne[Calendar.DAY_OF_YEAR] == calendarTwo[Calendar.DAY_OF_YEAR]
                         },
                         value,
                         condition.targetValue,
@@ -531,12 +517,11 @@ internal class Evaluator(private val store: SpecStore) {
     private fun evaluatePassPercent(user: StatsigUser, spec: Spec, rule: SpecRule): Boolean {
         return computeUserHash(
             spec.salt +
-                    '.' +
-                    (rule.salt ?: rule.id) +
-                    '.' +
-                    (EvaluatorUtils.getUnitID(user, rule.idType) ?: ""),
-        )
-            .mod(10000UL) < (rule.passPercentage.times(100.0)).toULong()
+                '.' +
+                (rule.salt ?: rule.id) +
+                '.' +
+                (EvaluatorUtils.getUnitID(user, rule.idType) ?: ""),
+        ).mod(10000UL) < (rule.passPercentage.times(100.0)).toULong()
     }
 
     private fun computeUserHash(input: String): ULong {
@@ -557,6 +542,5 @@ internal class Evaluator(private val store: SpecStore) {
         return hash
     }
 }
-
 
 class UnsupportedEvaluationException(message: String) : Exception(message)

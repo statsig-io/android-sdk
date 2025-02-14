@@ -25,7 +25,7 @@ interface IStatsigCallback {
  * A singleton class for interfacing with gates, configs, and logging in the Statsig console
  */
 object Statsig {
-
+    @VisibleForTesting
     internal var client: StatsigClient = StatsigClient()
 
     /**
@@ -202,7 +202,10 @@ object Statsig {
      */
     @JvmOverloads
     @JvmStatic
-    fun getParameterStore(parameterStoreName: String, options: ParameterStoreEvaluationOptions? = null): ParameterStore {
+    fun getParameterStore(
+        parameterStoreName: String,
+        options: ParameterStoreEvaluationOptions? = null,
+    ): ParameterStore {
         return client.getParameterStore(parameterStoreName, options)
     }
 
@@ -249,7 +252,10 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun manuallyLogExperimentExposure(experimentName: String, keepDeviceValue: Boolean = false) {
+    fun manuallyLogExperimentExposure(
+        experimentName: String,
+        keepDeviceValue: Boolean = false,
+    ) {
         client.manuallyLogExperimentExposure(experimentName, keepDeviceValue)
     }
 
@@ -260,7 +266,11 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun manuallyLogLayerParameterExposure(layerName: String, parameterName: String, keepDeviceValue: Boolean = false) {
+    fun manuallyLogLayerParameterExposure(
+        layerName: String,
+        parameterName: String,
+        keepDeviceValue: Boolean = false,
+    ) {
         client.manuallyLogLayerParameterExposure(layerName, parameterName, keepDeviceValue)
     }
 
@@ -312,7 +322,11 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun updateUserAsync(user: StatsigUser?, callback: IStatsigCallback? = null, values: Map<String, Any>? = null) {
+    fun updateUserAsync(
+        user: StatsigUser?,
+        callback: IStatsigCallback? = null,
+        values: Map<String, Any>? = null,
+    ) {
         client.updateUserAsync(user, callback, values)
     }
 

@@ -113,7 +113,6 @@ class StatsigOptions(
 
     var optOutNonSdkMetadata: Boolean = false,
 
-
     var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null,
 ) {
 

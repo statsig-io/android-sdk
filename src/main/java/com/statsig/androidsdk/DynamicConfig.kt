@@ -39,7 +39,7 @@ class DynamicConfig(
     internal constructor(
         configName: String,
         evaluation: ConfigEvaluation,
-        details: EvaluationDetails
+        details: EvaluationDetails,
     ) : this(
         name = configName,
         details = details,
@@ -51,7 +51,6 @@ class DynamicConfig(
         isUserInExperiment = evaluation.isExperimentGroup,
         isDeviceBased = false,
     )
-
 
     internal companion object {
         fun getError(name: String): DynamicConfig {
