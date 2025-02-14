@@ -49,6 +49,6 @@ class CacheKeyWithSDKKeyTest {
         Statsig.client.shutdown()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())
         val cacheById = StatsigUtil.getGson().fromJson(StatsigUtil.getFromSharedPrefs(testSharedPrefs, "Statsig.CACHE_BY_USER"), Map::class.java)
-        assert(cacheById.keys.contains(StatsigOptions().customCacheKey("client-apikey", user)))
+        assert(cacheById.keys.contains("${user.toHashString()}:client-apikey"))
     }
 }
