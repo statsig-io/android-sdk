@@ -956,6 +956,7 @@ class StatsigClient() : LifecycleEventListener {
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         val networkFallbackResolver =
             NetworkFallbackResolver(errorBoundary, getSharedPrefs(), statsigScope)
+        store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
             statsigNetwork =
@@ -967,6 +968,7 @@ class StatsigClient() : LifecycleEventListener {
                     options,
                     networkFallbackResolver,
                     statsigScope,
+                    store,
                 )
         }
         statsigMetadata =
@@ -978,7 +980,6 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.setMetadata(statsigMetadata)
         errorBoundary.setDiagnostics(diagnostics)
 
-        store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
         onDeviceEvalAdapter = options.onDeviceEvalAdapter
         this.initialized.set(true)
 
@@ -1189,19 +1190,13 @@ class StatsigClient() : LifecycleEventListener {
             return
         }
         pollingJob?.cancel()
-        val sinceTime = store.getLastUpdateTime(user)
-        val previousDerivedFields = store.getPreviousDerivedFields(this@StatsigClient.user)
-        val fullChecksum = store.getFullChecksum(this@StatsigClient.user)
         pollingJob =
             statsigNetwork
                 .pollForChanges(
                     options.api,
                     user,
-                    sinceTime,
                     statsigMetadata,
                     options.initializeFallbackUrls,
-                    previousDerivedFields,
-                    fullChecksum,
                 )
                 .onEach {
                     if (it?.hasUpdates == true) {

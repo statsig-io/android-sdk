@@ -100,7 +100,8 @@ class LogEventTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun mockAppOnPause() {
-        val network = spyk(StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary, testSharedPrefs, StatsigOptions(), mockk(), TestUtil.coroutineScope))
+        val store = Store(TestUtil.coroutineScope, testSharedPrefs, StatsigUser(), "client-apikey", StatsigOptions())
+        val network = spyk(StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary, testSharedPrefs, StatsigOptions(), mockk(), TestUtil.coroutineScope, store))
         coEvery {
             network.apiPostLogs(any(), any(), any())
         } answers {

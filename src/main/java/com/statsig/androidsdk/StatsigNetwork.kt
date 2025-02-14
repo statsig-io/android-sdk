@@ -81,11 +81,8 @@ internal interface StatsigNetwork {
     fun pollForChanges(
         api: String,
         user: StatsigUser,
-        sinceTime: Long?,
         metadata: StatsigMetadata,
         fallbackUrls: List<String>? = null,
-        previousDerivedFields: Map<String, String>,
-        fullChecksum: String? = null,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
 
     suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String? = null, fallbackUrls: List<String>? = null)
@@ -103,7 +100,8 @@ internal fun StatsigNetwork(
     options: StatsigOptions,
     networkFallbackResolver: NetworkFallbackResolver,
     coroutineScope: CoroutineScope,
-): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs, options, networkFallbackResolver, coroutineScope)
+    store: Store,
+): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs, options, networkFallbackResolver, coroutineScope, store)
 
 internal class StatsigNetworkImpl(
     context: Context,
@@ -113,6 +111,7 @@ internal class StatsigNetworkImpl(
     private val options: StatsigOptions,
     private val networkResolver: NetworkFallbackResolver,
     private val coroutineScope: CoroutineScope,
+    private val store: Store,
 ) : StatsigNetwork {
 
     private val gson = StatsigUtil.getGson()
@@ -287,17 +286,17 @@ internal class StatsigNetworkImpl(
     override fun pollForChanges(
         api: String,
         user: StatsigUser,
-        sinceTime: Long?,
         metadata: StatsigMetadata,
         fallbackUrls: List<String>?,
-        previousDerivedFields: Map<String, String>,
-        fullChecksum: String?,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
         return flow<InitializeResponse.SuccessfulInitializeResponse?> {
             val userCopy = user.getCopyForEvaluation()
             val userCacheKey = this@StatsigNetworkImpl.options.customCacheKey(this@StatsigNetworkImpl.sdkKey, userCopy)
             val metadataCopy = metadata.copy()
+            val sinceTime = this@StatsigNetworkImpl.store.getLastUpdateTime(user)
+            val previousDerivedFields = this@StatsigNetworkImpl.store.getPreviousDerivedFields(user)
+            val fullChecksum = this@StatsigNetworkImpl.store.getFullChecksum(user)
             while (true) {
                 delay(POLLING_INTERVAL_MS) // If coroutine is cancelled, this delay will exit the while loop
                 val body = mapOf(
