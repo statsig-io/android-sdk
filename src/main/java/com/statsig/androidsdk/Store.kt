@@ -190,9 +190,6 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
     fun getFullChecksum(user: StatsigUser): String? {
         var cachedValues = this.getCachedValuesForUser(user)
-        if (cachedValues?.userHash != user.toHashString()) {
-            return null
-        }
         return cachedValues?.values?.fullChecksum ?: null
     }
 
