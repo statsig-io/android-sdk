@@ -2,7 +2,7 @@
 
 For version `V4.37.1+`, check maven centreal: https://central.sonatype.com/artifact/com.statsig/android-sdk
 
-For version `<= V4.37.0`, check jitpack: https://jitpack.io/v/statsig-io/android-sdk.svg
+For version `<= V4.37.0`, check jitpack: https://jitpack.io/v/statsig-io/android-sdk
 
 
 ## Getting Started
