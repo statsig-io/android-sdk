@@ -18,6 +18,7 @@ import java.net.URL
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
 private val RETRY_CODES: IntArray = intArrayOf(
     HttpURLConnection.HTTP_CLIENT_TIMEOUT,
@@ -445,6 +446,7 @@ internal class StatsigNetworkImpl(
                 if (url.protocol == "http") {
                     connection.doOutput = true
                 }
+                connection.doOutput = true
 
                 connection.requestMethod = POST
                 if (timeout != null) {
@@ -476,8 +478,14 @@ internal class StatsigNetworkImpl(
                     Marker(attempt = retries),
                     contextType,
                 )
+                val outputStream = if (shouldCompressLogEvent(urlConfig, url.path)) {
+                    connection.setRequestProperty("Content-Encoding", "gzip") // Tell the server it's gzipped
+                    GZIPOutputStream(connection.outputStream)
+                } else {
+                    connection.outputStream
+                }
 
-                connection.outputStream.bufferedWriter(Charsets.UTF_8)
+                outputStream.bufferedWriter(Charsets.UTF_8)
                     .use { it.write(bodyString) }
                 val code = connection.responseCode
                 val inputStream = if (code < HttpURLConnection.HTTP_BAD_REQUEST) {
@@ -526,6 +534,7 @@ internal class StatsigNetworkImpl(
                     }
                 }
             } catch (e: Exception) {
+                println(e)
                 errorMessage = e.message
                 throw e
             } finally {
@@ -547,6 +556,22 @@ internal class StatsigNetworkImpl(
             }
             return@withContext null
         }
+    }
+
+    internal fun shouldCompressLogEvent(config: UrlConfig, url: String): Boolean {
+        if (config.endpoint !== Endpoint.Rgstr) {
+            return false
+        }
+        if (options.disableLoggingCompression) {
+            return false
+        }
+        if (url.startsWith(DEFAULT_EVENT_API)) {
+            return true
+        }
+        if (url == config.customUrl || config.userFallbackUrls?.contains(url) == true) {
+            return store.getSDKFlags()?.get("enable_log_event_compression") == true
+        }
+        return false
     }
 
     private fun endDiagnostics(

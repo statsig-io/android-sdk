@@ -46,6 +46,11 @@ class StatsigOptions(
      */
     @SerializedName("disableDiagnosticsLogging") var disableDiagnosticsLogging: Boolean = false,
     /**
+     * Default off, SDK compress outgoing loge_event payload, if there is no proxying.
+     * Turn this on to disable compressing log_event payload
+     */
+    @SerializedName("disableLoggingCompression") var disableLoggingCompression: Boolean = false,
+    /**
      * Used to decide how long the Statsig client waits for the initial network request to respond
      * before calling the completion block. The Statsig client will return either cached values
      * (if any) or default values if checkGate/getConfig/getExperiment is called before the initial

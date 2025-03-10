@@ -26,6 +26,7 @@ sealed class InitializeResponse {
         @SerializedName("derived_fields") val derivedFields: Map<String, String>?,
         @SerializedName("param_stores") val paramStores: Map<String, Map<String, Map<String, Any>>>? = null,
         @SerializedName("full_checksum") val fullChecksum: String? = null,
+        @SerializedName("sdk_flags") val sdkFlags: Map<String, Any>? = null,
     ) : InitializeResponse()
 }
 

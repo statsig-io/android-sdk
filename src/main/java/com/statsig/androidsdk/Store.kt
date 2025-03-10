@@ -448,6 +448,10 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         )
     }
 
+    fun getSDKFlags(): Map<String, Any>? {
+        return currentCache.values.sdkFlags
+    }
+
     fun getCurrentCacheValuesAndEvaluationReason(): ExternalInitializeResponse {
         return ExternalInitializeResponse(gson.toJson(currentCache.values), getEvaluationDetails(true))
     }
