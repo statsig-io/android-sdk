@@ -478,7 +478,7 @@ internal class StatsigNetworkImpl(
                     Marker(attempt = retries),
                     contextType,
                 )
-                val outputStream = if (shouldCompressLogEvent(urlConfig, url.path)) {
+                val outputStream = if (shouldCompressLogEvent(urlConfig, url.toString())) {
                     connection.setRequestProperty("Content-Encoding", "gzip") // Tell the server it's gzipped
                     GZIPOutputStream(connection.outputStream)
                 } else {
@@ -534,7 +534,6 @@ internal class StatsigNetworkImpl(
                     }
                 }
             } catch (e: Exception) {
-                println(e)
                 errorMessage = e.message
                 throw e
             } finally {
