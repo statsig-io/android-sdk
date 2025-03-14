@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import com.google.gson.annotations.SerializedName
-
 /*
 Interface
 * */
@@ -114,5 +113,3 @@ enum class ActionType {
     @SerializedName("end")
     END,
 }
-
-typealias DiagnosticsMarkers = MutableMap<ContextType, MutableList<Marker>>

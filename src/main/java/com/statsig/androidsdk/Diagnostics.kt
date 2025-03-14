@@ -1,6 +1,8 @@
 package com.statsig.androidsdk
 
-import java.util.Collections
+import java.util.Queue
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 
 const val NANO_IN_MS = 1_000_000.0
 internal class Diagnostics(private var isDisabled: Boolean) {
@@ -16,12 +18,10 @@ internal class Diagnostics(private var isDisabled: Boolean) {
 
     private var maxMarkers: MutableMap<ContextType, Int> = mutableMapOf(ContextType.INITIALIZE to this.defaultMaxMarkers, ContextType.API_CALL to this.defaultMaxMarkers, ContextType.EVENT_LOGGING to 0, ContextType.CONFIG_SYNC to 0, ContextType.UPDATE_USER to this.defaultMaxMarkers)
 
-    private var markers: DiagnosticsMarkers = Collections.synchronizedMap(mutableMapOf())
+    private var markers = ConcurrentHashMap<ContextType, ConcurrentLinkedQueue<Marker>>()
 
-    fun getMarkers(context: ContextType? = null): List<Marker> {
-        return this.markers[context ?: this.diagnosticsContext] ?: Collections.synchronizedList(
-            mutableListOf(),
-        )
+    fun getMarkers(context: ContextType? = null): Queue<Marker> {
+        return this.markers[context ?: this.diagnosticsContext] ?: ConcurrentLinkedQueue()
     }
 
     fun setMaxMarkers(context: ContextType, maxMarkers: Int) {
@@ -29,9 +29,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
     }
 
     fun clearContext(context: ContextType? = null) {
-        this.markers[context ?: this.diagnosticsContext] = Collections.synchronizedList(
-            mutableListOf(),
-        )
+        this.markers.put(context ?: this.diagnosticsContext, ConcurrentLinkedQueue())
     }
 
     fun markStart(key: KeyType, step: StepType? = null, additionalMarker: Marker? = null, overrideContext: ContextType? = null): Boolean {
@@ -101,7 +99,7 @@ internal class Diagnostics(private var isDisabled: Boolean) {
             return false
         }
         if (this.markers[context] == null) {
-            this.markers[context] = Collections.synchronizedList(mutableListOf())
+            this.markers[context] = ConcurrentLinkedQueue()
         }
         this.markers[context]?.add(marker)
         this.markers.values
