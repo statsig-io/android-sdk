@@ -86,11 +86,11 @@ class ParameterStore(
             val paramType = ParamType.fromString(paramTypeString)
 
             when (paramType) {
-                ParamType.BOOLEAN -> if (fallback !is Boolean) return fallback
-                ParamType.STRING -> if (fallback !is String) return fallback
-                ParamType.NUMBER -> if (fallback !is Number) return fallback
-                ParamType.OBJECT -> if (fallback !is Map<*, *>) return fallback
-                ParamType.ARRAY -> if (fallback !is Array<*> && fallback !is List<*>) return fallback
+                ParamType.BOOLEAN -> if (fallback != null && fallback !is Boolean) return fallback
+                ParamType.STRING -> if (fallback != null && fallback !is String) return fallback
+                ParamType.NUMBER -> if (fallback != null && fallback !is Number) return fallback
+                ParamType.OBJECT -> if (fallback != null && fallback !is Map<*, *>) return fallback
+                ParamType.ARRAY -> if (fallback != null && fallback !is Array<*> && fallback !is List<*>) return fallback
                 else -> return fallback
             }
 
