@@ -57,53 +57,53 @@ class ParameterStore(
     public val options: ParameterStoreEvaluationOptions?,
 ) {
     fun getBoolean(paramName: String, fallback: Boolean): Boolean {
-        return getValue(paramName, fallback)
+        return getValueFromRef(paramName, fallback, Layer::getBoolean, DynamicConfig::getBoolean)
     }
 
     fun getString(paramName: String, fallback: String?): String? {
-        return getValue(paramName, fallback)
+        return getValueFromRef(paramName, fallback, Layer::getString, DynamicConfig::getString)
     }
 
     fun getDouble(paramName: String, fallback: Double): Double {
-        return getValue(paramName, fallback)
+        return getValueFromRef(paramName, fallback, Layer::getDouble, DynamicConfig::getDouble)
     }
 
     fun getDictionary(paramName: String, fallback: Map<String, Any>?): Map<String, Any>? {
-        return getValue(paramName, fallback)
+        return getValueFromRef(paramName, fallback, Layer::getDictionary, DynamicConfig::getDictionary)
     }
 
     fun getArray(paramName: String, fallback: Array<*>?): Array<*>? {
-        return getValue(paramName, fallback)
+        return getValueFromRef(paramName, fallback, Layer::getArray, DynamicConfig::getArray)
     }
 
     // --------evaluation--------
-    private inline fun <reified T> getValue(topLevelParamName: String, fallback: T): T {
-        try {
-            val param = paramStore[topLevelParamName] ?: return fallback
-            val referenceTypeString = param["ref_type"] as? String ?: return fallback
-            val paramTypeString = param["param_type"] as? String ?: return fallback
-            val refType = RefType.fromString(referenceTypeString)
-            val paramType = ParamType.fromString(paramTypeString)
 
-            when (paramType) {
-                ParamType.BOOLEAN -> if (fallback != null && fallback !is Boolean) return fallback
-                ParamType.STRING -> if (fallback != null && fallback !is String) return fallback
-                ParamType.NUMBER -> if (fallback != null && fallback !is Number) return fallback
-                ParamType.OBJECT -> if (fallback != null && fallback !is Map<*, *>) return fallback
-                ParamType.ARRAY -> if (fallback != null && fallback !is Array<*> && fallback !is List<*>) return fallback
-                else -> return fallback
-            }
+    private inline fun <reified T> getValueFromRef(
+        topLevelParamName: String,
+        fallback: T,
+        getLayerValue: Layer.(String, T) -> T,
+        getDynamicConfigValue: DynamicConfig.(String, T) -> T,
+    ): T {
+        val param = paramStore[topLevelParamName] ?: return fallback
+        val referenceTypeString = param["ref_type"] as? String ?: return fallback
+        val paramTypeString = param["param_type"] as? String ?: return fallback
+        val refType = RefType.fromString(referenceTypeString)
+        val paramType = ParamType.fromString(paramTypeString)
 
-            return when (refType) {
-                RefType.GATE -> evaluateFeatureGate(paramType, param, fallback)
-                RefType.STATIC -> evaluateStaticValue(paramType, param, fallback)
-                RefType.LAYER -> evaluateLayerParameter(paramType, param, fallback)
-                RefType.DYNAMIC_CONFIG -> evaluateDynamicConfigParameter(paramType, param, fallback)
-                RefType.EXPERIMENT -> evaluateExperimentParameter(paramType, param, fallback)
-                else -> fallback
+        return when (refType) {
+            RefType.GATE -> evaluateFeatureGate(paramType, param, fallback)
+            RefType.STATIC -> evaluateStaticValue(paramType, param, fallback)
+            RefType.LAYER -> evaluateLayerParameter(param, fallback) { layer, paramName ->
+                var v = layer.getLayerValue(paramName, fallback)
+                return v
             }
-        } catch (e: Exception) {
-            return fallback
+            RefType.DYNAMIC_CONFIG -> evaluateDynamicConfigParameter(param, fallback) { config, paramName ->
+                config.getDynamicConfigValue(paramName, fallback)
+            }
+            RefType.EXPERIMENT -> evaluateExperimentParameter(param, fallback) { experiment, paramName ->
+                experiment.getDynamicConfigValue(paramName, fallback)
+            }
+            else -> fallback
         }
     }
 
@@ -125,15 +125,15 @@ class ParameterStore(
         }
         val retVal = if (passes) passValue else failValue
         if (paramType == ParamType.NUMBER) {
-            return (retVal as Number).toDouble() as T
+            return (retVal as? Number)?.toDouble() as? T ?: fallback
         } else if (paramType == ParamType.ARRAY) {
             return when (retVal) {
-                is Array<*> -> return retVal as T
-                is ArrayList<*> -> return retVal.toTypedArray() as T
+                is Array<*> -> return retVal as? T ?: fallback
+                is ArrayList<*> -> return retVal.toTypedArray() as? T ?: fallback
                 else -> fallback
             }
         }
-        return retVal as T
+        return retVal as? T ?: fallback
     }
 
     private inline fun <reified T> evaluateStaticValue(
@@ -144,12 +144,12 @@ class ParameterStore(
         return when (paramType) {
             ParamType.BOOLEAN -> param["value"] as? T ?: fallback
             ParamType.STRING -> param["value"] as? T ?: fallback
-            ParamType.NUMBER -> (param["value"] as Number).toDouble() as? T ?: fallback
+            ParamType.NUMBER -> (param["value"] as? Number)?.toDouble() as? T ?: fallback
             ParamType.OBJECT -> param["value"] as? T ?: fallback
             ParamType.ARRAY -> {
                 when (val returnValue = param["value"]) {
-                    is Array<*> -> returnValue as T
-                    is ArrayList<*> -> (returnValue.toTypedArray()) as T
+                    is Array<*> -> returnValue as? T ?: fallback
+                    is ArrayList<*> -> (returnValue.toTypedArray()) as? T ?: fallback
                     else -> fallback
                 }
             }
@@ -158,9 +158,9 @@ class ParameterStore(
     }
 
     private inline fun <reified T> evaluateLayerParameter(
-        paramType: ParamType,
         param: Map<String, Any>,
         fallback: T,
+        getValue: (Layer, String) -> T,
     ): T {
         val layerName = param["layer_name"] as? String
         val paramName = param["param_name"] as? String
@@ -172,35 +172,13 @@ class ParameterStore(
         } else {
             statsigClient.getLayer(layerName)
         }
-        return when (paramType) {
-            ParamType.BOOLEAN -> layer.getBoolean(
-                paramName,
-                fallback as? Boolean ?: return fallback,
-            ) as T
-            ParamType.STRING -> layer.getString(
-                paramName,
-                fallback as? String ?: return fallback,
-            ) as T
-            ParamType.NUMBER -> layer.getDouble(
-                paramName,
-                fallback as? Double ?: return fallback,
-            ) as T
-            ParamType.OBJECT -> layer.getDictionary(
-                paramName,
-                fallback as? Map<String, Any> ?: return fallback,
-            ) as T
-            ParamType.ARRAY -> layer.getArray(
-                paramName,
-                fallback as? Array<*> ?: return fallback,
-            ) as T
-            else -> fallback
-        }
+        return getValue(layer, paramName)
     }
 
     private inline fun <reified T> evaluateDynamicConfigParameter(
-        paramType: ParamType,
         param: Map<String, Any>,
         fallback: T,
+        getValue: (DynamicConfig, String) -> T,
     ): T {
         val configName = param["config_name"] as? String
         val paramName = param["param_name"] as? String
@@ -212,35 +190,13 @@ class ParameterStore(
         } else {
             statsigClient.getConfig(configName)
         }
-        return when (paramType) {
-            ParamType.BOOLEAN -> config.getBoolean(
-                paramName,
-                fallback as? Boolean ?: return fallback,
-            ) as T
-            ParamType.STRING -> config.getString(
-                paramName,
-                fallback as? String ?: return fallback,
-            ) as T
-            ParamType.NUMBER -> config.getDouble(
-                paramName,
-                fallback as? Double ?: return fallback,
-            ) as T
-            ParamType.OBJECT -> config.getDictionary(
-                paramName,
-                fallback as? Map<String, Any> ?: return fallback,
-            ) as T
-            ParamType.ARRAY -> config.getArray(
-                paramName,
-                fallback as? Array<*> ?: return fallback,
-            ) as T
-            else -> fallback
-        }
+        return getValue(config, paramName)
     }
 
     private inline fun <reified T> evaluateExperimentParameter(
-        paramType: ParamType,
         param: Map<String, Any>,
         fallback: T,
+        getValue: (DynamicConfig, String) -> T,
     ): T {
         val experimentName = param["experiment_name"] as? String
         val paramName = param["param_name"] as? String
@@ -252,28 +208,6 @@ class ParameterStore(
         } else {
             statsigClient.getExperiment(experimentName)
         }
-        return when (paramType) {
-            ParamType.BOOLEAN -> experiment.getBoolean(
-                paramName,
-                fallback as? Boolean ?: return fallback,
-            ) as T
-            ParamType.STRING -> experiment.getString(
-                paramName,
-                fallback as? String ?: return fallback,
-            ) as T
-            ParamType.NUMBER -> experiment.getDouble(
-                paramName,
-                fallback as? Double ?: return fallback,
-            ) as T
-            ParamType.OBJECT -> experiment.getDictionary(
-                paramName,
-                fallback as? Map<String, Any> ?: return fallback,
-            ) as T
-            ParamType.ARRAY -> experiment.getArray(
-                paramName,
-                fallback as? Array<*> ?: return fallback,
-            ) as T
-            else -> fallback
-        }
+        return getValue(experiment, paramName)
     }
 }
