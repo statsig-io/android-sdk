@@ -33,7 +33,7 @@ private val RETRY_CODES: IntArray = intArrayOf(
 
 // Constants
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
-private const val POLLING_INTERVAL_MS: Long = 10000
+private const val MIN_POLLING_INTERVAL_MS: Long = 60000 // 1 minute in milliseconds
 private const val MAX_INITIALIZE_REQUESTS: Int = 10
 private const val LOG_EVENT_RETRY: Int = 3
 
@@ -83,6 +83,7 @@ internal interface StatsigNetwork {
         api: String,
         user: StatsigUser,
         metadata: StatsigMetadata,
+        updateIntervalMs: Long = MIN_POLLING_INTERVAL_MS,
         fallbackUrls: List<String>? = null,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?>
 
@@ -288,6 +289,7 @@ internal class StatsigNetworkImpl(
         api: String,
         user: StatsigUser,
         metadata: StatsigMetadata,
+        updateIntervalMs: Long,
         fallbackUrls: List<String>?,
     ): Flow<InitializeResponse.SuccessfulInitializeResponse?> {
         @Suppress("RemoveExplicitTypeArguments") // This is needed for tests
@@ -298,8 +300,9 @@ internal class StatsigNetworkImpl(
             val sinceTime = this@StatsigNetworkImpl.store.getLastUpdateTime(user)
             val previousDerivedFields = this@StatsigNetworkImpl.store.getPreviousDerivedFields(user)
             val fullChecksum = this@StatsigNetworkImpl.store.getFullChecksum(user)
+            val boundedUpdateIntervalMs = Math.max(updateIntervalMs, MIN_POLLING_INTERVAL_MS)
             while (true) {
-                delay(POLLING_INTERVAL_MS) // If coroutine is cancelled, this delay will exit the while loop
+                delay(boundedUpdateIntervalMs) // If coroutine is cancelled, this delay will exit the while loop
                 val body = mapOf(
                     USER to userCopy,
                     STATSIG_METADATA to metadataCopy,

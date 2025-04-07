@@ -72,6 +72,11 @@ class StatsigOptions(
      */
     @SerializedName("enableAutoValueUpdate") var enableAutoValueUpdate: Boolean = false,
     /**
+     * Only applies if enableAutoValueUpdate is true. Controls how frequently calls to refresh the current
+     * users values are made. Time is in minutes and defaults to 1 minute. Minimum value is 1 minute.
+     */
+    @SerializedName("autoValueUpdateIntervalMinutes") var autoValueUpdateIntervalMinutes: Double = 1.0,
+    /**
      * overrides the stableID in the SDK that is set for the user
      */
     @SerializedName("overrideStableID") var overrideStableID: String? = null,
@@ -148,6 +153,7 @@ class StatsigOptions(
             "disableDiagnosticsLogging" to disableDiagnosticsLogging,
             "initTimeoutMs" to initTimeoutMs,
             "enableAutoValueUpdate" to enableAutoValueUpdate,
+            "autoValueUpdateIntervalMinutes" to autoValueUpdateIntervalMinutes,
             "overrideStableID" to overrideStableID,
             "loadCacheAsync" to loadCacheAsync,
             "initializeValues" to initializeValues,

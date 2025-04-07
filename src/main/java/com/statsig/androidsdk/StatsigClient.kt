@@ -1196,6 +1196,7 @@ class StatsigClient() : LifecycleEventListener {
                     options.api,
                     user,
                     statsigMetadata,
+                    (options.autoValueUpdateIntervalMinutes * 60 * 1000).toLong(),
                     options.initializeFallbackUrls,
                 )
                 .onEach {
