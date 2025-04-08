@@ -6,10 +6,7 @@ import java.io.DataOutputStream
 import java.lang.RuntimeException
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlin.math.floor
 
-const val MAX_DIAGNOSTICS_MARKERS = 30
-const val SAMPLING_RATE = 10_000
 internal class ExternalException(message: String? = null) : Exception(message)
 
 internal class ErrorBoundary(private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO)) {
@@ -30,22 +27,6 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
 
     fun setMetadata(statsigMetadata: StatsigMetadata) {
         this.statsigMetadata = statsigMetadata
-    }
-
-    fun setDiagnostics(diagnostics: Diagnostics) {
-        this.diagnostics = diagnostics
-        val sampled = floor(Math.random() * SAMPLING_RATE) == 0.0
-        if (sampled) {
-            diagnostics.setMaxMarkers(
-                ContextType.API_CALL,
-                MAX_DIAGNOSTICS_MARKERS,
-            )
-        } else {
-            diagnostics.setMaxMarkers(
-                ContextType.API_CALL,
-                0,
-            )
-        }
     }
 
     private fun handleException(exception: Throwable) {
@@ -69,13 +50,9 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
     }
 
     fun capture(task: () -> Unit, tag: String? = null, recover: ((exception: Exception?) -> Unit)? = null, configName: String? = null) {
-        var markerID = ""
         try {
-            markerID = startMarker(tag, configName) ?: ""
             task()
-            endMarker(tag, markerID, true, configName)
         } catch (e: Exception) {
-            endMarker(tag, markerID, false, configName)
             handleException(e)
             recover?.let { it(e) }
         }
@@ -135,26 +112,5 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
         } catch (e: Exception) {
             // noop
         }
-    }
-
-    private fun startMarker(tag: String?, configName: String?): String? {
-        val diagnostics = this.diagnostics
-        val markerKey = KeyType.convertFromString(tag ?: "")
-        if (tag == null || diagnostics == null || markerKey == null) {
-            return null
-        }
-        val markerID = tag + "_" + diagnostics.getMarkers(ContextType.API_CALL).count()
-        diagnostics.diagnosticsContext = ContextType.API_CALL
-        diagnostics.markStart(markerKey, step = null, Marker(markerID = markerID, configName = configName))
-        return markerID
-    }
-
-    private fun endMarker(tag: String?, markerID: String?, success: Boolean, configName: String?) {
-        val diagnostics = this.diagnostics
-        val markerKey = KeyType.convertFromString(tag ?: "")
-        if (tag == null || diagnostics == null || markerKey == null) {
-            return
-        }
-        diagnostics.markEnd(markerKey, success, step = null, Marker(markerID = markerID, configName = configName))
     }
 }

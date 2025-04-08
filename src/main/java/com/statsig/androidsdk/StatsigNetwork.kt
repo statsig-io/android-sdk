@@ -322,7 +322,7 @@ internal class StatsigNetworkImpl(
                             UrlConfig(Endpoint.Initialize, api, fallbackUrls),
                             gson.toJson(body),
                             0,
-                            ContextType.CONFIG_SYNC,
+                            null,
                             requestCacheKey = this@StatsigNetworkImpl.options.customCacheKey(this@StatsigNetworkImpl.sdkKey, userCopy),
                         ),
                     )
@@ -343,7 +343,7 @@ internal class StatsigNetworkImpl(
                     UrlConfig(Endpoint.Rgstr, api, fallbackUrls),
                     bodyString,
                     currRetry,
-                    ContextType.EVENT_LOGGING,
+                    null,
                     eventsCount = eventsCount,
                 ) {
                     statusCode = it
@@ -423,7 +423,7 @@ internal class StatsigNetworkImpl(
         urlConfig: UrlConfig,
         bodyString: String,
         retries: Int, // for logging purpose
-        contextType: ContextType,
+        contextType: ContextType? = null,
         diagnostics: Diagnostics? = null,
         timeout: Int? = null,
         eventsCount: String? = null,
@@ -475,12 +475,15 @@ internal class StatsigNetworkImpl(
                 connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
                 connection.setRequestProperty("Accept-Encoding", "gzip")
 
-                diagnostics?.markStart(
-                    KeyType.INITIALIZE,
-                    StepType.NETWORK_REQUEST,
-                    Marker(attempt = retries),
-                    contextType,
-                )
+                if (contextType != null) {
+                    diagnostics?.markStart(
+                        KeyType.INITIALIZE,
+                        StepType.NETWORK_REQUEST,
+                        Marker(attempt = retries),
+                        contextType,
+                    )
+                }
+
                 val outputStream = if (shouldCompressLogEvent(urlConfig, url.toString())) {
                     connection.setRequestProperty("Content-Encoding", "gzip") // Tell the server it's gzipped
                     GZIPOutputStream(connection.outputStream)
@@ -578,7 +581,7 @@ internal class StatsigNetworkImpl(
 
     private fun endDiagnostics(
         diagnostics: Diagnostics?,
-        diagnosticsContext: ContextType,
+        diagnosticsContext: ContextType? = null,
         keyType: KeyType,
         statusCode: Int?,
         sdkRegion: String?,
@@ -586,7 +589,7 @@ internal class StatsigNetworkImpl(
         error: Marker.ErrorMessage? = null,
         timeoutMs: Int? = null,
     ) {
-        if (diagnostics == null) {
+        if (diagnostics == null || diagnosticsContext == null) {
             return
         }
         val marker =

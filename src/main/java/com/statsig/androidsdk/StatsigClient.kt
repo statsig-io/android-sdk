@@ -978,7 +978,6 @@ class StatsigClient() : LifecycleEventListener {
                 createStatsigMetadata()
             }
         errorBoundary.setMetadata(statsigMetadata)
-        errorBoundary.setDiagnostics(diagnostics)
 
         onDeviceEvalAdapter = options.onDeviceEvalAdapter
         this.initialized.set(true)

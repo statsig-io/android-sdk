@@ -37,15 +37,6 @@ enum class ContextType {
     @SerializedName("initialize")
     INITIALIZE,
 
-    @SerializedName("api_call")
-    API_CALL,
-
-    @SerializedName("config_sync")
-    CONFIG_SYNC,
-
-    @SerializedName("event_logging")
-    EVENT_LOGGING,
-
     @SerializedName("update_user")
     UPDATE_USER,
 }

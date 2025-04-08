@@ -61,12 +61,10 @@ internal class StatsigLogger(
 
     fun onUpdateUser() {
         this.loggedExposures = ConcurrentHashMap()
-        diagnostics.clearContext(ContextType.API_CALL)
     }
 
     suspend fun flush() {
         withContext(singleThreadDispatcher) {
-            addErrorBoundaryDiagnostics()
             addNonExposedChecksEvent()
             if (events.size == 0) {
                 return@withContext
@@ -241,15 +239,5 @@ internal class StatsigLogger(
         event.metadata = mapOf("checks" to gson.toJson(nonExposedChecks))
         this.events.add(event)
         nonExposedChecks.clear()
-    }
-
-    private fun addErrorBoundaryDiagnostics() {
-        val markers = diagnostics.getMarkers(ContextType.API_CALL)
-        if (markers.isEmpty()) {
-            return
-        }
-        val event = this.makeDiagnosticsEvent(ContextType.API_CALL, markers)
-        this.events.add(event)
-        diagnostics.clearContext(ContextType.API_CALL)
     }
 }
