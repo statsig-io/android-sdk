@@ -6,6 +6,7 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule
 import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import org.junit.After
 import org.junit.Assert.*
@@ -21,7 +22,8 @@ class ErrorBoundaryTest {
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
-        boundary = ErrorBoundary()
+        val coroutineScope = TestCoroutineScope()
+        boundary = ErrorBoundary(coroutineScope)
         boundary.setKey("client-key")
         boundary.urlString = wireMockRule.url("/v1/sdk_exception")
 
