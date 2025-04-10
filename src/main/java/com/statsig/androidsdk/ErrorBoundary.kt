@@ -9,7 +9,7 @@ import java.net.URL
 
 internal class ExternalException(message: String? = null) : Exception(message)
 
-internal class ErrorBoundary(private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO)) {
+internal class ErrorBoundary(private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
     internal var urlString = "https://prodregistryv2.org/v1/rgstr_e"
 
     private var apiKey: String? = null

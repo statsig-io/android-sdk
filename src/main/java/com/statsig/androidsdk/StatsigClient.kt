@@ -46,6 +46,7 @@ class StatsigClient() : LifecycleEventListener {
     private var isBootstrapped = AtomicBoolean(false)
     private var isInitializing = AtomicBoolean(false)
     private var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null
+    private val retryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @VisibleForTesting
     internal lateinit var statsigScope: CoroutineScope
@@ -893,7 +894,7 @@ class StatsigClient() : LifecycleEventListener {
                     this@StatsigClient.pollForUpdates()
 
                     if (this@StatsigClient.options.disableLogEventRetries != true) {
-                        launch(dispatcherProvider.io) {
+                        retryScope.launch {
                             try {
                                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(
                                     this@StatsigClient.options.eventLoggingAPI,
