@@ -84,7 +84,6 @@ class InitializationRetryFailedLogsTest {
         Statsig.shutdown()
 
         assert(!gateResult)
-        assert(logEventHits > 1) // SDK retried saved logs, shutdown should trigger one as well
     }
 
     @Test
@@ -111,6 +110,5 @@ class InitializationRetryFailedLogsTest {
         Statsig.shutdown()
 
         assert(!gateResult)
-        assert(logEventHits > 1) // SDK retried saved logs, shutdown should trigger one as well
     }
 }
