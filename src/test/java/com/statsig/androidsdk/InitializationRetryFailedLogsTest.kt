@@ -7,6 +7,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
 import io.mockk.slot
+import junit.framework.Assert.assertEquals
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -20,6 +21,7 @@ class InitializationRetryFailedLogsTest {
     private var logEventHits = 0
     private val gson = Gson()
     private val app: Application = mockk()
+    private lateinit var url: String
 
     @Before
     fun setup() {
@@ -34,11 +36,8 @@ class InitializationRetryFailedLogsTest {
         } answers {
             java.util.Base64.getEncoder().encodeToString(arraySlot.captured)
         }
-    }
 
-    @Test
-    fun testStoredFailedLogsDoNotBlockInitialization() = runBlocking {
-        val url = mockWebServer.url("/v1").toString()
+        url = mockWebServer.url("/v1").toString()
         val sharedPrefs = TestUtil.stubAppFunctions(app)
 
         sharedPrefs.edit().clear().commit()
@@ -68,14 +67,44 @@ class InitializationRetryFailedLogsTest {
             }
         }
         mockWebServer.dispatcher = dispatcher
+    }
 
+    @Test
+    fun testStoredFailedLogsDoNotBlockInitialize() = runBlocking {
         Statsig.initialize(
             app,
             "client-key",
             StatsigUser("test"),
             StatsigOptions(api = url, eventLoggingAPI = url),
         )
-        assert(logEventHits == 0)
+        assertEquals(0, logEventHits)
+
+        val gateResult = Statsig.checkGate("test_gate")
+
+        Statsig.shutdown()
+
+        assert(!gateResult)
+        assert(logEventHits > 1) // SDK retried saved logs, shutdown should trigger one as well
+    }
+
+    @Test
+    fun testStoredFailedLogsDoNotBlockInitializeAsync() = runBlocking {
+        val callback = object : IStatsigCallback {
+            override fun onStatsigInitialize(initDetails: InitializationDetails) {
+                assertEquals(0, logEventHits)
+            }
+
+            override fun onStatsigUpdateUser() {
+                // Not needed for this test
+            }
+        }
+        Statsig.initializeAsync(
+            app,
+            "client-key",
+            StatsigUser("test"),
+            callback,
+            StatsigOptions(api = url, eventLoggingAPI = url),
+        )
 
         val gateResult = Statsig.checkGate("test_gate")
 
