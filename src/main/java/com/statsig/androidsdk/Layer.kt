@@ -1,4 +1,4 @@
-package com.statsig.androidsdk
+ƒpackage com.statsig.androidsdk
 
 import com.statsig.androidsdk.evaluator.ConfigEvaluation
 
@@ -190,7 +190,7 @@ class Layer internal constructor(
         return this.undelegatedSecondaryExposures
     }
 
-    internal fun getAllocatedExperimentName(): String? {
+    fun getAllocatedExperimentName(): String? {
         return this.allocatedExperimentName
     }
 
