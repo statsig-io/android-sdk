@@ -182,16 +182,16 @@ class Layer internal constructor(
         return this.groupName
     }
 
+    fun getAllocatedExperimentName(): String? {
+        return this.allocatedExperimentName
+    }
+
     internal fun getSecondaryExposures(): Array<Map<String, String>> {
         return this.secondaryExposures
     }
 
     internal fun getUndelegatedSecondaryExposures(): Array<Map<String, String>> {
         return this.undelegatedSecondaryExposures
-    }
-
-    internal fun getAllocatedExperimentName(): String? {
-        return this.allocatedExperimentName
     }
 
     internal fun getExplicitParameters(): Set<String>? {
