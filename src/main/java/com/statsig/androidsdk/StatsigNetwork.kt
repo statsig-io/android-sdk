@@ -35,7 +35,7 @@ private val RETRY_CODES: IntArray = intArrayOf(
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
 private const val MIN_POLLING_INTERVAL_MS: Long = 60000 // 1 minute in milliseconds
 private const val MAX_INITIALIZE_REQUESTS: Int = 10
-private const val LOG_EVENT_RETRY: Int = 3
+private const val LOG_EVENT_RETRY: Int = 2
 
 private const val INITIALIZE_RETRY_BACKOFF = 100L
 private const val INITIALIZE_RETRY_BACKOFF_MULTIPLIER = 5
@@ -352,8 +352,8 @@ internal class StatsigNetworkImpl(
                     return
                 }
                 if (statusCode?.let { RETRY_CODES.contains(it) } == true) {
-                    backoff *= 100L
                     delay(backoff)
+                    backoff *= 5L
                 } else {
                     addFailedLogRequest(bodyString)
                     return
