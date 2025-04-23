@@ -875,10 +875,7 @@ class StatsigClient() : LifecycleEventListener {
                                 ),
                             )
                         }
-                    if (initResponse is InitializeResponse.SuccessfulInitializeResponse &&
-                        initResponse.hasUpdates &&
-                        !options.initializeOffline
-                    ) {
+                    if (initResponse is InitializeResponse.SuccessfulInitializeResponse && !options.initializeOffline) {
                         this@StatsigClient.diagnostics.markStart(
                             KeyType.INITIALIZE,
                             StepType.PROCESS,
@@ -1049,9 +1046,7 @@ class StatsigClient() : LifecycleEventListener {
                             previousDerivedFields = previousDerivedFields,
                             fullChecksum = fullChecksum,
                         )
-                    if (initResponse is InitializeResponse.SuccessfulInitializeResponse &&
-                        initResponse.hasUpdates
-                    ) {
+                    if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
                         diagnostics.markStart(
                             KeyType.INITIALIZE,
                             StepType.PROCESS,
@@ -1200,7 +1195,7 @@ class StatsigClient() : LifecycleEventListener {
                     options.initializeFallbackUrls,
                 )
                 .onEach {
-                    if (it?.hasUpdates == true) {
+                    if (it != null) {
                         store.save(it, user)
                     }
                 }

@@ -204,15 +204,20 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
         val cacheKey = this.getScopedCacheKey(user)
         val fullCacheKey = this.getScopedFullUserCacheKey(user)
-        val cache = cacheById[fullCacheKey] ?: createEmptyCache()
-        cache.values = data
-        cache.evaluationTime = System.currentTimeMillis()
-        cache.userHash = user.toHashString()
-        cacheById[fullCacheKey] = cache
-
         if (fullCacheKey == currentFullUserCacheKey) {
-            currentCache = cache
-            reason = if (data.hasUpdates) EvaluationReason.Network else EvaluationReason.NetworkNotModified
+            if (data.hasUpdates) {
+                val cache = cacheById[fullCacheKey] ?: createEmptyCache()
+                cache.values = data
+                cache.evaluationTime = System.currentTimeMillis()
+                cache.userHash = user.toHashString()
+                cacheById[fullCacheKey] = cache
+
+                currentCache = cache
+                reason = EvaluationReason.Network
+            } else {
+                reason = EvaluationReason.NetworkNotModified
+                return
+            }
         }
 
         // Drop out cache entry with deprecated cache key

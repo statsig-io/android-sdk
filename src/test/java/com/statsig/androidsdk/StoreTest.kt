@@ -169,11 +169,11 @@ class StoreTest {
 
         store.syncLoadFromLocalStorage()
 
-        // save value with no updates
+        // save value with no updates - unrecognized
         store.save(getInitValue("v0", hasUpdates = false), userJkw)
         store.persistStickyValues()
         exp = store.getExperiment("exp", false)
-        assertEquals(EvaluationReason.NetworkNotModified, exp.getEvaluationDetails().reason)
+        assertEquals(EvaluationReason.Unrecognized, exp.getEvaluationDetails().reason)
 
         // save some value from "network" and check again
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
@@ -184,6 +184,12 @@ class StoreTest {
         val time = exp.getEvaluationDetails().time
         assertEquals(EvaluationReason.Network, exp.getEvaluationDetails().reason)
         assertEquals(EvaluationReason.Unrecognized, fakeConfig.getEvaluationDetails().reason)
+
+        // we've saved values now, and got a successful network response with no updates
+        // which is networknotmodified
+        store.save(getInitValue("v0", hasUpdates = false), userJkw)
+        exp = store.getExperiment("exp", false)
+        assertEquals(EvaluationReason.NetworkNotModified, exp.getEvaluationDetails().reason)
 
         // re-initialize store, and check before any "network" value is saved
         Thread.sleep(1000) // wait 1 sec before reinitializing so that we can check the evaluation time in details has not advanced
