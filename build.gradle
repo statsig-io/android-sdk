@@ -82,6 +82,12 @@ task copyLibs(type: Copy) {
     into 'libs'
 }
 
+task sourcesJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    from android.sourceSets.main.kotlin.srcDirs
+    archiveClassifier.set('sources')
+}
+
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
@@ -112,6 +118,8 @@ afterEvaluate {
                 groupId 'com.statsig'
                 artifactId 'android-sdk'
                 version project.getProperty('libraryVersion')
+
+                artifact tasks.sourcesJar
 
                 pom {
                     name = "Statsig Android SDK"
