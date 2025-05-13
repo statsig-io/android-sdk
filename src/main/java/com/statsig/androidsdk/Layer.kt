@@ -19,6 +19,7 @@ class Layer internal constructor(
     private val isDeviceBased: Boolean = false,
     private val allocatedExperimentName: String? = null,
     private val explicitParameters: Set<String>? = null,
+    private val parameterRuleIDs: Map<String, String>? = null,
 ) : BaseConfig(name, details) {
     internal constructor(
         client: StatsigClient?,
@@ -39,6 +40,7 @@ class Layer internal constructor(
         apiDynamicConfig.isDeviceBased,
         apiDynamicConfig.allocatedExperimentName,
         apiDynamicConfig.explicitParameters?.toSet(),
+        apiDynamicConfig.parameterRuleIDs,
     )
 
     internal constructor(
@@ -176,6 +178,11 @@ class Layer internal constructor(
 
     fun getRuleID(): String {
         return this.rule
+    }
+
+    fun getRuleIDForParameter(key: String): String {
+        val paramRuleID = this.parameterRuleIDs?.get(key)
+        return paramRuleID ?: this.rule
     }
 
     fun getGroupName(): String? {

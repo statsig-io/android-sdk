@@ -1118,7 +1118,7 @@ class StatsigClient() : LifecycleEventListener {
 
         logger.logLayerExposure(
             layer.getName(),
-            layer.getRuleID(),
+            layer.getRuleIDForParameter(parameterName),
             exposures,
             user,
             allocatedExperiment,
