@@ -218,12 +218,14 @@ class TestUtil {
             layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
             time: Long? = null,
             hasUpdates: Boolean = true,
+            hashUsed: HashAlgorithm = HashAlgorithm.DJB2,
         ): InitializeResponse.SuccessfulInitializeResponse {
             return InitializeResponse.SuccessfulInitializeResponse(
                 featureGates = featureGates,
                 configs = dynamicConfigs,
                 layerConfigs = layerConfigs,
                 hasUpdates = hasUpdates,
+                hashUsed = hashUsed,
                 time = time ?: 1621637839,
                 derivedFields = mapOf(),
             )
@@ -329,7 +331,7 @@ class TestUtil {
         fun mockStatsigUtil() {
             mockkObject(Hashing)
             every {
-                Hashing.getHashedString(any(), null)
+                Hashing.getHashedString(any(), any())
             } answers {
                 firstArg<String>() + "!"
             }

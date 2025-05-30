@@ -142,33 +142,78 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     fun loadCacheForCurrentUser() {
+        println("\n=== Loading Cache For Current User ===")
+        println("Current user ID: ${currentUser.userID}")
+        println("Current user cache key V2: $currentUserCacheKeyV2")
+        println("Current user full cache key: $currentFullUserCacheKey")
+        
         var cachedValues = this.getCachedValuesForUser(currentUser)
         if (cachedValues != null) {
+            println("\nCache found:")
+            println("- Hash algorithm: ${cachedValues.values.hashUsed}")
+            println("- Has configs: ${cachedValues.values.configs?.isNotEmpty()}")
+            println("- Config keys: ${cachedValues.values.configs?.keys?.joinToString()}")
+            println("- User hash: ${cachedValues.userHash}")
+            println("- Evaluation time: ${cachedValues.evaluationTime}")
+            
             currentCache = cachedValues
             reason = EvaluationReason.Cache
+            println("Set evaluation reason to: $reason")
             return
         }
+        
+        println("No cache found - creating empty cache")
         currentCache = createEmptyCache()
+        reason = EvaluationReason.Uninitialized
+        println("Set evaluation reason to: $reason")
+        println("=====================================\n")
     }
 
     private fun getCachedValuesForUser(user: StatsigUser): Cache? {
-        var fullHashCachedValues = cacheById[this.getScopedFullUserCacheKey(user)]
+        val fullUserCacheKey = this.getScopedFullUserCacheKey(user)
+        val scopedCacheKey = this.getScopedCacheKey(user)
+        val deprecatedCacheKey = user.getCacheKeyDEPRECATED()
+        
+        println("\n=== Cache Lookup Details ===")
+        println("Looking up cache for user ${user.userID}")
+        println("Full Cache Key: $fullUserCacheKey")
+        println("Scoped Cache Key: $scopedCacheKey")
+        println("Deprecated Cache Key: $deprecatedCacheKey")
+        println("Available cache keys: ${cacheById.keys.joinToString()}")
+
+        var fullHashCachedValues = cacheById[fullUserCacheKey]
         if (fullHashCachedValues != null) {
+            println("Found cache using full hash key")
+            println("- Hash algorithm: ${fullHashCachedValues.values.hashUsed}")
+            println("- Has configs: ${fullHashCachedValues.values.configs?.isNotEmpty()}")
+            println("- Config keys: ${fullHashCachedValues.values.configs?.keys?.joinToString()}")
             return fullHashCachedValues
         }
-        var cachedValues = cacheById[this.getScopedCacheKey(user)] ?: cacheById[user.getCacheKeyDEPRECATED()]
+        
+        var cachedValues = cacheById[scopedCacheKey] ?: cacheById[deprecatedCacheKey]
         if (cachedValues != null) {
+            println("Found cache using ${if (cacheById[scopedCacheKey] != null) "scoped" else "deprecated"} key")
+            println("- Hash algorithm: ${cachedValues.values.hashUsed}")
+            println("- Has configs: ${cachedValues.values.configs?.isNotEmpty()}")
+            println("- Config keys: ${cachedValues.values.configs?.keys?.joinToString()}")
             return cachedValues
         }
 
-        var cacheMapping = cacheKeyMapping[this.getScopedCacheKey(user)] ?: cacheKeyMapping[user.getCacheKeyDEPRECATED()]
+        var cacheMapping = cacheKeyMapping[scopedCacheKey] ?: cacheKeyMapping[deprecatedCacheKey]
         if (cacheMapping != null) {
+            println("Found cache mapping: $cacheMapping")
             cachedValues = cacheById[cacheMapping]
             if (cachedValues != null) {
+                println("Found cache using mapped key")
+                println("- Hash algorithm: ${cachedValues.values.hashUsed}")
+                println("- Has configs: ${cachedValues.values.configs?.isNotEmpty()}")
+                println("- Config keys: ${cachedValues.values.configs?.keys?.joinToString()}")
                 return cachedValues
             }
         }
 
+        println("No cache found for user")
+        println("==========================\n")
         return null
     }
 
@@ -204,8 +249,21 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
         val cacheKey = this.getScopedCacheKey(user)
         val fullCacheKey = this.getScopedFullUserCacheKey(user)
+        
+        println("\n=== Attempting to save network response ===")
+        println("Cache key: $cacheKey")
+        println("Full cache key: $fullCacheKey")
+        println("Current cache key: $currentFullUserCacheKey")
+        println("Has updates: ${data.hasUpdates}")
+        println("Hash algorithm in response: ${data.hashUsed}")
+        println("Available configs before save: ${currentCache.values.configs?.keys?.joinToString()}")
+        println("Configs in network response: ${data.configs?.keys?.joinToString()}")
+        println("Current coroutine scope: $statsigScope")
+        
         if (fullCacheKey == currentFullUserCacheKey) {
+            println("Full cache key matches current key")
             if (data.hasUpdates) {
+                println("Network response has updates, updating cache")
                 val cache = cacheById[fullCacheKey] ?: createEmptyCache()
                 cache.values = data
                 cache.evaluationTime = System.currentTimeMillis()
@@ -215,9 +273,14 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
                 currentCache = cache
                 reason = EvaluationReason.Network
             } else {
+                println("Network response has no updates, keeping existing cache")
                 reason = EvaluationReason.NetworkNotModified
                 return
             }
+        } else {
+            println("Full cache key does not match current key")
+            println("Expected: $currentFullUserCacheKey")
+            println("Got: $fullCacheKey")
         }
 
         // Drop out cache entry with deprecated cache key
@@ -231,6 +294,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
         // Drop out other users if the cache is getting too big
         if ((cacheString.length / 1024) > 2048/*1 MB*/ && cacheById.size > 1) {
+            println("Cache too big, removing other users")
             cacheById = ConcurrentHashMap()
             cacheById[fullCacheKey] = currentCache
             cacheString = gson.toJson(cacheById)
@@ -238,10 +302,12 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             cacheKeyMapping[cacheKey] = fullCacheKey
         }
 
+        println("Writing cache to SharedPrefs")
         var cacheKeyMappingString = gson.toJson(cacheKeyMapping)
 
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, cacheString)
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_KEY_MAPPING_KEY, cacheKeyMappingString)
+        println("=== Finished saving network response ===\n")
     }
 
     fun checkGate(gateName: String): FeatureGate {
@@ -292,9 +358,31 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             )
         }
 
-        val latestValue = currentCache.values.configs?.get(experimentName)
-            ?: currentCache.values.configs?.get(Hashing.getHashedString(experimentName, currentCache.values.hashUsed))
+        println("\n=== Experiment Lookup Details ===")
+        println("Looking up experiment: $experimentName")
+        println("Current evaluation reason: $reason")
+        println("Current cache state:")
+        println("- Has configs: ${currentCache.values.configs?.isNotEmpty()}")
+        println("- Config keys: ${currentCache.values.configs?.keys?.joinToString()}")
+        println("- Hash algorithm: ${currentCache.values.hashUsed}")
+        
+        val hashedName = Hashing.getHashedString(experimentName, currentCache.values.hashUsed)
+        println("Direct lookup name: $experimentName")
+        println("Hashed lookup name: $hashedName")
+        
+        val directValue = currentCache.values.configs?.get(experimentName)
+        val hashedValue = currentCache.values.configs?.get(hashedName)
+        println("Direct lookup result: ${directValue != null}")
+        println("Hashed lookup result: ${hashedValue != null}")
+
+        val latestValue = directValue ?: hashedValue
         val details = getEvaluationDetails(latestValue != null)
+        
+        println("Final lookup result:")
+        println("- Value found: ${latestValue != null}")
+        println("- Evaluation reason: ${details.reason}")
+        println("================================\n")
+
         val finalValue = getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
         return hydrateDynamicConfig(
             experimentName,

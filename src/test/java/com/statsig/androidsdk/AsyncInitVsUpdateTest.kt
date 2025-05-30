@@ -55,7 +55,21 @@ class AsyncInitVsUpdateTest {
             network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
             val user = secondArg<StatsigUser>()
-            getResponseForUser(user)
+            val isUserA = user.userID == "user-a"
+            val configs = mapOf(
+                "a_config!" to APIDynamicConfig(
+                    "a_config!",
+                    mutableMapOf(
+                        "key" to if (isUserA) "user_a_value" else "user_b_value",
+                    ),
+                    "default",
+                ),
+            )
+            TestUtil.makeInitializeResponse(
+                dynamicConfigs = configs,
+                hasUpdates = true,
+                hashUsed = HashAlgorithm.DJB2
+            )
         }
         client = spyk()
         client.statsigNetwork = network
@@ -199,5 +213,28 @@ class AsyncInitVsUpdateTest {
         val value = config.getString("key", "default")
         assertEquals("user_a_value", value)
         assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
+    }
+
+    private fun dumpCacheContents() {
+        val cacheByUser = testSharedPrefs.getString("Statsig.CACHE_BY_USER", null)
+        if (cacheByUser != null) {
+            println("Cache contents:")
+            val cacheMap = gson.fromJson(cacheByUser, Map::class.java)
+            cacheMap.forEach { (userId, values) ->
+                println("User: $userId")
+                println("Values: $values")
+            }
+        } else {
+            println("Cache is empty")
+        }
+    }
+
+    private fun getCacheForUser(userId: String): Map<String, Any>? {
+        val cacheByUser = testSharedPrefs.getString("Statsig.CACHE_BY_USER", null)
+        if (cacheByUser != null) {
+            val cacheMap = gson.fromJson(cacheByUser, Map::class.java) as Map<String, Map<String, Any>>
+            return cacheMap[userId]
+        }
+        return null
     }
 }

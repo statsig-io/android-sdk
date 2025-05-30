@@ -58,7 +58,8 @@ class TestSharedPreferences : SharedPreferences {
 
     override fun getString(key: String?, defValue: String?): String? {
         if (key != null) {
-            return edit().getString(key)
+            val value = edit().getString(key)
+            return value
         }
         return null
     }
