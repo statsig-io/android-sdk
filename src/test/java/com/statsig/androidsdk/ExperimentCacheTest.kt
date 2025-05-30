@@ -51,8 +51,9 @@ class ExperimentCacheTest {
         coEvery {
             network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
-            println("\n=== Network initialize called ===")
-            getResponseForUser(secondArg(), if (initializeCalls === 0) "a_config" else "b_config")
+            val res = getResponseForUser(secondArg(), if (initializeCalls === 0) "a_config" else "b_config")
+            initializeCalls++
+            res
         }
 
         Statsig.client = spyk()
@@ -80,27 +81,20 @@ class ExperimentCacheTest {
             }
         }
         // First app session
-        println("\n=== Starting first session ===")
         Statsig.initializeAsync(app, "client-key", user, callback)
 
         // Wait for network response to complete
-        println("Waiting for network response...")
         didInitializeUserA.await(3, TimeUnit.SECONDS)
 
         // Verify experiment works in first session
         var experiment = Statsig.getExperiment("a_config")
-        println("\n=== First Session Verification ===")
-        println("Evaluation reason: ${experiment.getEvaluationDetails().reason}")
-        println("Value: ${experiment.getString("key", "default")}")
         assertEquals(EvaluationReason.Network, experiment.getEvaluationDetails().reason)
         assertEquals("value", experiment.getString("key", "default"))
 
         // Shutdown SDK
-        println("\n=== Shutting down SDK ===")
         Statsig.shutdown()
 
         // Setup second session
-        println("\n=== Starting second session ===")
         val didInitializeUserB = CountDownLatch(1)
 
         val callbackAgain = object : IStatsigCallback {
@@ -111,45 +105,31 @@ class ExperimentCacheTest {
             override fun onStatsigUpdateUser() {
             }
         }
-        // First app session
-        println("\n=== Starting first session ===")
         Statsig.initializeAsync(app, "client-key", user, callback)
-        TestUtil.mockDispatchers() // Re-mock dispatchers after shutdown
-        TestUtil.stubAppFunctions(app) // Re-stub app functions after shutdown
+        TestUtil.mockDispatchers()
 
         Statsig.client = spyk()
         Statsig.client.statsigNetwork = network
 
         // Initialize SDK for second session
-        println("Starting second initialization")
         Statsig.initializeAsync(app, "client-key", user, callbackAgain)
 
         // Check experiment immediately after init (before network response)
         experiment = Statsig.getExperiment("a_config")
-        println("\n=== Second Session Initial Check ===")
-        println("Evaluation reason: ${experiment.getEvaluationDetails().reason}")
-        println("Value: ${experiment.getString("key", "default")}")
+
         assertEquals(EvaluationReason.Cache, experiment.getEvaluationDetails().reason)
         assertEquals("value", experiment.getString("key", "default"))
 
         // Wait for network response to complete
-        println("Waiting for second network response...")
         didInitializeUserB.await(3, TimeUnit.SECONDS)
-        println("Second network response received")
 
         // Verify new experiment from network response
         experiment = Statsig.getExperiment("b_config")
-        println("\n=== Second Session Network Check ===")
-        println("Evaluation reason: ${experiment.getEvaluationDetails().reason}")
-        println("Value: ${experiment.getString("key", "default")}")
         assertEquals(EvaluationReason.Network, experiment.getEvaluationDetails().reason)
         assertEquals("value", experiment.getString("key", "default"))
 
         // Verify old experiment is no longer available
         experiment = Statsig.getExperiment("a_config")
-        println("\n=== Second Session Old Config Check ===")
-        println("Evaluation reason: ${experiment.getEvaluationDetails().reason}")
-        println("Value: ${experiment.getString("key", "default")}")
         assertEquals(EvaluationReason.Unrecognized, experiment.getEvaluationDetails().reason)
         assertEquals("default", experiment.getString("key", "default"))
     }

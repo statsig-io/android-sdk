@@ -854,7 +854,6 @@ class StatsigClient() : LifecycleEventListener {
                         if (this@StatsigClient.options.initializeOffline) {
                             store.getCachedInitializationResponse()
                         } else {
-                            println("calling initialize")
                             statsigNetwork.initialize(
                                 this@StatsigClient.options.api,
                                 user,
@@ -876,7 +875,7 @@ class StatsigClient() : LifecycleEventListener {
                                 ),
                             )
                         }
-                    println("init response")
+
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse && !options.initializeOffline) {
                         this@StatsigClient.diagnostics.markStart(
                             KeyType.INITIALIZE,
