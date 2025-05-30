@@ -875,7 +875,6 @@ class StatsigClient() : LifecycleEventListener {
                                 ),
                             )
                         }
-
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse && !options.initializeOffline) {
                         this@StatsigClient.diagnostics.markStart(
                             KeyType.INITIALIZE,

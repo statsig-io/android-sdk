@@ -148,27 +148,20 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             reason = EvaluationReason.Cache
             return
         }
-
         currentCache = createEmptyCache()
-        reason = EvaluationReason.Uninitialized
     }
 
     private fun getCachedValuesForUser(user: StatsigUser): Cache? {
-        val fullUserCacheKey = this.getScopedFullUserCacheKey(user)
-        val scopedCacheKey = this.getScopedCacheKey(user)
-        val deprecatedCacheKey = user.getCacheKeyDEPRECATED()
-
-        var fullHashCachedValues = cacheById[fullUserCacheKey]
+        var fullHashCachedValues = cacheById[this.getScopedFullUserCacheKey(user)]
         if (fullHashCachedValues != null) {
             return fullHashCachedValues
         }
-        
-        var cachedValues = cacheById[scopedCacheKey] ?: cacheById[deprecatedCacheKey]
+        var cachedValues = cacheById[this.getScopedCacheKey(user)] ?: cacheById[user.getCacheKeyDEPRECATED()]
         if (cachedValues != null) {
             return cachedValues
         }
 
-        var cacheMapping = cacheKeyMapping[scopedCacheKey] ?: cacheKeyMapping[deprecatedCacheKey]
+        var cacheMapping = cacheKeyMapping[this.getScopedCacheKey(user)] ?: cacheKeyMapping[user.getCacheKeyDEPRECATED()]
         if (cacheMapping != null) {
             cachedValues = cacheById[cacheMapping]
             if (cachedValues != null) {
@@ -298,14 +291,10 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
                 "override",
             )
         }
-        
-        val hashedName = Hashing.getHashedString(experimentName, currentCache.values.hashUsed)
-        val directValue = currentCache.values.configs?.get(experimentName)
-        val hashedValue = currentCache.values.configs?.get(hashedName)
 
-        val latestValue = directValue ?: hashedValue
+        val latestValue = currentCache.values.configs?.get(experimentName)
+            ?: currentCache.values.configs?.get(Hashing.getHashedString(experimentName, currentCache.values.hashUsed))
         val details = getEvaluationDetails(latestValue != null)
-
         val finalValue = getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
         return hydrateDynamicConfig(
             experimentName,
