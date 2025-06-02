@@ -60,8 +60,22 @@ class ExperimentCacheTest {
         Statsig.client.statsigNetwork = network
     }
 
+    private fun StatsigUser.getTestCustomCacheKey(sdkKey: String): String {
+        var id = userID ?: STATSIG_NULL_USER
+        val ids = (customIDs ?: mapOf()).filter { it.key != "companyId" }
+
+        for ((k, v) in ids) {
+            id = "$id$k:$v"
+        }
+        return "$id:$sdkKey"
+    }
+
     @Test
     fun testExperimentCacheAfterRestart() {
+        val initializationOptions = StatsigOptions(
+            disableHashing = true,
+            customCacheKey = { sdkKey, user -> user.getTestCustomCacheKey(sdkKey) }
+        )
         val loggedOutUser = StatsigUser("")
         // Test user setup
         val loggedInUser = StatsigUser("test-user-id").apply {
@@ -84,7 +98,7 @@ class ExperimentCacheTest {
             }
         }
         // First app session
-        Statsig.initializeAsync(app, "client-key", loggedOutUser, callback)
+        Statsig.initializeAsync(app, "client-key", loggedOutUser, callback, initializationOptions)
 
         // Wait for network response to complete
         didInitializeLoggedOutUser.await(3, TimeUnit.SECONDS)
@@ -123,7 +137,7 @@ class ExperimentCacheTest {
         Statsig.client.statsigNetwork = network
 
         // Initialize SDK for second session
-        Statsig.initializeAsync(app, "client-key", loggedInUser, callbackAgain)
+        Statsig.initializeAsync(app, "client-key", loggedInUser, callbackAgain, initializationOptions)
 
         // Check experiment immediately after init (before network response) for cached value
         experiment = Statsig.getExperiment("a_config")
