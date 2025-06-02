@@ -10,7 +10,7 @@ on:
 jobs:
   gradle:
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest-16core
     steps:
       - uses: actions/checkout@v2
 
@@ -27,4 +27,11 @@ jobs:
       - name: Test
         uses: gradle/gradle-build-action@v2
         with:
-          arguments: test -i
+          arguments: testDebugUnitTest -i
+
+      - name: Upload test report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: build/reports/tests/testDebugUnitTest/
