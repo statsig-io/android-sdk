@@ -23,7 +23,7 @@ internal suspend fun getResponseForUser(user: StatsigUser, configName: String): 
                 "${configName}!" to APIDynamicConfig(
                     "{$configName}!",
                     mutableMapOf(
-                        "key" to "value",
+                        "key" to if (user.userID == "") "logged_out_value" else "value",
                     ),
                     "default",
                 ),
@@ -51,7 +51,7 @@ class ExperimentCacheTest {
         coEvery {
             network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
-            val res = getResponseForUser(secondArg(), if (initializeCalls === 0) "a_config" else "b_config")
+            val res = getResponseForUser(secondArg(), if (initializeCalls < 2) "a_config" else "b_config")
             initializeCalls++
             res
         }
@@ -62,66 +62,76 @@ class ExperimentCacheTest {
 
     @Test
     fun testExperimentCacheAfterRestart() {
+        val loggedOutUser = StatsigUser("")
         // Test user setup
-        val user = StatsigUser("test-user-id").apply {
+        val loggedInUser = StatsigUser("test-user-id").apply {
             customIDs = mapOf(
                 "deviceId" to "test-device-id",
                 "companyId" to "test-company-id"
             )
         }
 
-        val didInitializeUserA = CountDownLatch(1)
+        val didInitializeLoggedOutUser = CountDownLatch(1)
+        val didInitializeLoggedInUser = CountDownLatch(1)
 
         val callback = object : IStatsigCallback {
             override fun onStatsigInitialize() {
-                didInitializeUserA.countDown()
+                didInitializeLoggedOutUser.countDown()
             }
 
             override fun onStatsigUpdateUser() {
+                didInitializeLoggedInUser.countDown()
             }
         }
         // First app session
-        Statsig.initializeAsync(app, "client-key", user, callback)
+        Statsig.initializeAsync(app, "client-key", loggedOutUser, callback)
 
         // Wait for network response to complete
-        didInitializeUserA.await(3, TimeUnit.SECONDS)
+        didInitializeLoggedOutUser.await(3, TimeUnit.SECONDS)
 
-        // Verify experiment works in first session
+        // Verify experiment works for logged out user
         var experiment = Statsig.getExperiment("a_config")
         assertEquals(EvaluationReason.Network, experiment.getEvaluationDetails().reason)
+        assertEquals("logged_out_value", experiment.getString("key", "default"))
+
+        Statsig.updateUserAsync(loggedInUser, callback)
+        didInitializeLoggedInUser.await(3, TimeUnit.SECONDS)
+
+        // Verify experiment works for logged in user
+        experiment = Statsig.getExperiment("a_config")
+        assertEquals(EvaluationReason.Network, experiment.getEvaluationDetails().reason)
         assertEquals("value", experiment.getString("key", "default"))
+        // should be written to cache now
 
         // Shutdown SDK
         Statsig.shutdown()
 
         // Setup second session
-        val didInitializeUserB = CountDownLatch(1)
+        val didInitializeLoggedInUserOnNextSession = CountDownLatch(1)
 
         val callbackAgain = object : IStatsigCallback {
             override fun onStatsigInitialize() {
-                didInitializeUserB.countDown()
+                didInitializeLoggedInUserOnNextSession.countDown()
             }
 
             override fun onStatsigUpdateUser() {
             }
         }
-        Statsig.initializeAsync(app, "client-key", user, callback)
         TestUtil.mockDispatchers()
 
         Statsig.client = spyk()
         Statsig.client.statsigNetwork = network
 
         // Initialize SDK for second session
-        Statsig.initializeAsync(app, "client-key", user, callbackAgain)
+        Statsig.initializeAsync(app, "client-key", loggedInUser, callbackAgain)
 
-        // Check experiment immediately after init (before network response)
+        // Check experiment immediately after init (before network response) for cached value
         experiment = Statsig.getExperiment("a_config")
-
         assertEquals(EvaluationReason.Cache, experiment.getEvaluationDetails().reason)
         assertEquals("value", experiment.getString("key", "default"))
 
         // Wait for network response to complete
-        didInitializeUserB.await(3, TimeUnit.SECONDS)
+        didInitializeLoggedInUserOnNextSession.await(3, TimeUnit.SECONDS)
 
         // Verify new experiment from network response
         experiment = Statsig.getExperiment("b_config")
