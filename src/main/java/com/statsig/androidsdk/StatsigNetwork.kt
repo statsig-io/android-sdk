@@ -36,6 +36,8 @@ private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
 private const val MIN_POLLING_INTERVAL_MS: Long = 60000 // 1 minute in milliseconds
 private const val MAX_INITIALIZE_REQUESTS: Int = 10
 private const val LOG_EVENT_RETRY: Int = 2
+private const val MAX_LOG_REQUESTS_TO_CACHE: Int = 10
+private const val MAX_LOG_RETRIES: Int = 3
 
 private const val INITIALIZE_RETRY_BACKOFF = 100L
 private const val INITIALIZE_RETRY_BACKOFF_MULTIPLIER = 5
@@ -91,7 +93,11 @@ internal interface StatsigNetwork {
 
     suspend fun apiRetryFailedLogs(api: String, fallbackUrls: List<String>? = null)
 
-    suspend fun addFailedLogRequest(requestBody: String)
+    suspend fun addFailedLogRequest(request: StatsigOfflineRequest)
+
+    suspend fun getSavedLogs(): List<StatsigOfflineRequest>
+
+    fun filterValidLogs(all: List<StatsigOfflineRequest>, currentTime: Long): List<StatsigOfflineRequest>
 }
 
 internal fun StatsigNetwork(
@@ -332,35 +338,66 @@ internal class StatsigNetworkImpl(
         }
     }
 
-    override suspend fun apiPostLogs(api: String, bodyString: String, eventsCount: String?, fallbackUrls: List<String>?) {
+    override suspend fun apiPostLogs(
+        api: String,
+        bodyString: String,
+        eventsCount: String?,
+        fallbackUrls: List<String>?,
+    ) {
+        val timestamp = System.currentTimeMillis()
+        retryApiPostLogs(
+            api,
+            StatsigOfflineRequest(timestamp, bodyString, retryCount = 0),
+            eventsCount,
+            fallbackUrls,
+        )
+    }
+
+    private suspend fun retryApiPostLogs(
+        api: String,
+        request: StatsigOfflineRequest,
+        eventsCount: String?,
+        fallbackUrls: List<String>?,
+    ) {
         var currRetry = 1
         var backoff = 100L
         var statusCode: Int? = null
+
         try {
             while (currRetry <= LOG_EVENT_RETRY) {
                 ++currRetry
                 val response = postRequest<LogEventResponse>(
                     UrlConfig(Endpoint.Rgstr, api, fallbackUrls),
-                    bodyString,
+                    request.requestBody,
                     currRetry,
                     null,
                     eventsCount = eventsCount,
                 ) {
                     statusCode = it
                 }
+
                 if (response?.success == true || statusCode?.let { it in 200..299 } == true) {
                     return
                 }
+
                 if (statusCode?.let { RETRY_CODES.contains(it) } == true) {
                     delay(backoff)
                     backoff *= 5L
                 } else {
-                    addFailedLogRequest(bodyString)
+                    if (request.retryCount < MAX_LOG_RETRIES) {
+                        addFailedLogRequest(
+                            request.copy(retryCount = request.retryCount + 1),
+                        )
+                    }
                     return
                 }
             }
         } catch (_: Exception) {
-            addFailedLogRequest(bodyString)
+            if (request.retryCount < MAX_LOG_RETRIES) {
+                addFailedLogRequest(
+                    request.copy(retryCount = request.retryCount + 1),
+                )
+            }
         }
     }
 
@@ -376,19 +413,25 @@ internal class StatsigNetworkImpl(
         StatsigUtil.removeFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
 
         val eventsCount = savedLogs.size.toString()
-        savedLogs.map { apiPostLogs(api, it.requestBody, eventsCount, fallbackUrls) }
+        savedLogs.map { retryApiPostLogs(api, it, eventsCount, fallbackUrls) }
     }
 
-    override suspend fun addFailedLogRequest(requestBody: String) {
+    override suspend fun addFailedLogRequest(request: StatsigOfflineRequest) {
+        if (request.retryCount >= MAX_LOG_RETRIES) {
+            return
+        }
+
         withContext(dispatcherProvider.io) {
-            val savedLogs =
-                getSavedLogs() + StatsigOfflineRequest(System.currentTimeMillis(), requestBody)
+            val savedLogs = getSavedLogs().toMutableList()
+            savedLogs.add(request)
+
+            val limitedLogs = filterValidLogs(savedLogs)
+
             try {
-                // savedLogs wont be concurrently modified as it is read from storage and only used here
                 StatsigUtil.saveStringToSharedPrefs(
                     sharedPrefs,
                     offlineLogsKeyV2,
-                    gson.toJson(StatsigPendingRequests(savedLogs)),
+                    gson.toJson(StatsigPendingRequests(limitedLogs)),
                 )
             } catch (_: Exception) {
                 StatsigUtil.removeFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
@@ -396,7 +439,7 @@ internal class StatsigNetworkImpl(
         }
     }
 
-    private suspend fun getSavedLogs(): List<StatsigOfflineRequest> {
+    override suspend fun getSavedLogs(): List<StatsigOfflineRequest> {
         return withContext(dispatcherProvider.io) {
             val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
                 ?: StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY_V1)
@@ -404,16 +447,31 @@ internal class StatsigNetworkImpl(
             return@withContext try {
                 val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
                 if (pendingRequests?.requests == null) {
-                    return@withContext arrayListOf()
-                }
-                val currentTime = System.currentTimeMillis()
-                pendingRequests.requests.filter {
-                    it.timestamp > currentTime - MAX_LOG_PERIOD
+                    emptyList()
+                } else {
+                    filterValidLogs(pendingRequests.requests)
                 }
             } catch (_: Exception) {
                 return@withContext arrayListOf()
             }
         }
+    }
+
+    override fun filterValidLogs(
+        all: List<StatsigOfflineRequest>,
+        currentTime: Long,
+    ): List<StatsigOfflineRequest> {
+        return all
+            .filter { it.timestamp > currentTime - MAX_LOG_PERIOD } // remove old logs
+            .filter { it.retryCount < MAX_LOG_RETRIES } // remove over-retried logs
+            .sortedBy { it.timestamp } // ensure logs are sorted by time
+            .takeLast(MAX_LOG_REQUESTS_TO_CACHE) // keep most recent
+    }
+
+    fun filterValidLogs(
+        all: List<StatsigOfflineRequest>,
+    ): List<StatsigOfflineRequest> {
+        return filterValidLogs(all, System.currentTimeMillis())
     }
 
     // Bug with Kotlin where any function that throws an IOException still triggers this lint warning

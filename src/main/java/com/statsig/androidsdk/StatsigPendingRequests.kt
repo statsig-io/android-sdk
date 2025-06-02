@@ -9,4 +9,5 @@ internal data class StatsigPendingRequests(
 internal data class StatsigOfflineRequest(
     @SerializedName("timestamp") val timestamp: Long,
     @SerializedName("requestBody") val requestBody: String,
+    @SerializedName("retryCount") val retryCount: Int = 0,
 )

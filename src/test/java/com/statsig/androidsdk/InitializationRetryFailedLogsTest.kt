@@ -111,4 +111,44 @@ class InitializationRetryFailedLogsTest {
 
         assert(!gateResult)
     }
+
+    @Test
+    fun testRetryingAndDroppingStoredFailedLogs() = runBlocking {
+        var receivedRequestBodies = mutableListOf<String>()
+        val maxAttemptsPerRequest = 3
+
+        // Mock server with handler to track received requests
+        mockWebServer.dispatcher = object : Dispatcher() {
+            override fun dispatch(request: RecordedRequest): MockResponse {
+                if (request.path!!.contains("log_event")) {
+                    receivedRequestBodies.add(request.body.readUtf8())
+                    return MockResponse().setResponseCode(500) // Force failure to trigger retries
+                }
+                return MockResponse()
+                    .setBody(gson.toJson(TestUtil.makeInitializeResponse()))
+                    .setResponseCode(200)
+            }
+        }
+
+        Statsig.initialize(
+            app,
+            "client-key",
+            StatsigUser("test"),
+            StatsigOptions(api = url, eventLoggingAPI = url),
+        )
+        Statsig.shutdown()
+
+        // Group received requests by unique requestBody
+        val requestCountMap = receivedRequestBodies.groupingBy { it }.eachCount()
+        // Assert: no more than 10 distinct requests sent (others were dropped)
+        assert(requestCountMap.size <= 10) {
+            "Expected at most 10 unique log_event requests, got ${requestCountMap.size}"
+        }
+
+        // Assert: no request was retried more than 3 times
+        val maxRetriesSeen = requestCountMap.values.maxOrNull() ?: 0
+        assert(maxRetriesSeen <= maxAttemptsPerRequest) {
+            "Expected max 3 retries per request, got $maxRetriesSeen"
+        }
+    }
 }

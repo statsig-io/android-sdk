@@ -111,7 +111,7 @@ class LogEventTest {
         coEvery {
             network.addFailedLogRequest(any())
         } coAnswers {
-            StatsigUtil.saveStringToSharedPrefs(testSharedPrefs, "StatsigNetwork.OFFLINE_LOGS", firstArg())
+            StatsigUtil.saveStringToSharedPrefs(testSharedPrefs, "StatsigNetwork.OFFLINE_LOGS", StatsigUtil.getGson().toJson(StatsigPendingRequests(listOf(firstArg()))))
         }
         mockNetwork(network)
         statsigLifecycleListener.onActivityPaused(activity)
