@@ -13,6 +13,7 @@ import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.TestCoroutineScope
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert
 import java.io.IOException
@@ -438,6 +439,10 @@ class TestUtil {
             every {
                 application.unregisterActivityLifecycleCallbacks(any())
             } returns Unit
+        }
+
+        fun clearMockDispatchers() {
+            Dispatchers.resetMain()
         }
 
         internal fun mockNetworkConnectivityService(

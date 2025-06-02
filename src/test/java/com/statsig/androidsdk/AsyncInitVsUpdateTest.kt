@@ -6,6 +6,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.*
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -15,7 +16,7 @@ import java.util.concurrent.TimeUnit
 internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse {
     return withContext(Dispatchers.IO) {
         val isUserA = user.userID == "user-a"
-        delay(if (isUserA) 0 else 2000)
+        delay(if (isUserA) 500 else 2000)
         TestUtil.makeInitializeResponse(
             mapOf(),
             mapOf(
@@ -28,6 +29,8 @@ internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse {
                 ),
             ),
             mapOf(),
+            if (isUserA) 1748624742068 else 1748624742069,
+            true,
         )
     }
 }
@@ -36,6 +39,8 @@ class AsyncInitVsUpdateTest {
     lateinit var app: Application
     private lateinit var testSharedPrefs: TestSharedPreferences
     private val gson = Gson()
+    private lateinit var client: StatsigClient
+    private lateinit var network: StatsigNetwork
 
     @Before
     internal fun setup() {
@@ -45,27 +50,23 @@ class AsyncInitVsUpdateTest {
         testSharedPrefs = TestUtil.stubAppFunctions(app)
         TestUtil.mockStatsigUtil()
 
-        val network = TestUtil.mockNetwork()
+        network = TestUtil.mockNetwork()
         coEvery {
             network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
             val user = secondArg<StatsigUser>()
             getResponseForUser(user)
         }
-        Statsig.client = spyk()
-        coEvery {
-            Statsig.client.updateUserAsync(any())
-        } coAnswers {
-            delay(500)
-            callOriginal()
+        client = spyk()
+        client.statsigNetwork = network
+    }
+
+    @After
+    fun tearDown() {
+        runBlocking {
+            client.shutdownSuspend()
         }
-        coEvery {
-            Statsig.client.updateUser(any())
-        } coAnswers {
-            delay(500)
-            callOriginal()
-        }
-        Statsig.client.statsigNetwork = network
+        TestUtil.clearMockDispatchers()
     }
 
     @Test
@@ -89,25 +90,24 @@ class AsyncInitVsUpdateTest {
             }
         }
 
-        Statsig.initializeAsync(app, "client-key", userA, callback)
-        Statsig.updateUserAsync(userB, callback)
+        client.initializeAsync(app, "client-key", userA, callback)
+        client.updateUserAsync(userB, callback)
 
         // Since updateUserAsync has been called, we void values for user_a
-        var config = Statsig.getConfig("a_config")
+        var config = client.getConfig("a_config")
         var value = config.getString("key", "default")
         assertEquals("default", value)
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
 
         didInitializeUserA.await(3, TimeUnit.SECONDS)
-
-        config = Statsig.getConfig("a_config")
+        config = client.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("default", value)
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
 
         didInitializeUserB.await(5, TimeUnit.SECONDS)
 
-        value = Statsig.getConfig("a_config").getString("key", "default")
+        value = client.getConfig("a_config").getString("key", "default")
         assertEquals("user_b_value", value)
     }
 
@@ -150,25 +150,25 @@ class AsyncInitVsUpdateTest {
         cacheById["user-b"] = values
         testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById))
 
-        Statsig.initializeAsync(app, "client-key", userA, callback)
-        Statsig.updateUserAsync(userB, callback)
+        client.initializeAsync(app, "client-key", userA, callback)
+        client.updateUserAsync(userB, callback)
 
         // Since updateUserAsync has been called, we void values for user_a and serve cache
         // values for user_b
-        var config = Statsig.getConfig("a_config")
+        var config = client.getConfig("a_config")
         var value = config.getString("key", "default")
         assertEquals("user_b_value_cache", value)
         assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
 
         didInitializeUserA.await(2, TimeUnit.SECONDS)
-        config = Statsig.getConfig("a_config")
+        config = client.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("user_b_value_cache", value)
         assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
 
         didInitializeUserB.await(3, TimeUnit.SECONDS)
 
-        config = Statsig.getConfig("a_config")
+        config = client.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("user_b_value", value)
         assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
@@ -188,14 +188,14 @@ class AsyncInitVsUpdateTest {
 
             override fun onStatsigUpdateUser() {}
         }
-        Statsig.initializeAsync(app, "client-key", userA, callback)
+        client.initializeAsync(app, "client-key", userA, callback)
         didInitializeUserA.await(1, TimeUnit.SECONDS)
         GlobalScope.async {
-            Statsig.updateUser(userB)
+            client.updateUser(userB)
         }
 
         // Calling updateUser without suspending will not guarantee synchronous load from cache
-        val config = Statsig.getConfig("a_config")
+        val config = client.getConfig("a_config")
         val value = config.getString("key", "default")
         assertEquals("user_a_value", value)
         assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
