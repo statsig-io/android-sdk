@@ -104,7 +104,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
         cacheKeyMapping = ConcurrentHashMap()
         if (cachedCacheKeyMapping != null) {
-            val type = object : TypeToken<MutableMap<String, String>>() {}.type
+            val type = object : TypeToken<ConcurrentHashMap<String, String>>() {}.type
             try {
                 cacheKeyMapping = gson.fromJson(cachedCacheKeyMapping, type)
             } catch (_: Exception) {

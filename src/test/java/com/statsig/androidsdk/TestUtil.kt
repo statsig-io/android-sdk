@@ -329,7 +329,7 @@ class TestUtil {
         fun mockStatsigUtil() {
             mockkObject(Hashing)
             every {
-                Hashing.getHashedString(any(), null)
+                Hashing.getHashedString(any(), any())
             } answers {
                 firstArg<String>() + "!"
             }
