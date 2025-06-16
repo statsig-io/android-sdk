@@ -801,6 +801,57 @@ class StatsigClient() : LifecycleEventListener {
         )
     }
 
+    fun manuallyLogGateExposure(gate: FeatureGate) {
+        val functionName = "logManualGateExposure"
+        enforceInitialized(functionName)
+        errorBoundary.capture(
+            {
+                logExposure(gate.getName(), gate, isManual = true)
+            },
+            tag = functionName,
+            configName = gate.getName(),
+        )
+    }
+
+    fun manuallyLogConfigExposure(config: DynamicConfig) {
+        val functionName = "logManualConfigExposure"
+        enforceInitialized(functionName)
+        errorBoundary.capture(
+            {
+                logExposure(config.getName(), config, isManual = true)
+            },
+            tag = functionName,
+            configName = config.getName(),
+        )
+    }
+
+    fun manuallyLogExperimentExposure(experiment: DynamicConfig) {
+        val functionName = "logManualExperimentExposure"
+        enforceInitialized(functionName)
+        errorBoundary.capture(
+            {
+                logExposure(experiment.getName(), experiment, isManual = true)
+            },
+            tag = functionName,
+            configName = experiment.getName(),
+        )
+    }
+
+    fun manuallyLogLayerParameterExposure(
+        layer: Layer,
+        parameterName: String,
+    ) {
+        val functionName = "logManualLayerExposure"
+        enforceInitialized(functionName)
+        errorBoundary.capture(
+            {
+                logLayerParameterExposure(layer, parameterName, isManual = true)
+            },
+            configName = layer.getName(),
+            tag = functionName,
+        )
+    }
+
     /** @return the overrides that are currently applied */
     fun getAllOverrides(): StatsigOverrides {
         var result: StatsigOverrides? = null

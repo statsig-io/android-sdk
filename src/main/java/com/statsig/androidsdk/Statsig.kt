@@ -237,6 +237,16 @@ object Statsig {
     }
 
     /**
+     * Log an exposure for a given gate
+     * @param gate the FeatureGate object to log an exposure for
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmStatic
+    fun manuallyLogGateExposure(gate: FeatureGate) {
+        client.manuallyLogGateExposure(gate)
+    }
+
+    /**
      * Log an exposure for a given config
      * @param configName the name of the config to log an exposure for
      * @throws IllegalStateException if the SDK has not been initialized
@@ -244,6 +254,16 @@ object Statsig {
     @JvmStatic
     fun manuallyLogConfigExposure(configName: String) {
         client.manuallyLogConfigExposure(configName)
+    }
+
+    /**
+     * Log an exposure for a given config
+     * @param config the DynamicConfig object to log an exposure for
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmStatic
+    fun manuallyLogConfigExposure(config: DynamicConfig) {
+        client.manuallyLogConfigExposure(config)
     }
 
     /**
@@ -260,6 +280,18 @@ object Statsig {
     }
 
     /**
+     * Log an exposure for a given experiment
+     * @param experiment the DynamicConfig object representing the experiment to log an exposure for
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmStatic
+    fun manuallyLogExperimentExposure(
+        experiment: DynamicConfig,
+    ) {
+        client.manuallyLogExperimentExposure(experiment)
+    }
+
+    /**
      * Log an exposure for a given parameter in a given layer
      * @param layerName the relevant layer
      * @param parameterName the specific parameter
@@ -272,6 +304,20 @@ object Statsig {
         keepDeviceValue: Boolean = false,
     ) {
         client.manuallyLogLayerParameterExposure(layerName, parameterName, keepDeviceValue)
+    }
+
+    /**
+     * Log an exposure for a given parameter in a given layer
+     * @param layer the Layer object to log an exposure for
+     * @param parameterName the specific parameter
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmStatic
+    fun manuallyLogLayerParameterExposure(
+        layer: Layer,
+        parameterName: String,
+    ) {
+        client.manuallyLogLayerParameterExposure(layer, parameterName)
     }
 
     /**

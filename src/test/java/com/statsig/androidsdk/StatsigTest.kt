@@ -353,4 +353,106 @@ class StatsigTest {
         }
         assert(false)
     }
+
+    @Test
+    fun testObjectBasedManualExposureMethods() {
+        val user = StatsigUser("test_user")
+        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "test_stable_id"), network = network)
+        client = Statsig.client
+
+        val gate = client.getFeatureGateWithExposureLoggingDisabled("always_on")
+        val config = client.getConfigWithExposureLoggingDisabled("test_config")
+        val experiment = client.getExperimentWithExposureLoggingDisabled("exp")
+        val layer = client.getLayerWithExposureLoggingDisabled("allocated_layer")
+
+        client.manuallyLogGateExposure(gate)
+        client.manuallyLogConfigExposure(config)
+        client.manuallyLogExperimentExposure(experiment)
+        client.manuallyLogLayerParameterExposure(layer, "string")
+
+        client.shutdown()
+
+        val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+
+        val manualExposureLogs = parsedLogs.events.filter {
+            it.metadata?.get("isManualExposure") == "true"
+        }
+        assertEquals("Should have 4 manual exposure logs", 4, manualExposureLogs.size)
+
+        val gateLog = manualExposureLogs.find { it.eventName == "statsig::gate_exposure" }
+        assertNotNull("Gate exposure log should exist", gateLog)
+        assertEquals("always_on", gateLog!!.metadata!!["gate"])
+        assertEquals("true", gateLog.metadata!!["isManualExposure"])
+
+        val configLog = manualExposureLogs.find {
+            it.eventName == "statsig::config_exposure" && it.metadata!!["config"] == "test_config"
+        }
+        assertNotNull("Config exposure log should exist", configLog)
+        assertEquals("test_config", configLog!!.metadata!!["config"])
+        assertEquals("true", configLog.metadata!!["isManualExposure"])
+
+        val expLog = manualExposureLogs.find {
+            it.eventName == "statsig::config_exposure" && it.metadata!!["config"] == "exp"
+        }
+        assertNotNull("Experiment exposure log should exist", expLog)
+        assertEquals("exp", expLog!!.metadata!!["config"])
+        assertEquals("true", expLog.metadata!!["isManualExposure"])
+
+        val layerLog = manualExposureLogs.find { it.eventName == "statsig::layer_exposure" }
+        assertNotNull("Layer exposure log should exist", layerLog)
+        assertEquals("allocated_layer", layerLog!!.metadata!!["config"])
+        assertEquals("string", layerLog.metadata!!["parameterName"])
+        assertEquals("true", layerLog.metadata!!["isManualExposure"])
+    }
+
+    @Test
+    fun testObjectBasedManualExposureWithNonExistentObjects() {
+        val user = StatsigUser("test_user")
+        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "test_stable_id"), network = network)
+        client = Statsig.client
+
+        val nonExistentGate = client.getFeatureGateWithExposureLoggingDisabled("nonexistent_gate")
+        val nonExistentConfig = client.getConfigWithExposureLoggingDisabled("nonexistent_config")
+        val nonExistentExperiment = client.getExperimentWithExposureLoggingDisabled("nonexistent_exp")
+        val nonExistentLayer = client.getLayerWithExposureLoggingDisabled("nonexistent_layer")
+
+        client.manuallyLogGateExposure(nonExistentGate)
+        client.manuallyLogConfigExposure(nonExistentConfig)
+        client.manuallyLogExperimentExposure(nonExistentExperiment)
+        client.manuallyLogLayerParameterExposure(nonExistentLayer, "param")
+
+        client.shutdown()
+
+        val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+
+        val manualExposureLogs = parsedLogs.events.filter {
+            it.metadata?.get("isManualExposure") == "true"
+        }
+        assertEquals("Should have 4 manual exposure logs", 4, manualExposureLogs.size)
+
+        manualExposureLogs.forEach { log ->
+            assertEquals("true", log.metadata!!["isManualExposure"])
+        }
+
+        val gateLog = manualExposureLogs.find { it.eventName == "statsig::gate_exposure" }
+        assertNotNull("Gate exposure log should exist", gateLog)
+        assertEquals("nonexistent_gate", gateLog!!.metadata!!["gate"])
+
+        val configLog = manualExposureLogs.find {
+            it.eventName == "statsig::config_exposure" && it.metadata!!["config"] == "nonexistent_config"
+        }
+        assertNotNull("Config exposure log should exist", configLog)
+        assertEquals("nonexistent_config", configLog!!.metadata!!["config"])
+
+        val expLog = manualExposureLogs.find {
+            it.eventName == "statsig::config_exposure" && it.metadata!!["config"] == "nonexistent_exp"
+        }
+        assertNotNull("Experiment exposure log should exist", expLog)
+        assertEquals("nonexistent_exp", expLog!!.metadata!!["config"])
+
+        val layerLog = manualExposureLogs.find { it.eventName == "statsig::layer_exposure" }
+        assertNotNull("Layer exposure log should exist", layerLog)
+        assertEquals("nonexistent_layer", layerLog!!.metadata!!["config"])
+        assertEquals("param", layerLog.metadata!!["parameterName"])
+    }
 }
