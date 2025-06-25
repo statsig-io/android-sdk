@@ -320,7 +320,9 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture(
             {
                 res = getExperimentEvaluation(experimentName, keepDeviceValue)
-                updateStickyValues()
+                if (keepDeviceValue) {
+                    updateStickyValues()
+                }
                 logExposure(experimentName, res)
             },
             tag = functionName,
@@ -350,7 +352,9 @@ class StatsigClient() : LifecycleEventListener {
             {
                 this.logger.addNonExposedCheck(experimentName)
                 exp = getExperimentEvaluation(experimentName, keepDeviceValue)
-                updateStickyValues()
+                if (keepDeviceValue) {
+                    updateStickyValues()
+                }
             },
             configName = experimentName,
             tag = functionName,
@@ -374,7 +378,9 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture(
             {
                 layer = getLayerEvaluation(this, layerName, keepDeviceValue)
-                updateStickyValues()
+                if (keepDeviceValue) {
+                    updateStickyValues()
+                }
             },
             tag = functionName,
             configName = layerName,
@@ -403,7 +409,9 @@ class StatsigClient() : LifecycleEventListener {
             {
                 this.logger.addNonExposedCheck(layerName)
                 layer = getLayerEvaluation(null, layerName, keepDeviceValue)
-                updateStickyValues()
+                if (keepDeviceValue) {
+                    updateStickyValues()
+                }
             },
             tag = functionName,
             configName = layerName,

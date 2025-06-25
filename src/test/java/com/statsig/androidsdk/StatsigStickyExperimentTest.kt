@@ -236,6 +236,52 @@ class StatsigStickyExperimentTest {
         Statsig.shutdown()
     }
 
+    @Test
+    fun testKeepDeviceValueFalseDoesNotWriteToSharedPrefs() = runBlocking {
+        val expConfig = APIDynamicConfig(
+            "exp!",
+            mapOf("key" to "exp_v_no_write"),
+            "default",
+            isUserInExperiment = true,
+            isExperimentActive = true,
+        )
+
+        val layerConfig = APIDynamicConfig(
+            "layer!",
+            mapOf(
+                "key" to "layer_v1",
+            ),
+            "default",
+            isUserInExperiment = true,
+            isExperimentActive = true,
+            allocatedExperimentName = "exp!",
+        )
+
+        initialize(
+            configs = mapOf("exp!" to expConfig),
+            layers = mapOf(
+                "layer!" to copyConfig(
+                    layerConfig,
+                    mapOf("key" to "layer_v4"),
+                    isUserInExperiment = false,
+                    isExperimentActive = true,
+                    allocatedExperimentName = "new_exp!",
+                ),
+            ),
+        )
+
+        clearMocks(StatsigUtil)
+
+        Statsig.getExperiment("exp", keepDeviceValue = false)
+        Statsig.getLayer("layer", keepDeviceValue = false)
+
+        coVerify(exactly = 0) {
+            StatsigUtil.saveStringToSharedPrefs(any(), any(), any())
+        }
+
+        Statsig.shutdown()
+    }
+
     private fun initialize(
         configs: Map<String, APIDynamicConfig>,
         layers: Map<String, APIDynamicConfig>,
