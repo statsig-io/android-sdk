@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 
 private const val EXPOSURE_DEDUPE_INTERVAL: Long = 10 * 60 * 1000
 
@@ -47,7 +48,7 @@ internal class StatsigLogger(
     }
 
     private var events = ConcurrentLinkedQueue<LogEvent>()
-    private var loggedExposures = ConcurrentHashMap<String, Long>()
+    private val loggedExposures = ConcurrentHashMap<ExposureKey, Long>()
     private var nonExposedChecks = ConcurrentHashMap<String, Long>()
     suspend fun log(event: LogEvent) {
         withContext(singleThreadDispatcher) {
@@ -60,7 +61,7 @@ internal class StatsigLogger(
     }
 
     fun onUpdateUser() {
-        this.loggedExposures = ConcurrentHashMap()
+        this.loggedExposures.clear()
     }
 
     suspend fun flush() {
@@ -77,10 +78,13 @@ internal class StatsigLogger(
     }
 
     fun logExposure(name: String, gate: FeatureGate, user: StatsigUser, isManual: Boolean) {
-        val dedupeKey = name + gate.getValue() + gate.getRuleID() + gate.getEvaluationDetails().reason.toString()
-        if (!shouldLogExposure(dedupeKey)) {
-            return
-        }
+        val key = ExposureKey.Gate(
+            name = name,
+            value = gate.getValue(),
+            ruleID = gate.getRuleID(),
+            reason = gate.getEvaluationDetails().reason,
+        )
+        if (!shouldLogExposure(key)) return
 
         coroutineScope.launch(singleThreadDispatcher) {
             val event = LogEvent(GATE_EXPOSURE)
@@ -102,10 +106,12 @@ internal class StatsigLogger(
     }
 
     fun logExposure(name: String, config: DynamicConfig, user: StatsigUser, isManual: Boolean) {
-        val dedupeKey = name + config.getRuleID() + config.getEvaluationDetails().reason.toString()
-        if (!shouldLogExposure(dedupeKey)) {
-            return
-        }
+        val key = ExposureKey.Config(
+            name,
+            config.getRuleID(),
+            config.getEvaluationDetails().reason,
+        )
+        if (!shouldLogExposure(key)) return
 
         coroutineScope.launch(singleThreadDispatcher) {
             val event = LogEvent(CONFIG_EXPOSURE)
@@ -141,6 +147,15 @@ internal class StatsigLogger(
         details: EvaluationDetails,
         isManual: Boolean,
     ) {
+        val key = ExposureKey.Layer(
+            configName = configName,
+            ruleID = ruleID,
+            allocatedExperiment = allocatedExperiment,
+            parameterName = parameterName,
+            isExplicitParameter = isExplicitParameter,
+            reason = details.reason,
+        )
+        if (!shouldLogExposure(key)) return
         val metadata = mutableMapOf(
             "config" to configName,
             "ruleID" to ruleID,
@@ -151,18 +166,6 @@ internal class StatsigLogger(
             "time" to details.time.toString(),
         )
         addManualFlag(metadata, isManual)
-
-        val dedupeKey = arrayOf(
-            configName,
-            ruleID,
-            allocatedExperiment,
-            parameterName,
-            isExplicitParameter.toString(),
-            details.reason.toString(),
-        ).joinToString("|")
-        if (!shouldLogExposure(dedupeKey)) {
-            return
-        }
 
         coroutineScope.launch(singleThreadDispatcher) {
             val event = LogEvent(LAYER_EXPOSURE)
@@ -208,14 +211,16 @@ internal class StatsigLogger(
         return metadata
     }
 
-    private fun shouldLogExposure(key: String): Boolean {
+    private fun shouldLogExposure(key: ExposureKey): Boolean {
         val now = System.currentTimeMillis()
-        val lastTime = loggedExposures[key] ?: 0
-        if (lastTime >= now - EXPOSURE_DEDUPE_INTERVAL) {
-            return false
+        val lastTime = loggedExposures[key]
+
+        return if (lastTime != null && now - lastTime < EXPOSURE_DEDUPE_INTERVAL) {
+            false
+        } else {
+            loggedExposures[key] = now
+            true
         }
-        loggedExposures[key] = now
-        return true
     }
 
     fun addNonExposedCheck(configName: String) {

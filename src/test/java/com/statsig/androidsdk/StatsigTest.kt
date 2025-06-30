@@ -106,7 +106,13 @@ class StatsigTest {
 
         // check a few previously checked gate and config; they should not result in exposure logs due to deduping logic
         client.checkGate("always_on")
+        client.checkGate("always_on")
+        client.checkGate("always_on")
         client.getConfig("test_config")
+        client.getConfig("test_config")
+        client.getConfig("test_config")
+        client.getExperiment("exp")
+        client.getExperiment("exp")
         client.getExperiment("exp")
 
         client.manuallyLogGateExposure("nonexistent_gate")
