@@ -158,7 +158,7 @@ internal class StatsigNetworkImpl(
         }
         return withTimeout(options.initTimeoutMs) {
             var response: InitializeResponse = InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, null, null)
-            coroutineScope.launch {
+            coroutineScope.launch(dispatcherProvider.io) {
                 response = initializeImplWithRetry(
                     api,
                     user,

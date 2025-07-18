@@ -1335,7 +1335,7 @@ class StatsigClient() : LifecycleEventListener {
                     overrideContext = context,
                 )
                 this@StatsigClient.logger.logDiagnostics(context)
-                statsigScope.launch { this@StatsigClient.logger.flush() }
+                statsigScope.launch(dispatcherProvider.io) { this@StatsigClient.logger.flush() }
             }
         } catch (e: Exception) {
             // no-op
