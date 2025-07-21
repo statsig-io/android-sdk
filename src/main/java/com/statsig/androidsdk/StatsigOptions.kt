@@ -161,4 +161,26 @@ class StatsigOptions(
             "environment" to environment,
         )
     }
+
+    internal fun getLoggingCopy(): Map<String, Any?> {
+        return mapOf(
+            "api" to api,
+            "eventLoggingApi" to eventLoggingAPI,
+            "disableCurrentActivityLogging" to disableCurrentActivityLogging,
+            "disableDiagnosticsLogging" to disableDiagnosticsLogging,
+            "initTimeoutMs" to initTimeoutMs,
+            "enableAutoValueUpdate" to enableAutoValueUpdate,
+            "autoValueUpdateIntervalMinutes" to autoValueUpdateIntervalMinutes,
+            "overrideStableID" to overrideStableID,
+            "loadCacheAsync" to loadCacheAsync,
+            "initializeValues" to "SET",
+            "disableHashing" to disableHashing,
+            "environment" to environment,
+            "initializeFallbackUrls" to initializeFallbackUrls,
+            "logEventFallbackUrls" to logEventFallbackUrls,
+            "disableLogEventRetries" to disableLogEventRetries,
+            "initRetryLimit" to initRetryLimit,
+            "initializeOffline" to initializeOffline,
+        )
+    }
 }

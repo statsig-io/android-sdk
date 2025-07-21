@@ -4,8 +4,10 @@ import android.app.Application
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import io.mockk.mockk
+import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
+import org.junit.Test
 
 class DiagnosticsTest {
     private lateinit var app: Application
@@ -40,5 +42,22 @@ class DiagnosticsTest {
     private fun getMarkers(log: LogEvent): List<Marker> {
         val listType = object : TypeToken<List<Marker>>() {}.type
         return Gson().fromJson(log.metadata?.get("markers") ?: "", listType)
+    }
+
+    @Test
+    fun testInitialize() {
+        val options = StatsigOptions(
+            api = "http://statsig.api",
+            initializeValues = mapOf(),
+            initTimeoutMs = 10000,
+        )
+        runBlocking {
+            client.initialize(app, "client-key", StatsigUser("test-user"), options)
+            client.shutdown()
+        }
+        val optionsLoggingCopy: Map<String, Any> = Gson().fromJson(logEvents[0].events[0].metadata?.get("statsigOptions"), object : TypeToken<Map<String, Any>>() {}.type)
+        assertEquals(optionsLoggingCopy["api"], "http://statsig.api")
+        assertEquals(optionsLoggingCopy["initializeValues"], "SET")
+        assertEquals(optionsLoggingCopy["initTimeoutMs"], 10000.0)
     }
 }

@@ -1001,7 +1001,7 @@ class StatsigClient() : LifecycleEventListener {
             )
         }
         initTime = System.currentTimeMillis()
-        this.diagnostics = Diagnostics(options.disableDiagnosticsLogging)
+        this.diagnostics = Diagnostics(options.disableDiagnosticsLogging, options.getLoggingCopy())
         diagnostics.markStart(KeyType.OVERALL)
         this.application = application
         this.sdkKey = sdkKey

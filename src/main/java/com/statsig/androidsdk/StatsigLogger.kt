@@ -199,7 +199,8 @@ internal class StatsigLogger(
         if (markers.isEmpty()) {
             return
         }
-        val event = this.makeDiagnosticsEvent(context, markers)
+        val optionsLoggingCopy = if (context == ContextType.INITIALIZE) diagnostics.statsigOptionsLoggingCopy else null
+        val event = this.makeDiagnosticsEvent(context, markers, optionsLoggingCopy)
         coroutineScope.launch(singleThreadDispatcher) { log(event) }
         diagnostics.clearContext()
     }
@@ -228,11 +229,11 @@ internal class StatsigLogger(
         nonExposedChecks[configName] = count + 1
     }
 
-    private fun makeDiagnosticsEvent(context: ContextType, markers: Collection<Marker>): LogEvent {
+    private fun makeDiagnosticsEvent(context: ContextType, markers: Collection<Marker>, statsigOptions: Map<String, Any?>?): LogEvent {
         // Need to verify if the JSON is in the right format for log event
         val event = LogEvent(DIAGNOSTICS_EVENT)
         event.user = this.statsigUser
-        event.metadata = mapOf("context" to context.toString().lowercase(), "markers" to gson.toJson(markers))
+        event.metadata = mapOf("context" to context.toString().lowercase(), "markers" to gson.toJson(markers), "statsigOptions" to gson.toJson(statsigOptions))
         return event
     }
 
