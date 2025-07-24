@@ -1010,7 +1010,7 @@ class StatsigClient() : LifecycleEventListener {
         val initializeValues = options.initializeValues
         this.user = normalizedUser
         exceptionHandler = errorBoundary.getExceptionHandler()
-        statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
+        statsigScope = CoroutineScope(statsigJob + dispatcherProvider.io + exceptionHandler)
         val networkFallbackResolver =
             NetworkFallbackResolver(errorBoundary, getSharedPrefs(), statsigScope)
         store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
