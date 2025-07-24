@@ -87,8 +87,8 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.setKey(sdkKey)
         errorBoundary.capture(
             {
-                val normalizedUser = setup(application, sdkKey, user, options)
                 statsigScope.launch {
+                    val normalizedUser = setup(application, sdkKey, user, options)
                     val initDetails = setupAsync(normalizedUser)
                     initDetails.duration = System.currentTimeMillis() - initTime
                     // The scope's dispatcher may change in the future.
@@ -989,7 +989,7 @@ class StatsigClient() : LifecycleEventListener {
     }
 
     @VisibleForTesting
-    private fun setup(
+    private suspend fun setup(
         application: Application,
         sdkKey: String,
         user: StatsigUser? = null,
@@ -1010,7 +1010,7 @@ class StatsigClient() : LifecycleEventListener {
         val initializeValues = options.initializeValues
         this.user = normalizedUser
         exceptionHandler = errorBoundary.getExceptionHandler()
-        statsigScope = CoroutineScope(statsigJob + dispatcherProvider.io + exceptionHandler)
+        statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         val networkFallbackResolver =
             NetworkFallbackResolver(errorBoundary, getSharedPrefs(), statsigScope)
         store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
@@ -1065,8 +1065,10 @@ class StatsigClient() : LifecycleEventListener {
                 StepType.LOAD_CACHE,
                 Marker(isBlocking = true),
             )
-            this@StatsigClient.store.syncLoadFromLocalStorage()
-            diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
+            withContext(dispatcherProvider.io) {
+                this@StatsigClient.store.syncLoadFromLocalStorage()
+                diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
+            }
         }
 
         if (initializeValues != null) {
