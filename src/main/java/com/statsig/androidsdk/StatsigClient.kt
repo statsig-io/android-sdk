@@ -1303,17 +1303,17 @@ class StatsigClient() : LifecycleEventListener {
             KeyType.OVERALL,
             success,
             additionalMarker =
-                Marker(
-                    evaluationDetails = store.getGlobalEvaluationDetails(),
-                    error =
-                        if (initResponse is InitializeResponse.FailedInitializeResponse) {
-                            Diagnostics.formatFailedResponse(
-                                initResponse,
-                            )
-                        } else {
-                            null
-                        },
-                ),
+            Marker(
+                evaluationDetails = store.getGlobalEvaluationDetails(),
+                error =
+                if (initResponse is InitializeResponse.FailedInitializeResponse) {
+                    Diagnostics.formatFailedResponse(
+                        initResponse,
+                    )
+                } else {
+                    null
+                },
+            ),
             overrideContext = context,
         )
         logger.logDiagnostics(context)
