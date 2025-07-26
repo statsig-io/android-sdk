@@ -1326,12 +1326,12 @@ class StatsigClient() : LifecycleEventListener {
                     KeyType.OVERALL,
                     false,
                     additionalMarker =
-                        Marker(
-                            error =
-                                Marker.ErrorMessage(
-                                    message = "${e?.javaClass?.name}: ${e?.message}",
-                                ),
+                    Marker(
+                        error =
+                        Marker.ErrorMessage(
+                            message = "${e?.javaClass?.name}: ${e?.message}",
                         ),
+                    ),
                     overrideContext = context,
                 )
                 this@StatsigClient.logger.logDiagnostics(context)
