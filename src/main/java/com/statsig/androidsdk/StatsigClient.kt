@@ -87,8 +87,8 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.setKey(sdkKey)
         errorBoundary.capture(
             {
+                val normalizedUser = setup(application, sdkKey, user, options)
                 statsigScope.launch {
-                    val normalizedUser = setup(application, sdkKey, user, options)
                     val initDetails = setupAsync(normalizedUser)
                     initDetails.duration = System.currentTimeMillis() - initTime
                     // The scope's dispatcher may change in the future.
@@ -989,7 +989,7 @@ class StatsigClient() : LifecycleEventListener {
     }
 
     @VisibleForTesting
-    private suspend fun setup(
+    private fun setup(
         application: Application,
         sdkKey: String,
         user: StatsigUser? = null,
@@ -1065,10 +1065,8 @@ class StatsigClient() : LifecycleEventListener {
                 StepType.LOAD_CACHE,
                 Marker(isBlocking = true),
             )
-            withContext(dispatcherProvider.io) {
-                this@StatsigClient.store.syncLoadFromLocalStorage()
-                diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
-            }
+            this@StatsigClient.store.syncLoadFromLocalStorage()
+            diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
         }
 
         if (initializeValues != null) {
@@ -1305,17 +1303,17 @@ class StatsigClient() : LifecycleEventListener {
             KeyType.OVERALL,
             success,
             additionalMarker =
-            Marker(
-                evaluationDetails = store.getGlobalEvaluationDetails(),
-                error =
-                if (initResponse is InitializeResponse.FailedInitializeResponse) {
-                    Diagnostics.formatFailedResponse(
-                        initResponse,
-                    )
-                } else {
-                    null
-                },
-            ),
+                Marker(
+                    evaluationDetails = store.getGlobalEvaluationDetails(),
+                    error =
+                        if (initResponse is InitializeResponse.FailedInitializeResponse) {
+                            Diagnostics.formatFailedResponse(
+                                initResponse,
+                            )
+                        } else {
+                            null
+                        },
+                ),
             overrideContext = context,
         )
         logger.logDiagnostics(context)
@@ -1328,12 +1326,12 @@ class StatsigClient() : LifecycleEventListener {
                     KeyType.OVERALL,
                     false,
                     additionalMarker =
-                    Marker(
-                        error =
-                        Marker.ErrorMessage(
-                            message = "${e?.javaClass?.name}: ${e?.message}",
+                        Marker(
+                            error =
+                                Marker.ErrorMessage(
+                                    message = "${e?.javaClass?.name}: ${e?.message}",
+                                ),
                         ),
-                    ),
                     overrideContext = context,
                 )
                 this@StatsigClient.logger.logDiagnostics(context)
