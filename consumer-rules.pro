@@ -5,8 +5,22 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
--keep class com.statsig.**{*;}
-
 -keep class com.google.gson.reflect.TypeToken
 -keep class * extends com.google.gson.reflect.TypeToken
 -keep public class * implements java.lang.reflect.Type
+
+-keep class com.statsig.** { *; }
+
+# Keep Kotlin metadata for reflection
+-keepclassmembers class kotlin.Metadata { *; }
+
+# Keep Kotlin lambdas and companion objects
+-keepclassmembers class * {
+    *** Companion;
+}
+-keepclassmembers class **$$Lambda$* { *; }
+-keepclassmembers class **$*Lambda* { *; }
+
+# Keep all anonymous classes (used by computeIfAbsent lambda)
+-keepclassmembers class com.statsig.**$* { *; }
+
