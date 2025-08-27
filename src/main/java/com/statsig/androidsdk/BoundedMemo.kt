@@ -12,7 +12,7 @@ internal class BoundedMemo<K, V> {
         if (cache.size >= MAX_CACHE_SIZE) {
             cache.clear()
         }
-        return cache.computeIfAbsent(key, mappingFunction)
+        return cache.getOrPut(key) { mappingFunction.invoke(key) }
     }
 
     fun size(): Int = cache.size

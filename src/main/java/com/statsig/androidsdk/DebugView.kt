@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import android.app.Dialog
 import android.content.Context
 import android.content.DialogInterface
+import android.os.Build
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -70,7 +71,9 @@ class DebugView {
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
 
-            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+            }
             return webView
         }
     }
