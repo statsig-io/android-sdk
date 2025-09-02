@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.net.NetworkInfo
 import com.google.gson.Gson
 import io.mockk.*
@@ -316,12 +318,7 @@ class TestUtil {
                 app.packageManager
             } returns null
             mockAppLifecycleCallbacks(app)
-
-            val connectivityManager = mockk<ConnectivityManager>()
-            val networkInfo = mockk<NetworkInfo>()
-            every { app.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
-            every { networkInfo.isConnectedOrConnecting } returns true
-            every { connectivityManager.activeNetworkInfo } returns networkInfo
+            mockNetworkConnectivityService(app)
 
             return sharedPrefs
         }
@@ -448,16 +445,21 @@ class TestUtil {
         internal fun mockNetworkConnectivityService(
             application: Application,
         ) {
-            val connectivityManager: ConnectivityManager = mockk()
+            val connectivityManager = mockk<ConnectivityManager>(relaxed = true)
 
-            val info: NetworkInfo = mockk()
-            every {
-                connectivityManager.activeNetworkInfo
-            } returns info
+            // Legacy API
+            val info = mockk<NetworkInfo>()
+            every { info.isConnectedOrConnecting } returns true
+            every { connectivityManager.activeNetworkInfo } returns info
 
-            every {
-                info.isConnectedOrConnecting
-            } returns true
+            // Modern API
+            val network = mockk<Network>()
+            every { connectivityManager.activeNetwork } returns network
+
+            val capabilities = mockk<NetworkCapabilities>()
+            every { capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } returns true
+            every { capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns true
+            every { connectivityManager.getNetworkCapabilities(network) } returns capabilities
 
             every {
                 application.getSystemService(Context.CONNECTIVITY_SERVICE)

@@ -5,7 +5,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.*
-import kotlinx.coroutines.test.runBlockingTest
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -25,6 +24,7 @@ class StatsigLongInitializationTimeoutTest {
     private lateinit var mockWebServer: MockWebServer
     private var initializeHits = 0
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setup() {
         mockWebServer = MockWebServer()
@@ -65,8 +65,8 @@ class StatsigLongInitializationTimeoutTest {
     }
 
     @Test
-    fun testInitializeAsyncWithSlowErrorBoundary() = runBlockingTest {
-        var initTimeout = 10000L
+    fun testInitializeAsyncWithSlowErrorBoundary() = runBlocking {
+        val initTimeout = 10_000L // ms
         val latch = CountDownLatch(1)
 
         client.initializeAsync(
@@ -77,15 +77,13 @@ class StatsigLongInitializationTimeoutTest {
                 override fun onStatsigInitialize(details: InitializationDetails) {
                     latch.countDown()
                 }
-
-                override fun onStatsigUpdateUser() {
-                    // no op
-                }
+                override fun onStatsigUpdateUser() {}
             },
             StatsigOptions(initTimeoutMs = initTimeout, api = mockWebServer.url("/").toString()),
         )
-        latch.await(initTimeout, TimeUnit.SECONDS)
+        latch.await(10, TimeUnit.SECONDS)
+
         assert(client.isInitialized())
-        assertTrue(initializeHits === 1)
+        assertTrue(initializeHits == 1)
     }
 }

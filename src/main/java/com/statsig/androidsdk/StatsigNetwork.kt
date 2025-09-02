@@ -193,18 +193,38 @@ internal class StatsigNetworkImpl(
         fullChecksum: String?,
         fallbackUrls: List<String>? = null,
     ): InitializeResponse {
-        var retry = 0
+        var attempt = 0
         var response: InitializeResponse
         var backoff = INITIALIZE_RETRY_BACKOFF
+
         do {
-            response = initializeImpl(api, user, sinceTime, metadata, contextType, diagnostics, retry + 1, timeoutMs, hashUsed, previousDerivedFields, fullChecksum, fallbackUrls)
-            if (response is InitializeResponse.SuccessfulInitializeResponse || retryLimit == 0) {
+            response = initializeImpl(
+                api,
+                user,
+                sinceTime,
+                metadata,
+                contextType,
+                diagnostics,
+                attempt + 1,
+                timeoutMs,
+                hashUsed,
+                previousDerivedFields,
+                fullChecksum,
+                fallbackUrls,
+            )
+
+            val code = (response as? InitializeResponse.FailedInitializeResponse)?.statusCode ?: 0
+            val shouldRetry = code == 0 || RETRY_CODES.contains(code)
+
+            if (response is InitializeResponse.SuccessfulInitializeResponse || !shouldRetry) {
                 return response
             }
+
+            attempt++
             delay(backoff)
-            ++retry
             backoff *= INITIALIZE_RETRY_BACKOFF_MULTIPLIER
-        } while (retry <= retryLimit)
+        } while (attempt <= retryLimit)
+
         return response
     }
 
@@ -252,10 +272,6 @@ internal class StatsigNetworkImpl(
                 statusCode,
             )
         } catch (e: Exception) {
-            if (connectivityListener.isNetworkAvailable()) {
-                errorBoundary.logException(e)
-            }
-
             this.endDiagnostics(
                 diagnostics,
                 contextType,

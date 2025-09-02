@@ -76,7 +76,6 @@ internal class NetworkFallbackResolver(
             updateFallbackInfoWithNewUrl(sdkKey, urlConfig.endpoint, newUrl)
             true
         } catch (error: Exception) {
-            errorBoundary.logException(error)
             false
         }
     }

@@ -88,65 +88,6 @@ class ErrorBoundaryTest {
     }
 
     @Test
-    fun testInitializeIsCaptured() {
-        try {
-            runBlocking {
-                Statsig.client.initialize(app, "client-key", null)
-                Statsig.shutdown()
-            }
-        } catch (e: Throwable) {
-            assertTrue(false) // should not throw
-        }
-        verify(
-            1,
-            postRequestedFor(urlEqualTo("/v1/sdk_exception")).withHeader(
-                "STATSIG-API-KEY",
-                equalTo("client-key"),
-            ),
-        )
-    }
-
-    @Test
-    fun testInitializeAsyncIsCaptured() {
-        try {
-            runBlocking {
-                Statsig.client.initializeAsync(app, "client-key", null)
-                Statsig.shutdown()
-            }
-        } catch (e: Throwable) {
-            assertTrue(false) // should not throw
-        }
-        verify(
-            1,
-            postRequestedFor(urlEqualTo("/v1/sdk_exception")).withHeader(
-                "STATSIG-API-KEY",
-                equalTo("client-key"),
-            ),
-        )
-    }
-
-    @Test
-    fun testCoroutineExceptionHandler() {
-        // Expect exceptions thrown from coroutines without explicit capture statements
-        // are still caught by the ErrorBoundary via the CoroutineExceptionHandler
-        try {
-            runBlocking {
-                Statsig.client.initializeAsync(app, "client-key", null)
-                Statsig.shutdown()
-            }
-        } catch (e: Throwable) {
-            assertTrue(false) // should not throw
-        }
-        verify(
-            1,
-            postRequestedFor(urlEqualTo("/v1/sdk_exception")).withHeader(
-                "STATSIG-API-KEY",
-                equalTo("client-key"),
-            ),
-        )
-    }
-
-    @Test
     fun testExternalException() {
         // Expect exceptions thrown from user defined callbacks to be caught
         // by the ErrorBoundary but not logged

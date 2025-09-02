@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.TestCoroutineScope
 import kotlinx.coroutines.test.runBlockingTest
 import okhttp3.mockwebserver.Dispatcher
@@ -14,18 +15,19 @@ import org.junit.Before
 import org.junit.Test
 
 class InitializationTest {
-    private val dispatcher = TestUtil.mockDispatchers()
-
+    private lateinit var dispatcher: TestCoroutineDispatcher
     private lateinit var app: Application
     private lateinit var mockWebServer: MockWebServer
     private var user: StatsigUser = StatsigUser("test-user")
     private lateinit var testSharedPrefs: TestSharedPreferences
     private var initializationHits = 0
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     internal fun setup() {
         mockWebServer = MockWebServer()
 
+        dispatcher = TestUtil.mockDispatchers()
         app = mockk()
         testSharedPrefs = TestUtil.stubAppFunctions(app)
 
@@ -37,11 +39,7 @@ class InitializationTest {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 return if (request.path!!.contains("initialize")) {
                     ++initializationHits
-                    if (initializationHits == 1) {
-                        throw Exception("Fake exception")
-                    } else {
-                        return MockResponse().setResponseCode(400)
-                    }
+                    return MockResponse().setResponseCode(408)
                 } else {
                     MockResponse().setResponseCode(200)
                 }
@@ -72,10 +70,8 @@ class InitializationTest {
     fun testRetry() = dispatcher.runBlockingTest {
         val options = StatsigOptions(api = mockWebServer.url("/v1").toString(), initRetryLimit = 2, initTimeoutMs = 10000L)
         val client = StatsigClient()
-        client.statsigScope = TestCoroutineScope()
-        client.initialize(app, "client-key", user, options)
-        dispatcher.advanceTimeBy(5)
 
+        client.initialize(app, "client-key", user, options)
         assert(initializationHits == 3)
         client.shutdown()
     }

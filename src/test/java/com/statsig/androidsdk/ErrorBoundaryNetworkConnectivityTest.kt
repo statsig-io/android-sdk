@@ -14,7 +14,6 @@ import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import junit.framework.TestCase.assertFalse
-import junit.framework.TestCase.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -67,19 +66,19 @@ class ErrorBoundaryNetworkConnectivityTest {
     }
 
     @Test
-    fun testAndroidM_ErrorBoundaryIsHitWhenNetworkExists(): Unit = runBlocking {
+    fun testAndroidM_ErrorBoundaryIsNotHitWhenNetworkExists(): Unit = runBlocking {
         setAndroidVersion(Build.VERSION_CODES.M)
         setNetworkInternetCapabilities()
         makeNetworkRequest()
-        assertTrue(ebCalled)
+        assertFalse(ebCalled)
     }
 
     @Test
-    fun testBelowAndroidM_ErrorBoundaryIsHitWhenNetworkExists(): Unit = runBlocking {
+    fun testBelowAndroidM_ErrorBoundaryIsNotHitWhenNetworkExists(): Unit = runBlocking {
         setAndroidVersion(Build.VERSION_CODES.KITKAT)
         setActiveNetworkInfo(true)
         makeNetworkRequest()
-        assertTrue(ebCalled)
+        assertFalse(ebCalled)
     }
 
     @Test
