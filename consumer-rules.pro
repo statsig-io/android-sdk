@@ -18,9 +18,10 @@
 -keepclassmembers class * {
     *** Companion;
 }
--keepclassmembers class **$$Lambda$* { *; }
--keepclassmembers class **$*Lambda* { *; }
+
+-keep class com.statsig.**$$Lambda$* { *; }
+-keep class **$$ExternalSyntheticLambda* { *; }
 
 # Keep all anonymous classes (used by computeIfAbsent lambda)
 -keepclassmembers class com.statsig.**$* { *; }
-
+-keepclassmembers class com.statsig.**$$* { *; }
