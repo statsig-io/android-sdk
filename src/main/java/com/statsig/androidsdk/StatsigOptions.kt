@@ -46,7 +46,7 @@ class StatsigOptions(
      */
     @SerializedName("disableDiagnosticsLogging") var disableDiagnosticsLogging: Boolean = false,
     /**
-     * Default off, SDK compress outgoing loge_event payload, if there is no proxying.
+     * Default off, SDK compress outgoing log_event payload, if there is no proxying.
      * Turn this on to disable compressing log_event payload
      */
     @SerializedName("disableLoggingCompression") var disableLoggingCompression: Boolean = false,
