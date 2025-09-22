@@ -91,7 +91,7 @@ class StatsigOptions(
      */
     @SerializedName("initializeValues") var initializeValues: Map<String, Any>? = null,
     /**
-     By default, initialize send Network request and use network response for evaluation.
+     * By default, initialize send Network request and use network response for evaluation.
      * Setting this value to true will initialize without sending network request, and initialize
      * SDK from cache values for user.
      * */
@@ -124,7 +124,10 @@ class StatsigOptions(
     var optOutNonSdkMetadata: Boolean = false,
 
     var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null,
-) {
+
+    override var loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
+
+) : StatsigRuntimeMutableOptions() {
 
     private var environment: MutableMap<String, String>? = null
 

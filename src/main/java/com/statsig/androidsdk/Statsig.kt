@@ -358,6 +358,13 @@ object Statsig {
     }
 
     /**
+     * Update the Statsig SDK with the given runtime-mutable options
+     */
+    fun updateRuntimeOptions(runtimeMutableOptions: StatsigRuntimeMutableOptions) {
+        client.updateRuntimeOptions(runtimeMutableOptions)
+    }
+
+    /**
      * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same
      * user with additional properties
      *

@@ -10,7 +10,8 @@ import kotlin.collections.ArrayList
 
 private const val EXPOSURE_DEDUPE_INTERVAL: Long = 10 * 60 * 1000
 
-internal const val MAX_EVENTS: Int = 50
+internal const val MAX_EVENTS_BEFORE_FLUSH_ATTEMPT: Int = 50
+internal const val MAX_EVENT_BUFFER_SIZE: Int = 1000
 internal const val FLUSH_TIMER_MS: Long = 60000
 
 internal const val SHUTDOWN_WAIT_S: Long = 3
@@ -35,6 +36,7 @@ internal class StatsigLogger(
     private val statsigUser: StatsigUser,
     private val diagnostics: Diagnostics,
     private val fallbackUrls: List<String>? = null,
+    private var loggingEnabled: Boolean,
 ) {
     private val gson = StatsigUtil.getGson()
 
@@ -46,15 +48,19 @@ internal class StatsigLogger(
             flush()
         }
     }
-
     private var events = ConcurrentLinkedQueue<LogEvent>()
     private val loggedExposures = ConcurrentHashMap<ExposureKey, Long>()
     private var nonExposedChecks = ConcurrentHashMap<String, Long>()
+
     suspend fun log(event: LogEvent) {
         withContext(singleThreadDispatcher) {
             events.add(event)
-
-            if (events.size >= MAX_EVENTS) {
+            val size = events.size
+            if (size > MAX_EVENT_BUFFER_SIZE) {
+                // Drop the oldest events
+                repeat(size - MAX_EVENT_BUFFER_SIZE, { events.poll() })
+            }
+            if (size >= MAX_EVENTS_BEFORE_FLUSH_ATTEMPT) {
                 flush()
             }
         }
@@ -68,6 +74,9 @@ internal class StatsigLogger(
         withContext(singleThreadDispatcher) {
             addNonExposedChecksEvent()
             if (events.size == 0) {
+                return@withContext
+            }
+            if (!loggingEnabled) {
                 return@withContext
             }
             val eventsCount = events.size.toString()
@@ -203,6 +212,10 @@ internal class StatsigLogger(
         val event = this.makeDiagnosticsEvent(context, markers, optionsLoggingCopy)
         coroutineScope.launch(singleThreadDispatcher) { log(event) }
         diagnostics.clearContext()
+    }
+
+    fun setLoggingEnabled(loggingEnabled: Boolean) {
+        this.loggingEnabled = loggingEnabled
     }
 
     private fun addManualFlag(metadata: MutableMap<String, String>, isManual: Boolean): MutableMap<String, String> {

@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.app.Activity
 import android.app.Application
+import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -11,7 +12,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Test
+
 class LogEventTest {
+
+    private val loggingEnabled = StatsigRuntimeMutableOptions(loggingEnabled = true)
+    private val loggingDisabled = StatsigRuntimeMutableOptions(loggingEnabled = false)
     private lateinit var app: Application
     private lateinit var testSharedPrefs: TestSharedPreferences
     private lateinit var activity: Activity
@@ -32,9 +37,11 @@ class LogEventTest {
                 logEventRequests.add(it)
             })
             TestUtil.startStatsigAndWait(app, StatsigUser(userID = "testUser"), options, network)
-            val lifeCycleListenerField = StatsigClient::class.java.getDeclaredField("lifecycleListener")
+            val lifeCycleListenerField =
+                StatsigClient::class.java.getDeclaredField("lifecycleListener")
             lifeCycleListenerField.isAccessible = true
-            statsigLifecycleListener = lifeCycleListenerField.get(Statsig.client) as Application.ActivityLifecycleCallbacks
+            statsigLifecycleListener =
+                lifeCycleListenerField.get(Statsig.client) as Application.ActivityLifecycleCallbacks
             statsigLifecycleListener.onActivityStarted(activity)
         }
     }
@@ -55,7 +62,10 @@ class LogEventTest {
             // Wait for flush happen
             Thread.sleep(500)
             assert(logEventRequests.size == 1)
-            assert(StatsigUtil.getFromSharedPrefs(testSharedPrefs, "StatsigNetwork.OFFLINE_LOGS")!!.isNotEmpty())
+            assert(
+                StatsigUtil.getFromSharedPrefs(testSharedPrefs, "StatsigNetwork.OFFLINE_LOGS")!!
+                    .isNotEmpty(),
+            )
             assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
             assert(logEventRequests[0].events[1].eventName == "viewCartIcon")
             assert(logEventRequests[0].events[2].eventName == "clickCartIcon")
@@ -67,9 +77,69 @@ class LogEventTest {
     }
 
     @Test
+    fun testRuntimeMutableSettingsLoggingEnabled() {
+        runBlocking {
+            // Init with logging disabled
+            setup(
+                StatsigOptions(
+                    eventLoggingAPI = "https://fake.statsig.com/v1",
+                    loggingEnabled = false,
+                ),
+            )
+            Statsig.logEvent("viewCartIcon")
+            Statsig.logEvent("clickCartIcon")
+            Statsig.logEvent(eventName = "viewCart")
+            Statsig.flush()
+            // Logging disabled, nothing should have gotten past the flush
+            assertThat(logEventRequests).isEmpty()
+            // Enable logging, verify flush works as expected
+            Statsig.updateRuntimeOptions(loggingEnabled)
+            Statsig.flush()
+            assertThat(logEventRequests).hasSize(1)
+            // Disable, verify additional events will not be flushed
+            Statsig.updateRuntimeOptions(loggingDisabled)
+            Statsig.logEvent("unexpectedEvent")
+            Statsig.flush()
+            assertThat(logEventRequests).hasSize(1)
+            // Enable logging, verify flush outputs events again
+            Statsig.updateRuntimeOptions(loggingEnabled)
+            Statsig.flush()
+            assertThat(logEventRequests).hasSize(2)
+        }
+    }
+
+    @Test
+    fun testRuntimeMutableSettingsLoggingEnabledMaxBufferSizeWhenDisabled() {
+        // Setup with logging disabled
+        runBlocking {
+            setup(
+                StatsigOptions(
+                    eventLoggingAPI = "https://fake.statsig.com/v1",
+                    loggingEnabled = false,
+                ),
+            )
+            // Add events to exceed the StatsigLogger max buffer size
+            for (x in 1..MAX_EVENT_BUFFER_SIZE) {
+                Statsig.logEvent("eventName$x")
+                Statsig.flush()
+            }
+            assertThat(logEventRequests).isEmpty()
+            Statsig.updateRuntimeOptions(loggingEnabled)
+            Statsig.flush()
+
+            // Verify that "statsig::diagnostics" initialization log has fallen off the front of the queue.
+            assertThat(logEventRequests[0].events[0].eventName).isNotEqualTo("statsig::diagnostics")
+            assertThat(logEventRequests[0].events[0].eventName).isEqualTo("eventName1")
+        }
+    }
+
+    @Test
     fun testOverrideLoggingApi() = runBlocking {
         val apiPermutations = arrayOf(
-            arrayOf("https://initialize.fake.statsig.com/v1", "https://logevent.fake.statsig.com/v1"),
+            arrayOf(
+                "https://initialize.fake.statsig.com/v1",
+                "https://logevent.fake.statsig.com/v1",
+            ),
             arrayOf("default", "default"),
             arrayOf("https://initialize.fake.statsig.com/v1", "default"),
             arrayOf("default", "https://lgevent.fake.statsig.com/v1"),
@@ -94,24 +164,60 @@ class LogEventTest {
         setup(options)
         Statsig.logEvent("viewCartIcon")
         Statsig.shutdown()
-        coVerify { network.initialize(expectedInitializeAPI, any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        coVerify {
+            network.initialize(
+                expectedInitializeAPI,
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }
         coVerify { network.apiPostLogs(expectedLogEventApi, any(), any()) }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun mockAppOnPause() {
-        val store = Store(TestUtil.coroutineScope, testSharedPrefs, StatsigUser(), "client-apikey", StatsigOptions())
-        val network = spyk(StatsigNetwork(app, "client-apikey", Statsig.client.errorBoundary, testSharedPrefs, StatsigOptions(), mockk(), TestUtil.coroutineScope, store))
+        val store = Store(
+            TestUtil.coroutineScope,
+            testSharedPrefs,
+            StatsigUser(),
+            "client-apikey",
+            StatsigOptions(),
+        )
+        val network = spyk(
+            StatsigNetwork(
+                app,
+                "client-apikey",
+                Statsig.client.errorBoundary,
+                testSharedPrefs,
+                StatsigOptions(),
+                mockk(),
+                TestUtil.coroutineScope,
+                store,
+            ),
+        )
         coEvery {
             network.apiPostLogs(any(), any(), any())
         } answers {
-            logEventRequests.add(StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java))
+            logEventRequests.add(
+                StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java),
+            )
             callOriginal()
         }
         coEvery {
             network.addFailedLogRequest(any())
         } coAnswers {
-            StatsigUtil.saveStringToSharedPrefs(testSharedPrefs, "StatsigNetwork.OFFLINE_LOGS", StatsigUtil.getGson().toJson(StatsigPendingRequests(listOf(firstArg()))))
+            StatsigUtil.saveStringToSharedPrefs(
+                testSharedPrefs,
+                "StatsigNetwork.OFFLINE_LOGS",
+                StatsigUtil.getGson().toJson(StatsigPendingRequests(listOf(firstArg()))),
+            )
         }
         mockNetwork(network)
         statsigLifecycleListener.onActivityPaused(activity)

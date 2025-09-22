@@ -518,6 +518,22 @@ class StatsigClient() : LifecycleEventListener {
     }
 
     /**
+     * Update the Statsig SDK with the given runtime-mutable options
+     *
+     * @param runtimeMutableOptions: the desired new options values
+     */
+    fun updateRuntimeOptions(runtimeMutableOptions: StatsigRuntimeMutableOptions) {
+        val functionName = "updateRuntimeOptions"
+        enforceInitialized(functionName)
+        errorBoundary.capture(
+            {
+                this.logger.setLoggingEnabled(runtimeMutableOptions.loggingEnabled)
+            },
+            tag = functionName,
+        )
+    }
+
+    /**
      * Update the Statsig SDK with Feature Gate and Dynamic Configs for a new user, or the same user
      * with additional properties. Will make network call in a separate coroutine. But fetch cached
      * values from memory synchronously.
@@ -1051,6 +1067,7 @@ class StatsigClient() : LifecycleEventListener {
                 normalizedUser,
                 diagnostics,
                 options.logEventFallbackUrls,
+                options.loggingEnabled,
             )
         populateStatsigMetadata()
 
