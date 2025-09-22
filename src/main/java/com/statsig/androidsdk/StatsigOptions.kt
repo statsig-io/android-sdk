@@ -44,7 +44,11 @@ class StatsigOptions(
     /**
      * Prevent the SDK from sending useful debug information to Statsig
      */
-    @SerializedName("disableDiagnosticsLogging") var disableDiagnosticsLogging: Boolean = false,
+    @SerializedName("disableDiagnosticsLogging")
+    @Deprecated(
+        "WARNING: This property is no longer supported and currently has no effects.",
+        level = DeprecationLevel.WARNING,
+    ) var disableDiagnosticsLogging: Boolean = false,
     /**
      * Default off, SDK compress outgoing log_event payload, if there is no proxying.
      * Turn this on to disable compressing log_event payload
@@ -126,7 +130,6 @@ class StatsigOptions(
     var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null,
 
     loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
-
 ) : StatsigRuntimeMutableOptions(loggingEnabled) {
 
     private var environment: MutableMap<String, String>? = null

@@ -5,7 +5,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 
 const val NANO_IN_MS = 1_000_000.0
-internal class Diagnostics(private var isDisabled: Boolean, public val statsigOptionsLoggingCopy: Map<String, Any?>) {
+internal class Diagnostics(val statsigOptionsLoggingCopy: Map<String, Any?>) {
     companion object {
         fun formatFailedResponse(failResponse: InitializeResponse.FailedInitializeResponse): Marker.ErrorMessage {
             val name = failResponse.exception?.javaClass?.toString() ?: "unknown"
