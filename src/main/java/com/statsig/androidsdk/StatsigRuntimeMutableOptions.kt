@@ -15,5 +15,5 @@ open class StatsigRuntimeMutableOptions(
      * [loggingEnabled] defaults to true if a value is not provided.
      */
     @SerializedName("loggingEnabled")
-    open var loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
+    var loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
 )

@@ -125,9 +125,9 @@ class StatsigOptions(
 
     var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null,
 
-    override var loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
+    loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
 
-) : StatsigRuntimeMutableOptions() {
+) : StatsigRuntimeMutableOptions(loggingEnabled) {
 
     private var environment: MutableMap<String, String>? = null
 
