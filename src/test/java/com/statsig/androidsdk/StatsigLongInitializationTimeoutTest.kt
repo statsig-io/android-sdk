@@ -2,9 +2,10 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.spyk
-import kotlinx.coroutines.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -13,12 +14,16 @@ import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigLongInitializationTimeoutTest {
 
-    private var app: Application = mockk()
+    private var app: Application = RuntimeEnvironment.getApplication()
     private lateinit var client: StatsigClient
     private lateinit var errorBoundary: ErrorBoundary
     private lateinit var mockWebServer: MockWebServer
@@ -50,7 +55,6 @@ class StatsigLongInitializationTimeoutTest {
         errorBoundary = client.errorBoundary
 
         TestUtil.mockDispatchers()
-        TestUtil.stubAppFunctions(app)
 
         every {
             errorBoundary.getUrl()

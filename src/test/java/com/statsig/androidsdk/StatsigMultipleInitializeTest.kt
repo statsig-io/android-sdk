@@ -5,7 +5,11 @@ import io.mockk.*
 import kotlinx.coroutines.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigMultipleInitializeTest {
 
     private lateinit var client: StatsigClient
@@ -15,12 +19,10 @@ class StatsigMultipleInitializeTest {
     @Before
     fun setup() {
         TestUtil.mockDispatchers()
-        app = mockk(relaxed = true)
+        app = RuntimeEnvironment.getApplication()
         client = spyk(StatsigClient(), recordPrivateCalls = true)
         network = TestUtil.mockNetwork()
         client.statsigNetwork = network
-
-        TestUtil.stubAppFunctions(app)
 
         coEvery {
             network.initialize(

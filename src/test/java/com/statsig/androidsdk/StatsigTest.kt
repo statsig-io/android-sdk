@@ -1,22 +1,33 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
 import com.google.gson.Gson
 import io.mockk.coEvery
-import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.After
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
-import java.lang.Exception
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows
+import org.robolectric.shadows.ShadowConnectivityManager
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigTest {
 
     private lateinit var app: Application
@@ -24,18 +35,17 @@ class StatsigTest {
     private var initUser: StatsigUser? = null
     private var client: StatsigClient = StatsigClient()
     private lateinit var network: StatsigNetwork
-    private lateinit var testSharedPrefs: TestSharedPreferences
-    private val gson = Gson()
+    private lateinit var shadowConMan: ShadowConnectivityManager
 
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
 
-        app = mockk()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
+        app = RuntimeEnvironment.getApplication()
+        shadowConMan = Shadows.shadowOf(app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
+        shadowConMan.setDefaultNetworkActive(true)
 
-        TestUtil.mockStatsigUtil()
-        TestUtil.mockNetworkConnectivityService(app)
+        TestUtil.mockHashing()
 
         network = TestUtil.mockNetwork(captureUser = { user ->
             initUser = user

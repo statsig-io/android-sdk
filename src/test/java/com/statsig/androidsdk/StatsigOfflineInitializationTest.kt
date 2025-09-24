@@ -2,14 +2,16 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import java.util.concurrent.CountDownLatch
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigOfflineInitializationTest {
     private lateinit var app: Application
     private lateinit var initializeCountdown: CountDownLatch
@@ -23,15 +25,9 @@ class StatsigOfflineInitializationTest {
     internal fun setup() {
         TestUtil.mockDispatchers()
 
-        app = mockk()
-        TestUtil.stubAppFunctions(app)
-        mockkObject(Hashing)
-        mockkObject(StatsigUtil)
-        every {
-            Hashing.getHashedString(any(), null)
-        } answers {
-            firstArg<String>() + "!"
-        }
+        app = RuntimeEnvironment.getApplication()
+        TestUtil.mockHashing()
+        TestUtil.mockStatsigUtil()
         initializeCountdown = CountDownLatch(1)
         // Initialize and get response from network first so cache has most recent value
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())

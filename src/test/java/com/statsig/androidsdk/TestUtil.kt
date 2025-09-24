@@ -303,6 +303,10 @@ class TestUtil {
             }
         }
 
+        @Deprecated(
+            "Deprecated - instrument tests with the Robolectric test runner instead",
+            level = DeprecationLevel.WARNING,
+        )
         fun stubAppFunctions(app: Application): TestSharedPreferences {
             val sharedPrefs = TestSharedPreferences()
 
@@ -323,6 +327,10 @@ class TestUtil {
             return sharedPrefs
         }
 
+        @Deprecated(
+            "Deprecated - callers should use Robolectric to have test code operate on real backing SharedPreferences. Replace with mockHashing() if they still need the mock hashing behavior.",
+            level = DeprecationLevel.WARNING,
+        )
         fun mockStatsigUtil() {
             mockHashing()
             mockkObject(StatsigUtil)
@@ -445,6 +453,7 @@ class TestUtil {
             Dispatchers.resetMain()
         }
 
+        @Deprecated("Deprecated - favor ShadowConnectivityManager", level = DeprecationLevel.WARNING)
         internal fun mockNetworkConnectivityService(
             application: Application,
         ) {

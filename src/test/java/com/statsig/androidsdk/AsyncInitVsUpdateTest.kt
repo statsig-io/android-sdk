@@ -1,15 +1,25 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.Context.MODE_PRIVATE
+import android.content.SharedPreferences
 import com.google.gson.Gson
 import io.mockk.coEvery
-import io.mockk.mockk
 import io.mockk.spyk
-import kotlinx.coroutines.*
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -35,9 +45,10 @@ internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse {
     }
 }
 
+@RunWith(RobolectricTestRunner::class)
 class AsyncInitVsUpdateTest {
     lateinit var app: Application
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
     private val gson = Gson()
     private lateinit var client: StatsigClient
     private lateinit var network: StatsigNetwork
@@ -46,9 +57,9 @@ class AsyncInitVsUpdateTest {
     internal fun setup() {
         TestUtil.mockDispatchers()
 
-        app = mockk()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
-        TestUtil.mockStatsigUtil()
+        app = RuntimeEnvironment.getApplication()
+        testSharedPrefs = app.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
+        TestUtil.mockHashing()
 
         network = TestUtil.mockNetwork()
         coEvery {
@@ -148,7 +159,7 @@ class AsyncInitVsUpdateTest {
         values["values"] = userBCacheValues
         values["stickyUserExperiments"] = sticky
         cacheById["user-b"] = values
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById))
+        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById)).apply()
 
         client.initializeAsync(app, "client-key", userA, callback)
         client.updateUserAsync(userB, callback)

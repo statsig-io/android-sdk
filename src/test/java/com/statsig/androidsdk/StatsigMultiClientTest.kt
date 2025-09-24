@@ -1,12 +1,17 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import io.mockk.mockk
+import android.content.Context.MODE_PRIVATE
+import android.content.SharedPreferences
 import io.mockk.spyk
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigMultiClientTest {
     private lateinit var app: Application
     private var flushedLogs1: MutableList<LogEventData> = mutableListOf()
@@ -22,17 +27,17 @@ class StatsigMultiClientTest {
     private lateinit var network2: StatsigNetwork
     private lateinit var network3: StatsigNetwork
     private lateinit var brokenNetwork: StatsigNetwork
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
     private val user = StatsigUser("testUser")
 
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
 
-        app = mockk()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
+        app = RuntimeEnvironment.getApplication()
+        testSharedPrefs = app.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
 
-        TestUtil.mockStatsigUtil()
+        TestUtil.mockHashing()
 
         network1 = TestUtil.mockNetwork(featureGates = mockFeatureGatesResponse(1), dynamicConfigs = mockDynamicConfigs(1), onLog = {
             flushedLogs1.add(it)
