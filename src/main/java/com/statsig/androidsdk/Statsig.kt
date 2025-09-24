@@ -467,11 +467,19 @@ object Statsig {
     }
 
     /**
-     * @return the current Statsig stableID
+     * @return the current Statsig stableID, or an empty [String] if Statsig is not initialized.
      */
     @JvmStatic
     fun getStableID(): String {
         return client.getStableID()
+    }
+
+    /**
+     * @return the current Statsig sessionId
+     */
+    @JvmStatic
+    fun getSessionID(): String {
+        return client.getSessionID()
     }
 
     /**

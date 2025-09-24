@@ -744,12 +744,23 @@ class StatsigClient() : LifecycleEventListener {
         })
     }
 
-    /** @return the current Statsig stableID Null prior to completion of async initialization */
+    /** @return the current Statsig stableID, or an empty [String] prior to completion of async initialization */
     fun getStableID(): String {
         val functionName = "getStableID"
         enforceInitialized(functionName)
         var result = ""
         errorBoundary.capture({ result = statsigMetadata.stableID ?: "" }, tag = "getStableID")
+        return result
+    }
+
+    /**
+     * @return the current Statsig sessionID
+     */
+    fun getSessionID(): String {
+        val functionName = "getSessionID"
+        enforceInitialized(functionName)
+        var result = ""
+        errorBoundary.capture({ result = statsigMetadata.sessionID }, tag = "getSessionID")
         return result
     }
 
