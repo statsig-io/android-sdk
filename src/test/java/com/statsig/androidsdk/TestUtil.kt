@@ -324,13 +324,7 @@ class TestUtil {
         }
 
         fun mockStatsigUtil() {
-            mockkObject(Hashing)
-            every {
-                Hashing.getHashedString(any(), any())
-            } answers {
-                firstArg<String>() + "!"
-            }
-
+            mockHashing()
             mockkObject(StatsigUtil)
             coEvery {
                 StatsigUtil.getFromSharedPrefs(any(), any())
@@ -350,6 +344,15 @@ class TestUtil {
             } coAnswers {
                 firstArg<SharedPreferences>().edit().remove(secondArg<String>())
                 firstArg<SharedPreferences>().edit().apply()
+            }
+        }
+
+        fun mockHashing() {
+            mockkObject(Hashing)
+            every {
+                Hashing.getHashedString(any(), any())
+            } answers {
+                firstArg<String>() + "!"
             }
         }
 

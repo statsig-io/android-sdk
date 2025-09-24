@@ -19,8 +19,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
-
-private const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
+@VisibleForTesting
+internal const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
 
 class StatsigClient() : LifecycleEventListener {

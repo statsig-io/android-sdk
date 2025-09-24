@@ -1,47 +1,49 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import io.mockk.coEvery
-import io.mockk.mockk
+import android.content.Context.MODE_PRIVATE
+import android.content.SharedPreferences
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class CacheKeyWithSDKKeyTest {
     private lateinit var app: Application
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
 
     private var user = StatsigUser("testUser")
 
     @Before
     internal fun setup() = runBlocking {
         TestUtil.mockDispatchers()
-        app = mockk()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
+        app = RuntimeEnvironment.getApplication()
         user.customIDs = mapOf("companyId" to "123")
-        TestUtil.mockStatsigUtil()
+        TestUtil.mockHashing()
         var values: MutableMap<String, Any> = HashMap()
         val sticky: MutableMap<String, Any> = HashMap()
         values["values"] = TestUtil.makeInitializeResponse()
         values["stickyUserExperiments"] = sticky
         var cacheById: MutableMap<String, Any> = HashMap()
         cacheById[user.getCacheKeyDEPRECATED()] = values
-        // Mock cached by original key
-        coEvery {
-            StatsigUtil.syncGetFromSharedPrefs(any(), cmpEq("Statsig.CACHE_BY_USER"))
-        } coAnswers {
-            StatsigUtil.getGson().toJson(cacheById)
-        }
+        // Write a cached by original key
+        testSharedPrefs = app.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
+        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", StatsigUtil.getGson().toJson(cacheById)).apply()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockBrokenNetwork())
+
         return@runBlocking
     }
 
     @Test
     fun testLoadFromPreviousCacheKey() {
-        assert(Statsig.client.checkGate("always_on"))
+        assertThat(Statsig.client.checkGate("always_on")).isTrue()
         val config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason == EvaluationReason.Cache)
-        assert(config.getString("string", "DEFAULT") == "test")
+        assertThat(config.getEvaluationDetails().reason).isEqualTo(EvaluationReason.Cache)
+        assertThat(config.getString("string", "DEFAULT")).isEqualTo("test")
     }
 
     @Test
@@ -49,6 +51,6 @@ class CacheKeyWithSDKKeyTest {
         Statsig.client.shutdown()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())
         val cacheById = StatsigUtil.getGson().fromJson(StatsigUtil.getFromSharedPrefs(testSharedPrefs, "Statsig.CACHE_BY_USER"), Map::class.java)
-        assert(cacheById.keys.contains("${user.toHashString()}:client-apikey"))
+        assertThat(cacheById.keys).contains("${user.toHashString()}:client-apikey")
     }
 }
