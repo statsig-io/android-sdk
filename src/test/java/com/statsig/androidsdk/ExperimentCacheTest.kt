@@ -1,8 +1,9 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.Context.MODE_PRIVATE
+import android.content.SharedPreferences
 import io.mockk.coEvery
-import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -10,6 +11,9 @@ import kotlinx.coroutines.withContext
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -32,18 +36,19 @@ internal suspend fun getResponseForUser(user: StatsigUser, configName: String): 
     }
 }
 
+@RunWith(RobolectricTestRunner::class)
 class ExperimentCacheTest {
     private lateinit var app: Application
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var network: StatsigNetwork
     private var initializeCalls: Int = 0
 
     @Before
     fun setup() {
         TestUtil.mockDispatchers()
-        app = mockk()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
-        TestUtil.mockStatsigUtil()
+        app = RuntimeEnvironment.getApplication()
+        testSharedPrefs = app.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
+        TestUtil.mockHashing()
 
         // Setup network mock that returns different responses for first/second session
         network = TestUtil.mockNetwork()
