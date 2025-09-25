@@ -9,7 +9,11 @@ import static org.junit.Assert.assertTrue;
 import android.app.Application;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -17,6 +21,7 @@ import java.util.Map;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
 
+@RunWith(RobolectricTestRunner.class)
 public class StatsigFromJavaTest {
     private Application app;
     private Map<String, APIFeatureGate> gates = new HashMap<>();
@@ -48,9 +53,8 @@ public class StatsigFromJavaTest {
     public void setup() {
         TestUtil.Companion.mockDispatchers();
 
-        app = TestUtil.Companion.getMockApp();
-        TestUtil.Companion.stubAppFunctions(app);
-        TestUtil.Companion.mockStatsigUtil();
+        app = RuntimeEnvironment.getApplication();
+        TestUtil.Companion.mockHashing();
     }
 
     @Test

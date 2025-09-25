@@ -2,11 +2,14 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.gson.Gson
-import io.mockk.mockk
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class LayerExposureTest {
     lateinit var app: Application
     private var logs: LogEventData? = null
@@ -15,9 +18,8 @@ class LayerExposureTest {
     @Before
     fun setup() {
         TestUtil.mockDispatchers()
-        app = mockk()
-        TestUtil.stubAppFunctions(app)
-        TestUtil.mockStatsigUtil()
+        app = RuntimeEnvironment.getApplication()
+        TestUtil.mockHashing()
     }
 
     @Test

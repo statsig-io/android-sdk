@@ -1,14 +1,18 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.SharedPreferences
 import io.mockk.coEvery
-import io.mockk.mockk
 import io.mockk.unmockkAll
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class EvaluationCallbackTest {
 
     private lateinit var app: Application
@@ -16,7 +20,7 @@ class EvaluationCallbackTest {
     private var initUser: StatsigUser? = null
     private var client: StatsigClient = StatsigClient()
     private lateinit var network: StatsigNetwork
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
     private var checkedGate = ""
     private var checkedGateCount = 0
     private var checkedConfig = ""
@@ -28,10 +32,10 @@ class EvaluationCallbackTest {
     internal fun setup() {
         TestUtil.mockDispatchers()
 
-        app = mockk()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
+        app = RuntimeEnvironment.getApplication()
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
 
-        TestUtil.mockStatsigUtil()
+        TestUtil.mockHashing()
 
         network = TestUtil.mockNetwork(captureUser = { user ->
             initUser = user

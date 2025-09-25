@@ -2,9 +2,6 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import io.mockk.coVerify
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.unmockkAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
@@ -13,8 +10,12 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
 @OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(RobolectricTestRunner::class)
 class StoreTest {
     private lateinit var app: Application
     private val userJkw = StatsigUser(userID = "jkw")
@@ -24,10 +25,8 @@ class StoreTest {
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
-        app = mockk()
-        TestUtil.stubAppFunctions(app)
-        mockkObject(Hashing)
-        every { Hashing.getHashedString(any(), null) } answers { firstArg<String>() + "!" }
+        app = RuntimeEnvironment.getApplication()
+        TestUtil.mockHashing()
     }
 
     @After
@@ -106,7 +105,7 @@ class StoreTest {
 
     @Test
     fun testCacheById() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey", StatsigOptions())
+        val store = Store(TestCoroutineScope(), TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         store.resetUser(userDloomb)
@@ -158,7 +157,7 @@ class StoreTest {
 
     @Test
     fun testEvaluationReasons() = runBlocking {
-        val sharedPrefs = TestSharedPreferences()
+        val sharedPrefs = TestUtil.getTestSharedPrefs(app)
         var store = Store(TestCoroutineScope(), sharedPrefs, userJkw, "client-apikey", StatsigOptions())
 
         // check before there is any value
@@ -218,7 +217,7 @@ class StoreTest {
 
     @Test
     fun testConfigNameNotHashed() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey", StatsigOptions())
+        val store = Store(TestCoroutineScope(), TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         val config = store.getExperiment("config", false)
@@ -229,7 +228,7 @@ class StoreTest {
 
     @Test
     fun testStickyBucketing() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey", StatsigOptions())
+        val store = Store(TestCoroutineScope(), TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         // getting values with keepDeviceValue = false first
@@ -294,7 +293,7 @@ class StoreTest {
 
     @Test
     fun testInactiveExperimentStickyBehavior() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey", StatsigOptions())
+        val store = Store(TestCoroutineScope(), TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
         store.save(getInitValue("v0", inExperiment = true, active = false), userJkw)
 
         var exp = store.getExperiment("exp", true)
@@ -308,7 +307,7 @@ class StoreTest {
 
     @Test
     fun testStickyBehaviorWhenResettingUser() = runBlocking {
-        val store = Store(TestCoroutineScope(), TestSharedPreferences(), userJkw, "client-apikey", StatsigOptions())
+        val store = Store(TestCoroutineScope(), TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         // getting values with keepDeviceValue = false first
@@ -350,7 +349,7 @@ class StoreTest {
 
     @Test
     fun testStickyBehaviorAcrossSessions() = runBlocking {
-        val sharedPrefs = TestSharedPreferences()
+        val sharedPrefs = TestUtil.getTestSharedPrefs(app)
         var store = Store(TestCoroutineScope(), sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         val v0Values = getInitValue("v0", inExperiment = true, active = true)

@@ -26,7 +26,7 @@ class LogEventTest {
 
     internal fun setup(options: StatsigOptions) {
         runBlocking {
-            TestUtil.mockStatsigUtil()
+            TestUtil.mockHashing()
             TestUtil.mockDispatchers()
             app = mockk()
             TestUtil.mockNetworkConnectivityService(app)

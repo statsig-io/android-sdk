@@ -3,7 +3,6 @@ package com.statsig.androidsdk
 import android.app.Application
 import io.mockk.coEvery
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.Dispatcher
@@ -14,12 +13,16 @@ import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigInitializationTimeoutTest {
 
-    private var app: Application = mockk()
+    private var app: Application = RuntimeEnvironment.getApplication()
     private lateinit var client: StatsigClient
     private lateinit var network: StatsigNetwork
     private lateinit var errorBoundary: ErrorBoundary
@@ -52,7 +55,6 @@ class StatsigInitializationTimeoutTest {
         network = TestUtil.mockNetwork()
 
         TestUtil.mockDispatchers()
-        TestUtil.stubAppFunctions(app)
 
         coEvery {
             network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())

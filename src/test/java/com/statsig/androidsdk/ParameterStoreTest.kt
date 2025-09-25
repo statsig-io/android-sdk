@@ -1,16 +1,17 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class ParameterStoreTest {
-
-    private var initUser: StatsigUser? = null
-    private var app: Application = mockk()
+    private var app: Application = RuntimeEnvironment.getApplication()
     private val user = StatsigUser(userID = "a-user")
     private var client: StatsigClient = StatsigClient()
 
@@ -18,10 +19,7 @@ class ParameterStoreTest {
 
     @Before
     internal fun setup() = runBlocking {
-        app = mockk()
-        TestUtil.stubAppFunctions(app)
-
-        TestUtil.mockStatsigUtil()
+        TestUtil.mockHashing()
         TestUtil.mockDispatchers()
 
         val statsigNetwork = TestUtil.mockNetwork()

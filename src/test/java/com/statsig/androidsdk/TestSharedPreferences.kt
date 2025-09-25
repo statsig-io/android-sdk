@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.content.SharedPreferences
 
+@Deprecated("Deprecated - instrument tests with Robolectric and call getTestSharedPrefs() with a valid Context - e.g. RuntimeEnvironment.getApplication()", level = DeprecationLevel.WARNING)
 class TestSharedPreferences : SharedPreferences {
     val editor = TestEditor()
     class TestEditor : SharedPreferences.Editor {

@@ -1,8 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.Context
-import android.net.ConnectivityManager
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.spyk
@@ -22,8 +20,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import org.robolectric.Shadows
-import org.robolectric.shadows.ShadowConnectivityManager
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -35,15 +31,12 @@ class StatsigTest {
     private var initUser: StatsigUser? = null
     private var client: StatsigClient = StatsigClient()
     private lateinit var network: StatsigNetwork
-    private lateinit var shadowConMan: ShadowConnectivityManager
 
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
 
         app = RuntimeEnvironment.getApplication()
-        shadowConMan = Shadows.shadowOf(app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
-        shadowConMan.setDefaultNetworkActive(true)
 
         TestUtil.mockHashing()
 
