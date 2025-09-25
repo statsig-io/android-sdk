@@ -108,7 +108,8 @@ class ErrorBoundaryTest {
                 Statsig.shutdown()
             }
         } catch (e: Throwable) {
-            assertTrue(false) // should not throw
+            // Test fails if an error escapes the boundary
+            fail("Non-callback error was thrown within boundary: $e")
         }
         verify(
             0,

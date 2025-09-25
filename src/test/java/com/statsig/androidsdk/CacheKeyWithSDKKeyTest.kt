@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
@@ -31,7 +30,7 @@ class CacheKeyWithSDKKeyTest {
         var cacheById: MutableMap<String, Any> = HashMap()
         cacheById[user.getCacheKeyDEPRECATED()] = values
         // Write a cached by original key
-        testSharedPrefs = app.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", StatsigUtil.getGson().toJson(cacheById)).apply()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockBrokenNetwork())
 

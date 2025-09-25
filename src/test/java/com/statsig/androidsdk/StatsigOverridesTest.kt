@@ -7,7 +7,11 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigOverridesTest {
     private lateinit var app: Application
 
@@ -27,9 +31,8 @@ class StatsigOverridesTest {
     internal fun setup() {
         runBlocking {
             TestUtil.mockDispatchers()
-            TestUtil.mockStatsigUtil()
-            app = mockk()
-            TestUtil.stubAppFunctions(app)
+            TestUtil.mockHashing()
+            app = RuntimeEnvironment.getApplication()
 
             val statsigNetwork = TestUtil.mockNetwork()
 

@@ -1,17 +1,21 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import io.mockk.mockk
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class DiagnosticsTest {
     private lateinit var app: Application
-    private lateinit var sharedPrefs: TestSharedPreferences
+    private lateinit var sharedPrefs: SharedPreferences
     private lateinit var network: StatsigNetwork
     private var client: StatsigClient = StatsigClient()
     private val user: StatsigUser = StatsigUser("testUser")
@@ -19,11 +23,10 @@ class DiagnosticsTest {
 
     @Before
     fun setup() = runBlocking {
-        app = mockk()
-        sharedPrefs = TestUtil.stubAppFunctions(app)
-        TestUtil.mockStatsigUtil()
+        app = RuntimeEnvironment.getApplication()
+        sharedPrefs = TestUtil.getTestSharedPrefs(app)
+        TestUtil.mockHashing()
         TestUtil.mockDispatchers()
-        TestUtil.mockNetworkConnectivityService(app)
         client = StatsigClient()
         network = TestUtil.mockNetwork(onLog = {
             logEvents.add(it)

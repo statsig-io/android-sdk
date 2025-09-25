@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.SharedPreferences
 import com.google.gson.Gson
 import io.mockk.*
 import kotlinx.coroutines.runBlocking
@@ -8,29 +9,25 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigCacheTest {
 
     private lateinit var app: Application
     private lateinit var client: StatsigClient
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
     private val gson = Gson()
 
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
 
-        app = mockk()
-        TestUtil.mockNetworkConnectivityService(app)
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
-
-        mockkObject(Hashing)
-        mockkObject(StatsigUtil)
-        every {
-            Hashing.getHashedString(any(), null)
-        } answers {
-            firstArg<String>() + "!"
-        }
+        app = RuntimeEnvironment.getApplication()
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        TestUtil.mockHashing()
     }
 
     @After

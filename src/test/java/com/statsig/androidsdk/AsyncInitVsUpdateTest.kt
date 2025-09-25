@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import io.mockk.coEvery
@@ -58,7 +57,7 @@ class AsyncInitVsUpdateTest {
         TestUtil.mockDispatchers()
 
         app = RuntimeEnvironment.getApplication()
-        testSharedPrefs = app.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         TestUtil.mockHashing()
 
         network = TestUtil.mockNetwork()

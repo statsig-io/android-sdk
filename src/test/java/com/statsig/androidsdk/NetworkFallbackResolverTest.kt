@@ -1,25 +1,28 @@
 import android.app.Application
+import android.content.SharedPreferences
 import com.statsig.androidsdk.DEFAULT_INIT_API
 import com.statsig.androidsdk.Endpoint
 import com.statsig.androidsdk.ErrorBoundary
 import com.statsig.androidsdk.NetworkFallbackResolver
-import com.statsig.androidsdk.TestSharedPreferences
 import com.statsig.androidsdk.TestUtil
 import com.statsig.androidsdk.UrlConfig
 import com.statsig.androidsdk.isDomainFailure
 import io.mockk.MockKAnnotations
-import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class NetworkFallbackResolverTest {
 
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var resolver: NetworkFallbackResolver
-    private lateinit var app: Application
+    private var app: Application = RuntimeEnvironment.getApplication()
 
     companion object {
         const val SDK_KEY = "client-test-sdk-key"
@@ -46,11 +49,9 @@ class NetworkFallbackResolverTest {
     internal fun setup() = runBlocking {
         MockKAnnotations.init(this)
         TestUtil.mockDispatchers()
-        app = mockk()
-
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
-        TestUtil.mockStatsigUtil()
-        TestUtil.mockNetworkConnectivityService(app)
+        app = RuntimeEnvironment.getApplication()
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        TestUtil.mockHashing()
         resolver = NetworkFallbackResolver(ErrorBoundary(), testSharedPrefs, TestUtil.coroutineScope)
     }
 

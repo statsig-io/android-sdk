@@ -1,23 +1,27 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.SharedPreferences
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.TestCoroutineScope
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class LogEventCompressionTest {
     private lateinit var app: Application
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
 
     @Before
     internal fun setup() {
-        app = mockk()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
+        app = RuntimeEnvironment.getApplication()
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
 
-        TestUtil.mockStatsigUtil()
-        TestUtil.mockNetworkConnectivityService(app)
+        TestUtil.mockHashing()
     }
 
     private fun setupNetwork(

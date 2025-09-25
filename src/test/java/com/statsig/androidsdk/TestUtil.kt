@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import android.content.Context
+import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.Network
@@ -304,7 +305,7 @@ class TestUtil {
         }
 
         @Deprecated(
-            "Deprecated - instrument tests with the Robolectric test runner instead",
+            "Deprecated - instrument tests with Robolectric and call getTestSharedPrefs() with a valid Context - e.g. RuntimeEnvironment.getApplication()",
             level = DeprecationLevel.WARNING,
         )
         fun stubAppFunctions(app: Application): TestSharedPreferences {
@@ -325,6 +326,10 @@ class TestUtil {
             mockNetworkConnectivityService(app)
 
             return sharedPrefs
+        }
+
+        fun getTestSharedPrefs(context: Context): SharedPreferences {
+            return context.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
         }
 
         @Deprecated(
@@ -453,7 +458,7 @@ class TestUtil {
             Dispatchers.resetMain()
         }
 
-        @Deprecated("Deprecated - favor ShadowConnectivityManager", level = DeprecationLevel.WARNING)
+        @Deprecated("Deprecated - rely on Robolectric to provide reasonable defaults. Use ShadowConnectivityManager if behavior needs to be overridden.", level = DeprecationLevel.WARNING)
         internal fun mockNetworkConnectivityService(
             application: Application,
         ) {

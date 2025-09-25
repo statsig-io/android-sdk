@@ -1,7 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import io.mockk.mockk
+import android.content.SharedPreferences
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestCoroutineDispatcher
 import kotlinx.coroutines.test.TestCoroutineScope
@@ -13,13 +13,17 @@ import okhttp3.mockwebserver.RecordedRequest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class InitializationTest {
     private lateinit var dispatcher: TestCoroutineDispatcher
     private lateinit var app: Application
     private lateinit var mockWebServer: MockWebServer
     private var user: StatsigUser = StatsigUser("test-user")
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private lateinit var testSharedPrefs: SharedPreferences
     private var initializationHits = 0
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -28,11 +32,9 @@ class InitializationTest {
         mockWebServer = MockWebServer()
 
         dispatcher = TestUtil.mockDispatchers()
-        app = mockk()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
-
-        TestUtil.mockStatsigUtil()
-        TestUtil.mockNetworkConnectivityService(app)
+        app = RuntimeEnvironment.getApplication()
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        TestUtil.mockHashing()
 
         initializationHits = 0
         val dispatcher = object : Dispatcher() {

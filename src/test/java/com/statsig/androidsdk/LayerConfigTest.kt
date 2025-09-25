@@ -1,31 +1,37 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import io.mockk.mockk
+import android.content.SharedPreferences
+import com.google.common.truth.Truth.assertThat
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class LayerConfigTest {
     private lateinit var app: Application
-    private lateinit var sharedPrefs: TestSharedPreferences
+    private lateinit var sharedPrefs: SharedPreferences
     private var client: StatsigClient = StatsigClient()
     private lateinit var layer: Layer
     private val nullUser = StatsigUser(null)
 
     @Before
     internal fun setup() = runBlocking {
-        app = mockk()
-        sharedPrefs = TestUtil.stubAppFunctions(app)
+        app = RuntimeEnvironment.getApplication()
+        sharedPrefs = TestUtil.getTestSharedPrefs(app)
 
-        TestUtil.mockStatsigUtil()
+        TestUtil.mockHashing()
         TestUtil.mockDispatchers()
 
         initClient()
-        assertTrue(sharedPrefs.all.isEmpty())
+        sharedPrefs.edit().clear().apply()
+        assertThat(sharedPrefs.all).isEmpty()
 
         layer = Layer(
             client,
