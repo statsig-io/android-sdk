@@ -4,7 +4,6 @@ import android.app.Application
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.every
-import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.spyk
 import io.mockk.unmockkAll
@@ -13,9 +12,13 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigInitializationFailureTest {
     private lateinit var client: StatsigClient
     private lateinit var eb: ErrorBoundary
@@ -23,12 +26,13 @@ class StatsigInitializationFailureTest {
     private lateinit var callback: IStatsigCallback
     private var initDetails: InitializationDetails? = null
     private var logEventRequests = mutableListOf<LogEventData>()
-    private var app: Application = mockk()
+    private lateinit var app: Application
     private var initializationCountdown: CountDownLatch = CountDownLatch(1)
     private var logEventCountdown = CountDownLatch(1)
 
     @Before
     internal fun setup() {
+        app = spyk(RuntimeEnvironment.getApplication())
         client = spyk(StatsigClient(), recordPrivateCalls = true)
         client.errorBoundary = spyk(client.errorBoundary)
         eb = client.errorBoundary
@@ -38,7 +42,6 @@ class StatsigInitializationFailureTest {
         }
         client.statsigNetwork = network
         TestUtil.mockDispatchers()
-        TestUtil.stubAppFunctions(app)
         callback = object : IStatsigCallback {
             override fun onStatsigUpdateUser() {
                 throw Exception("Update user should not be called")

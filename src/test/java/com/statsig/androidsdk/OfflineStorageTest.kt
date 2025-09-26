@@ -1,19 +1,23 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.SharedPreferences
+import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
-import io.mockk.coEvery
 import io.mockk.mockk
-import io.mockk.spyk
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class OfflineStorageTest {
 
-    private lateinit var app: Application
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private val app: Application = RuntimeEnvironment.getApplication()
+    private lateinit var testSharedPrefs: SharedPreferences
     private val gson = Gson()
     private lateinit var network: StatsigNetwork
     private val now = System.currentTimeMillis()
@@ -21,12 +25,9 @@ class OfflineStorageTest {
 
     @Before
     fun setUp() {
-        app = mockk()
-        TestUtil.mockDispatchers()
-        testSharedPrefs = TestUtil.stubAppFunctions(app)
-        TestUtil.mockStatsigUtil()
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
 
-        val realNetwork = StatsigNetwork(
+        network = StatsigNetwork(
             app,
             "client-key",
             mockk(),
@@ -36,10 +37,6 @@ class OfflineStorageTest {
             mockk(),
             mockk(),
         )
-
-        network = spyk(realNetwork)
-        coEvery { network.getSavedLogs() } coAnswers { callOriginal() }
-        coEvery { network.addFailedLogRequest(any()) } coAnswers { callOriginal() }
     }
 
     @Test
@@ -55,7 +52,7 @@ class OfflineStorageTest {
         )
 
         val json = gson.toJson(StatsigPendingRequests(logs))
-        testSharedPrefs.edit().putString("StatsigNetwork.OFFLINE_LOGS:client-key", json).apply()
+        testSharedPrefs.edit().putString("StatsigNetwork.OFFLINE_LOGS:client-key", json).commit()
 
         val result = network.getSavedLogs()
 
@@ -99,17 +96,17 @@ class OfflineStorageTest {
         val result = network.getSavedLogs()
 
         // Should retain only the last 10 logs (log 1..10)
-        assertEquals(10, result.size)
+        assertThat(result).hasSize(10)
         (1..10).forEach { i ->
             assertEquals("log $i", result[i - 1].requestBody)
         }
-
         // Add one more log and check again
-        network.addFailedLogRequest(StatsigOfflineRequest(System.currentTimeMillis(), "log 11"))
+        network.addFailedLogRequest(StatsigOfflineRequest(now, "log 11"))
         val savedJson = testSharedPrefs.getString("StatsigNetwork.OFFLINE_LOGS:client-key", null)
         val saved = gson.fromJson(savedJson, StatsigPendingRequests::class.java)
 
-        assertEquals(10, saved.requests.size)
+        // See MAX_LOG_REQUESTS_TO_CACHE
+        assertThat(saved.requests).hasSize(10)
         // Should drop "log 1", and now include "log 2" to "log 11"
         (2..11).forEachIndexed { index, i ->
             assertEquals("log $i", saved.requests[index].requestBody)

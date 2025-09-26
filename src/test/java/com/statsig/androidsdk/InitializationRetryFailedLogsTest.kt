@@ -1,12 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.util.Base64
 import com.google.gson.Gson
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.slot
 import junit.framework.Assert.assertEquals
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.Dispatcher
@@ -15,32 +10,25 @@ import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class InitializationRetryFailedLogsTest {
     private lateinit var mockWebServer: MockWebServer
     private var logEventHits = 0
     private val gson = Gson()
-    private val app: Application = mockk()
+    private val app: Application = RuntimeEnvironment.getApplication()
     private lateinit var url: String
 
     @Before
     fun setup() {
         mockWebServer = MockWebServer()
         TestUtil.mockDispatchers()
-        TestUtil.stubAppFunctions(app)
-        mockkStatic(Base64::class)
-
-        val arraySlot = slot<ByteArray>()
-        every {
-            Base64.encodeToString(capture(arraySlot), Base64.NO_WRAP)
-        } answers {
-            java.util.Base64.getEncoder().encodeToString(arraySlot.captured)
-        }
 
         url = mockWebServer.url("/v1").toString()
-        val sharedPrefs = TestUtil.stubAppFunctions(app)
-
-        sharedPrefs.edit().clear().commit()
+        val sharedPrefs = TestUtil.getTestSharedPrefs(app)
 
         val failedLogsJson = this::class.java.classLoader!!
             .getResource("sample_failed_logs.json")

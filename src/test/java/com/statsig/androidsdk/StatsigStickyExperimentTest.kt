@@ -1,24 +1,30 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.content.SharedPreferences
+import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.*
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class StatsigStickyExperimentTest {
     private lateinit var app: Application
+    private lateinit var testSharedPrefs: SharedPreferences
 
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
 
-        app = mockk()
-
-        TestUtil.stubAppFunctions(app)
-        TestUtil.mockStatsigUtil()
+        app = RuntimeEnvironment.getApplication()
+        TestUtil.mockHashing()
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
 
         // Because we are going through the static Statsig interface,
         // we need to ensure no other test has initialized the client
@@ -270,14 +276,14 @@ class StatsigStickyExperimentTest {
             ),
         )
 
-        clearMocks(StatsigUtil)
+        // Empty existing values
+        testSharedPrefs.edit().clear().apply()
 
         Statsig.getExperiment("exp", keepDeviceValue = false)
         Statsig.getLayer("layer", keepDeviceValue = false)
 
-        coVerify(exactly = 0) {
-            StatsigUtil.saveStringToSharedPrefs(any(), any(), any())
-        }
+        // Ensure that 'keepDeviceValue = false' prevents a write
+        assertThat(testSharedPrefs.all).isEmpty()
 
         Statsig.shutdown()
     }

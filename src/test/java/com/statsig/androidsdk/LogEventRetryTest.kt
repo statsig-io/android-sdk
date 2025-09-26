@@ -2,7 +2,6 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.gson.Gson
-import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -10,19 +9,22 @@ import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class LogEventRetryTest {
     private lateinit var mockWebServer: MockWebServer
     private var logEventHits = 0
     private val gson = Gson()
-    private val app: Application = mockk()
+    private val app: Application = RuntimeEnvironment.getApplication()
     private var enforceLogEventException = false
 
     @Before
     fun setup() {
         logEventHits = 0
         TestUtil.mockDispatchers()
-        TestUtil.stubAppFunctions(app)
         mockWebServer = MockWebServer()
         val dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {

@@ -3,7 +3,6 @@ package com.statsig.androidsdk
 import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
-import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkInfo
 import android.os.Build
@@ -19,14 +18,26 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.lang.reflect.Field
-import java.lang.reflect.Modifier
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.ConscryptMode
+import org.robolectric.shadows.ShadowConnectivityManager
+import org.robolectric.shadows.ShadowNetworkCapabilities
+import org.robolectric.shadows.ShadowNetworkInfo
 
+@RunWith(RobolectricTestRunner::class)
+@ConscryptMode(ConscryptMode.Mode.OFF)
 class ErrorBoundaryNetworkConnectivityTest {
     private lateinit var eb: ErrorBoundary
-    private lateinit var app: Application
+    private val app: Application = RuntimeEnvironment.getApplication()
     private lateinit var network: StatsigNetworkImpl
-    private lateinit var connectivityManager: ConnectivityManager
+
+    private lateinit var conMan: ConnectivityManager
+    private lateinit var shadowConMan: ShadowConnectivityManager
 
     private var ebCalled = false
 
@@ -44,46 +55,44 @@ class ErrorBoundaryNetworkConnectivityTest {
         every { eb.logException(any()) } answers {
             ebCalled = true
         }
-
-        app = mockk()
-        TestUtil.stubAppFunctions(app)
-        connectivityManager = mockk()
-        every { app.getSystemService(Context.CONNECTIVITY_SERVICE) } returns connectivityManager
+        conMan = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        shadowConMan = Shadows.shadowOf(conMan)
+        shadowConMan.setDefaultNetworkActive(false)
 
         stubFor(
             post(urlMatching("/initialize"))
                 .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)),
         )
-        val store = Store(TestUtil.coroutineScope, app.getSharedPreferences("", Context.MODE_PRIVATE), StatsigUser(), "client-apikey", StatsigOptions())
-        network = StatsigNetworkImpl(app, "client-key", eb, app.getSharedPreferences("", Context.MODE_PRIVATE), StatsigOptions(), mockk(), TestUtil.coroutineScope, store)
+        val store = Store(TestUtil.coroutineScope, TestUtil.getTestSharedPrefs(app), StatsigUser(), "client-apikey", StatsigOptions())
+        network = StatsigNetworkImpl(app, "client-key", eb, TestUtil.getTestSharedPrefs(app), StatsigOptions(), mockk(), TestUtil.coroutineScope, store)
     }
 
+    @Config(sdk = [Build.VERSION_CODES.M])
     @Test
     fun testAndroidM_ErrorBoundaryNotHitWhenNoNetwork(): Unit = runBlocking {
-        setAndroidVersion(Build.VERSION_CODES.M)
         makeNetworkRequest()
         assertFalse(ebCalled)
     }
 
+    @Config(sdk = [Build.VERSION_CODES.M])
     @Test
     fun testAndroidM_ErrorBoundaryIsNotHitWhenNetworkExists(): Unit = runBlocking {
-        setAndroidVersion(Build.VERSION_CODES.M)
         setNetworkInternetCapabilities()
         makeNetworkRequest()
         assertFalse(ebCalled)
     }
 
+    @Config(sdk = [Build.VERSION_CODES.KITKAT])
     @Test
     fun testBelowAndroidM_ErrorBoundaryIsNotHitWhenNetworkExists(): Unit = runBlocking {
-        setAndroidVersion(Build.VERSION_CODES.KITKAT)
         setActiveNetworkInfo(true)
         makeNetworkRequest()
         assertFalse(ebCalled)
     }
 
+    @Config(sdk = [Build.VERSION_CODES.KITKAT])
     @Test
     fun testBelowAndroidM_ErrorBoundaryNotHitWhenNoNetwork(): Unit = runBlocking {
-        setAndroidVersion(Build.VERSION_CODES.KITKAT)
         setActiveNetworkInfo(false)
         makeNetworkRequest()
         assertFalse(ebCalled)
@@ -110,40 +119,20 @@ class ErrorBoundaryNetworkConnectivityTest {
     }
 
     private fun setActiveNetworkInfo(value: Boolean) {
-        val info: NetworkInfo = mockk()
-        every {
-            connectivityManager.activeNetworkInfo
-        } returns info
-
-        every {
-            info.isConnectedOrConnecting
-        } returns value
+        val networkInfo =
+            ShadowNetworkInfo.newInstance(
+                NetworkInfo.DetailedState.CONNECTED,
+                ConnectivityManager.TYPE_WIFI,
+                0,
+                true,
+                value,
+            )
+        shadowConMan.setActiveNetworkInfo(networkInfo)
     }
 
     private fun setNetworkInternetCapabilities() {
-        val net: Network = mockk()
-        val capa: NetworkCapabilities = mockk()
-
-        every {
-            connectivityManager.activeNetwork
-        } returns net
-
-        every {
-            connectivityManager.getNetworkCapabilities(net)
-        } returns capa
-
-        every {
-            capa.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        } returns true
-    }
-
-    private fun setAndroidVersion(version: Int) {
-        val field = Build.VERSION::class.java.getField("SDK_INT")
-        field.isAccessible = true
-        Field::class.java.getDeclaredField("modifiers").apply {
-            isAccessible = true
-            setInt(field, field.modifiers and Modifier.FINAL.inv())
-        }
-        field.set(null, version)
+        val networkCapabilities: NetworkCapabilities = ShadowNetworkCapabilities.newInstance()
+        shadowOf(networkCapabilities).addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        shadowConMan.setNetworkCapabilities(conMan.activeNetwork, networkCapabilities)
     }
 }

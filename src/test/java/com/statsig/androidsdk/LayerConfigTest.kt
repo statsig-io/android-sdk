@@ -2,7 +2,6 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import android.content.SharedPreferences
-import com.google.common.truth.Truth.assertThat
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -30,8 +29,6 @@ class LayerConfigTest {
         TestUtil.mockDispatchers()
 
         initClient()
-        sharedPrefs.edit().clear().apply()
-        assertThat(sharedPrefs.all).isEmpty()
 
         layer = Layer(
             client,

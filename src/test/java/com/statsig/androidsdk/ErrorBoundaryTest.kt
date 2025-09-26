@@ -3,7 +3,6 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.junit.WireMockRule
-import io.mockk.mockk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestCoroutineScope
@@ -13,11 +12,17 @@ import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.ConscryptMode
 import java.io.IOException
 
+@RunWith(RobolectricTestRunner::class)
+@ConscryptMode(ConscryptMode.Mode.OFF)
 class ErrorBoundaryTest {
     private lateinit var boundary: ErrorBoundary
-    private lateinit var app: Application
+    private var app: Application = RuntimeEnvironment.getApplication()
 
     @Before
     internal fun setup() {
@@ -29,8 +34,7 @@ class ErrorBoundaryTest {
 
         stubFor(post(urlMatching("/v1/sdk_exception")).willReturn(aResponse().withStatus(202)))
 
-        app = mockk()
-        TestUtil.stubAppFunctions(app)
+        TestUtil.mockHashing()
         val network = TestUtil.mockBrokenNetwork()
         Statsig.client = StatsigClient()
         Statsig.client.statsigNetwork = network
