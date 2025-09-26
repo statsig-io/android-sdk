@@ -51,6 +51,7 @@ class NetworkFallbackResolverTest {
         TestUtil.mockDispatchers()
         app = RuntimeEnvironment.getApplication()
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        testSharedPrefs.edit().clear().commit()
         TestUtil.mockHashing()
         resolver = NetworkFallbackResolver(ErrorBoundary(), testSharedPrefs, TestUtil.coroutineScope)
     }

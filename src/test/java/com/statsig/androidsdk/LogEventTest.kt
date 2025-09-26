@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.app.Activity
 import android.app.Application
+import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -12,13 +13,17 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class LogEventTest {
 
     private val loggingEnabled = StatsigRuntimeMutableOptions(loggingEnabled = true)
     private val loggingDisabled = StatsigRuntimeMutableOptions(loggingEnabled = false)
-    private lateinit var app: Application
-    private lateinit var testSharedPrefs: TestSharedPreferences
+    private val app: Application = RuntimeEnvironment.getApplication()
+    private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var activity: Activity
     private lateinit var statsigLifecycleListener: Application.ActivityLifecycleCallbacks
     private var logEventRequests = mutableListOf<LogEventData>()
@@ -28,15 +33,14 @@ class LogEventTest {
         runBlocking {
             TestUtil.mockHashing()
             TestUtil.mockDispatchers()
-            app = mockk()
-            TestUtil.mockNetworkConnectivityService(app)
             activity = mockk()
-            testSharedPrefs = TestUtil.stubAppFunctions(app)
+            testSharedPrefs = TestUtil.getTestSharedPrefs(app)
             Statsig.client = StatsigClient()
             network = TestUtil.mockNetwork(onLog = {
                 logEventRequests.add(it)
             })
             TestUtil.startStatsigAndWait(app, StatsigUser(userID = "testUser"), options, network)
+
             val lifeCycleListenerField =
                 StatsigClient::class.java.getDeclaredField("lifecycleListener")
             lifeCycleListenerField.isAccessible = true
