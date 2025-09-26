@@ -15,12 +15,12 @@
 -keepclassmembers class kotlin.Metadata { *; }
 
 # Keep Kotlin lambdas and companion objects
--keepclassmembers class * {
+-keepclassmembers class com.statsig.* {
     *** Companion;
 }
 
 -keep class com.statsig.**$$Lambda$* { *; }
--keep class **$$ExternalSyntheticLambda* { *; }
+-keep class com.statsig.**$$ExternalSyntheticLambda* { *; }
 
 # Keep all anonymous classes (used by computeIfAbsent lambda)
 -keepclassmembers class com.statsig.**$* { *; }
