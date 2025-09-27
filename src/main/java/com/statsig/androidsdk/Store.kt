@@ -61,7 +61,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         currentUser = user
     }
 
-    fun syncLoadFromLocalStorage() {
+    fun syncLoadFromLocalStorage() = statsigScope.launch(dispatcherProvider.io) {
         val cachedResponse = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
         val cachedDeviceValues = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
         val cachedLocalOverrides = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
