@@ -4,10 +4,6 @@ import android.app.Application
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkInfo
 import com.google.gson.Gson
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -304,60 +300,8 @@ class TestUtil {
             }
         }
 
-        @Deprecated(
-            "Deprecated - instrument tests with Robolectric and call getTestSharedPrefs() with a valid Context - e.g. RuntimeEnvironment.getApplication()",
-            level = DeprecationLevel.WARNING,
-        )
-        fun stubAppFunctions(app: Application): TestSharedPreferences {
-            val sharedPrefs = TestSharedPreferences()
-
-            every {
-                app.getSharedPreferences(any(), any())
-            } returns sharedPrefs
-
-            every {
-                app.applicationInfo
-            } returns null
-
-            every {
-                app.packageManager
-            } returns null
-            mockAppLifecycleCallbacks(app)
-            mockNetworkConnectivityService(app)
-
-            return sharedPrefs
-        }
-
         fun getTestSharedPrefs(context: Context): SharedPreferences {
             return context.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
-        }
-
-        @Deprecated(
-            "Deprecated - callers should use Robolectric to have test code operate on real backing SharedPreferences. Replace with mockHashing() if they still need the mock hashing behavior.",
-            level = DeprecationLevel.WARNING,
-        )
-        fun mockStatsigUtil() {
-            mockHashing()
-            mockkObject(StatsigUtil)
-            coEvery {
-                StatsigUtil.getFromSharedPrefs(any(), any())
-            } coAnswers {
-                firstArg<SharedPreferences>().getString(secondArg<String>(), null)
-            }
-
-            coEvery {
-                StatsigUtil.saveStringToSharedPrefs(any(), any(), any())
-            } coAnswers {
-                firstArg<SharedPreferences>().edit()
-                    .putString(secondArg<String>(), thirdArg<String>()).apply()
-            }
-
-            coEvery {
-                StatsigUtil.removeFromSharedPrefs(any(), any())
-            } coAnswers {
-                firstArg<SharedPreferences>().edit().remove(secondArg<String>())
-                firstArg<SharedPreferences>().edit().apply()
-            }
         }
 
         fun mockHashing() {
@@ -456,31 +400,6 @@ class TestUtil {
 
         fun clearMockDispatchers() {
             Dispatchers.resetMain()
-        }
-
-        @Deprecated("Deprecated - rely on Robolectric to provide reasonable defaults. Use ShadowConnectivityManager if behavior needs to be overridden.", level = DeprecationLevel.WARNING)
-        internal fun mockNetworkConnectivityService(
-            application: Application,
-        ) {
-            val connectivityManager = mockk<ConnectivityManager>(relaxed = true)
-
-            // Legacy API
-            val info = mockk<NetworkInfo>()
-            every { info.isConnectedOrConnecting } returns true
-            every { connectivityManager.activeNetworkInfo } returns info
-
-            // Modern API
-            val network = mockk<Network>()
-            every { connectivityManager.activeNetwork } returns network
-
-            val capabilities = mockk<NetworkCapabilities>()
-            every { capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } returns true
-            every { capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) } returns true
-            every { connectivityManager.getNetworkCapabilities(network) } returns capabilities
-
-            every {
-                application.getSystemService(Context.CONNECTIVITY_SERVICE)
-            } returns connectivityManager
         }
     }
 }

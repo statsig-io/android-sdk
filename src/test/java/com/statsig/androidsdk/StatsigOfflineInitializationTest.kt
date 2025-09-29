@@ -27,7 +27,6 @@ class StatsigOfflineInitializationTest {
 
         app = RuntimeEnvironment.getApplication()
         TestUtil.mockHashing()
-        TestUtil.mockStatsigUtil()
         initializeCountdown = CountDownLatch(1)
         // Initialize and get response from network first so cache has most recent value
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())
