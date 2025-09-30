@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.util.Log
 import com.google.gson.Gson
 import kotlinx.coroutines.*
 import java.io.DataOutputStream
@@ -10,6 +11,9 @@ import java.net.URL
 internal class ExternalException(message: String? = null) : Exception(message)
 
 internal class ErrorBoundary(private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
+    companion object {
+        private const val TAG: String = "statsig::ErrorBoundary"
+    }
     internal var urlString = "https://prodregistryv2.org/v1/rgstr_e"
 
     private var apiKey: String? = null
@@ -30,8 +34,8 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
     }
 
     private fun handleException(exception: Throwable) {
-        println("[Statsig]: An unexpected exception occurred.")
-        println(exception)
+        Log.e(TAG, "An unexpected exception occurred.")
+        Log.e(TAG, exception.toString())
         if (exception !is ExternalException) {
             this.logException(exception)
         }

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -19,12 +20,15 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+
 @VisibleForTesting
 internal const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
 
 class StatsigClient() : LifecycleEventListener {
-
+    companion object {
+        private const val TAG: String = "statsig::StatsigClient"
+    }
     private lateinit var store: Store
     private lateinit var user: StatsigUser
     private lateinit var application: Application
@@ -97,6 +101,7 @@ class StatsigClient() : LifecycleEventListener {
                     withContext(dispatcherProvider.main) {
                         try {
                             callback?.onStatsigInitialize(initDetails)
+                            Log.v(TAG, "initializeAsync completed successfully")
                         } catch (e: Exception) {
                             throw ExternalException(e.message)
                         }
@@ -153,6 +158,7 @@ class StatsigClient() : LifecycleEventListener {
                 val normalizedUser = setup(application, sdkKey, user, options)
                 val response = setupAsync(normalizedUser)
                 response.duration = System.currentTimeMillis() - initTime
+                Log.v(TAG, "initialize completed successfully")
                 return@captureAsync response
             },
             {
