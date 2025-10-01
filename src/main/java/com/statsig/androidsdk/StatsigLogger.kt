@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.util.Log
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
@@ -38,6 +39,9 @@ internal class StatsigLogger(
     private val fallbackUrls: List<String>? = null,
     private var loggingEnabled: Boolean,
 ) {
+    companion object {
+        private const val TAG: String = "statsig::StatsigLogger"
+    }
     private val gson = StatsigUtil.getGson()
 
     private val executor = Executors.newSingleThreadExecutor()
@@ -77,12 +81,14 @@ internal class StatsigLogger(
                 return@withContext
             }
             if (!loggingEnabled) {
+                Log.d(TAG, "loggingEnabled is FALSE, flush() skipped")
                 return@withContext
             }
             val eventsCount = events.size.toString()
             val flushEvents = ArrayList(events)
             events = ConcurrentLinkedQueue()
             statsigNetwork.apiPostLogs(api, gson.toJson(LogEventData(flushEvents, statsigMetadata)), eventsCount, fallbackUrls)
+            Log.v(TAG, "flush() completed with $eventsCount events")
         }
     }
 
@@ -93,7 +99,10 @@ internal class StatsigLogger(
             ruleID = gate.getRuleID(),
             reason = gate.getEvaluationDetails().reason,
         )
-        if (!shouldLogExposure(key)) return
+        if (!shouldLogExposure(key)) {
+            Log.v(TAG, "logExposure() skipped due to recent exposure to same gate")
+            return
+        }
 
         coroutineScope.launch(singleThreadDispatcher) {
             val event = LogEvent(GATE_EXPOSURE)

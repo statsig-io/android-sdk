@@ -534,6 +534,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture(
             {
                 this.logger.setLoggingEnabled(runtimeMutableOptions.loggingEnabled)
+                Log.v(TAG, "Runtime options successfully updated")
             },
             tag = functionName,
         )
@@ -568,6 +569,7 @@ class StatsigClient() : LifecycleEventListener {
                 if (values != null) {
                     this.store.bootstrap(values, this.user)
                     logEndDiagnostics(true, ContextType.UPDATE_USER, null)
+                    Log.v(TAG, "updateUserAsync completed with provided values")
                     callback?.onStatsigUpdateUser()
                 } else {
                     this.store.loadCacheForCurrentUser()
@@ -575,6 +577,7 @@ class StatsigClient() : LifecycleEventListener {
                         updateUserImpl()
                         withContext(dispatcherProvider.main) {
                             try {
+                                Log.v(TAG, "updateUserAsync completed")
                                 callback?.onStatsigUpdateUser()
                             } catch (e: Exception) {
                                 throw ExternalException(e.message)
@@ -603,9 +606,11 @@ class StatsigClient() : LifecycleEventListener {
             if (values != null) {
                 this.store.bootstrap(values, this.user)
                 logEndDiagnostics(true, ContextType.UPDATE_USER, null)
+                Log.v(TAG, "updateUser completed with provided values")
             } else {
                 this.store.loadCacheForCurrentUser()
                 updateUserImpl()
+                Log.v(TAG, "updateUser completed")
             }
         }
     }
@@ -632,6 +637,7 @@ class StatsigClient() : LifecycleEventListener {
                     withContext(dispatcherProvider.main) {
                         try {
                             callback?.onStatsigUpdateUser()
+                            Log.v(TAG, "refreshCacheAsync completed")
                         } catch (e: Exception) {
                             throw ExternalException(e.message)
                         }
@@ -652,6 +658,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.captureAsync {
             diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
             updateUserImpl()
+            Log.v(TAG, "refreshCache completed")
         }
     }
 
@@ -686,7 +693,10 @@ class StatsigClient() : LifecycleEventListener {
 
     suspend fun flush() {
         enforceInitialized("flush")
-        errorBoundary.captureAsync { this.logger.flush() }
+        errorBoundary.captureAsync {
+            Log.v(TAG, "starting manual flush...")
+            this.logger.flush()
+        }
     }
 
     /**
@@ -698,6 +708,7 @@ class StatsigClient() : LifecycleEventListener {
             {
                 this.store.overrideGate(gateName, value)
                 statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
+                Log.v(TAG, "overrideGate() completed")
             },
             tag = "overrideGate",
         )
@@ -712,6 +723,7 @@ class StatsigClient() : LifecycleEventListener {
             {
                 this.store.overrideConfig(configName, value)
                 statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
+                Log.v(TAG, "overrideConfig() completed")
             },
             tag = "overrideConfig",
         )
@@ -726,6 +738,7 @@ class StatsigClient() : LifecycleEventListener {
             {
                 this.store.overrideLayer(configName, value)
                 statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
+                Log.v(TAG, "overrideLayer() completed")
             },
             tag = "overrideLayer",
         )
@@ -739,6 +752,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture({
             this.store.removeOverride(name)
             statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
+            Log.v(TAG, "removeOverride() completed")
         })
     }
 
@@ -747,6 +761,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary.capture({
             this.store.removeAllOverrides()
             statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
+            Log.v(TAG, "removeAllOverrides() completed")
         })
     }
 
@@ -1318,6 +1333,7 @@ class StatsigClient() : LifecycleEventListener {
     }
 
     private suspend fun shutdownImpl() {
+        Log.v(TAG, "shutting down...")
         initialized.set(false)
         pollingJob?.cancel()
         logger.shutdown()
@@ -1326,6 +1342,7 @@ class StatsigClient() : LifecycleEventListener {
         errorBoundary = ErrorBoundary()
         statsigJob = SupervisorJob()
         isInitializing.set(false)
+        Log.v(TAG, "shutdown completed.")
     }
 
     private fun logEndDiagnostics(

@@ -7,7 +7,7 @@ import com.statsig.androidsdk.evaluator.SpecsResponse
 
 class OnDeviceEvalAdapter(private val data: String?) {
     companion object {
-        private const val TAG: String = "statsig::OnDeviceEvalAdapter"
+        private const val TAG: String = "statsig::OnDeviceEval"
     }
     private val store = SpecStore()
     private val evaluator = Evaluator(store)
