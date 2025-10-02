@@ -198,7 +198,6 @@ class LogEventTest {
             StatsigNetwork(
                 app,
                 "client-apikey",
-                Statsig.client.errorBoundary,
                 testSharedPrefs,
                 StatsigOptions(),
                 mockk(),

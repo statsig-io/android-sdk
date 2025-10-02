@@ -103,18 +103,16 @@ internal interface StatsigNetwork {
 internal fun StatsigNetwork(
     context: Context,
     sdkKey: String,
-    errorBoundary: ErrorBoundary,
     sharedPrefs: SharedPreferences,
     options: StatsigOptions,
     networkFallbackResolver: NetworkFallbackResolver,
     coroutineScope: CoroutineScope,
     store: Store,
-): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, errorBoundary, sharedPrefs, options, networkFallbackResolver, coroutineScope, store)
+): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, sharedPrefs, options, networkFallbackResolver, coroutineScope, store)
 
 internal class StatsigNetworkImpl(
     context: Context,
     private val sdkKey: String,
-    private val errorBoundary: ErrorBoundary,
     private val sharedPrefs: SharedPreferences,
     private val options: StatsigOptions,
     private val networkResolver: NetworkFallbackResolver,

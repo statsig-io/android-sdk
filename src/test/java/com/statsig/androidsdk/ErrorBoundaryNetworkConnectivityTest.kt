@@ -64,7 +64,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)),
         )
         val store = Store(TestUtil.coroutineScope, TestUtil.getTestSharedPrefs(app), StatsigUser(), "client-apikey", StatsigOptions())
-        network = StatsigNetworkImpl(app, "client-key", eb, TestUtil.getTestSharedPrefs(app), StatsigOptions(), mockk(), TestUtil.coroutineScope, store)
+        network = StatsigNetworkImpl(app, "client-key", TestUtil.getTestSharedPrefs(app), StatsigOptions(), mockk(), TestUtil.coroutineScope, store)
     }
 
     @Config(sdk = [Build.VERSION_CODES.M])

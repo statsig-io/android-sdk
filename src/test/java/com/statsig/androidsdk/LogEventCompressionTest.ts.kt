@@ -32,7 +32,6 @@ class LogEventCompressionTest {
             StatsigNetworkImpl(
                 app,
                 "sdk-key",
-                mockk<ErrorBoundary>(),
                 testSharedPrefs,
                 options,
                 mockk<NetworkFallbackResolver>(),
