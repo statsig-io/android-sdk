@@ -19,7 +19,6 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
     private var apiKey: String? = null
     private var statsigMetadata: StatsigMetadata? = null
     private var seen = HashSet<String>()
-    private var diagnostics: Diagnostics? = null
 
     private lateinit var urlConnectionProvider: UrlConnectionProvider
 

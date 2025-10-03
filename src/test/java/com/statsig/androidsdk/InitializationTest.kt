@@ -2,10 +2,10 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import android.content.SharedPreferences
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestCoroutineDispatcher
-import kotlinx.coroutines.test.TestCoroutineScope
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -19,7 +19,7 @@ import org.robolectric.RuntimeEnvironment
 
 @RunWith(RobolectricTestRunner::class)
 class InitializationTest {
-    private lateinit var dispatcher: TestCoroutineDispatcher
+    private lateinit var dispatcher: CoroutineDispatcher
     private lateinit var app: Application
     private lateinit var mockWebServer: MockWebServer
     private var user: StatsigUser = StatsigUser("test-user")
@@ -58,10 +58,10 @@ class InitializationTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun testDefaultInitialization() = dispatcher.runBlockingTest {
+    fun testDefaultInitialization() = runTest(dispatcher) {
         val options = StatsigOptions(api = mockWebServer.url("/v1").toString())
         val client = StatsigClient()
-        client.statsigScope = TestCoroutineScope()
+        client.statsigScope = TestScope(dispatcher)
         client.initialize(app, "client-key", user, options)
         assert(initializationHits == 1)
         client.shutdown()
@@ -69,7 +69,7 @@ class InitializationTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun testRetry() = dispatcher.runBlockingTest {
+    fun testRetry() = runTest(dispatcher) {
         val options = StatsigOptions(api = mockWebServer.url("/v1").toString(), initRetryLimit = 2, initTimeoutMs = 10000L)
         val client = StatsigClient()
 
