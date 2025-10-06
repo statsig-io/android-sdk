@@ -34,8 +34,7 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
     }
 
     private fun handleException(exception: Throwable) {
-        Log.e(TAG, "An unexpected exception occurred.")
-        Log.e(TAG, exception.toString())
+        Log.e(TAG, "An unexpected exception occurred.", exception)
         if (exception !is ExternalException) {
             this.logException(exception)
         }
