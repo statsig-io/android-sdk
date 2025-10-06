@@ -30,7 +30,6 @@ class OfflineStorageTest {
         network = StatsigNetwork(
             app,
             "client-key",
-            mockk(),
             testSharedPrefs,
             StatsigOptions(),
             mockk(),

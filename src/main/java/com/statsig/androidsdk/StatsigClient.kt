@@ -74,7 +74,7 @@ class StatsigClient() : LifecycleEventListener {
      * - a callback to execute when initialization is complete
      * @param options
      * - advanced SDK setup Checking Gates/Configs before initialization calls back will return
-     * default values Logging Events before initialization will drop those events Susequent calls to
+     * default values Logging Events before initialization will drop those events Subsequent calls to
      * initialize will be ignored. To switch the user or update user values, use updateUser()
      */
     fun initializeAsync(
@@ -140,7 +140,7 @@ class StatsigClient() : LifecycleEventListener {
      * - advanced SDK setup
      * @throws IllegalArgumentException if and Invalid SDK Key provided Checking Gates/Configs
      * before initialization calls back will return default values Logging Events before
-     * initialization will drop those events Susequent calls to initialize will be ignored. To
+     * initialization will drop those events Subsequent calls to initialize will be ignored. To
      * switch the user or update user values, use updateUser()
      */
     suspend fun initialize(
@@ -1068,7 +1068,6 @@ class StatsigClient() : LifecycleEventListener {
                 StatsigNetwork(
                     application,
                     sdkKey,
-                    errorBoundary,
                     getSharedPrefs(),
                     options,
                     networkFallbackResolver,

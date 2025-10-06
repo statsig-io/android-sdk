@@ -38,7 +38,7 @@ object Statsig {
      * @param options - advanced SDK setup
      * Checking Gates/Configs before initialization calls back will return default values
      * Logging Events before initialization will drop those events
-     * Susequent calls to initialize will be ignored.  To switch the user or update user values,
+     * Subsequent calls to initialize will be ignored.  To switch the user or update user values,
      * use updateUser()
      */
     @JvmOverloads
@@ -63,7 +63,7 @@ object Statsig {
      * @throws IllegalArgumentException if and Invalid SDK Key provided
      * Checking Gates/Configs before initialization calls back will return default values
      * Logging Events before initialization will drop those events
-     * Susequent calls to initialize will be ignored.  To switch the user or update user values,
+     * Subsequent calls to initialize will be ignored.  To switch the user or update user values,
      * use updateUser()
      */
     @JvmSynthetic

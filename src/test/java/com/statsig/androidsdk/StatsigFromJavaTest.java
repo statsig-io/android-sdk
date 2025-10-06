@@ -9,7 +9,6 @@ import static org.junit.Assert.assertTrue;
 import android.app.Application;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
