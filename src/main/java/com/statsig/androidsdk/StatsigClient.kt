@@ -85,6 +85,7 @@ class StatsigClient() : LifecycleEventListener {
         options: StatsigOptions = StatsigOptions(),
     ) {
         if (isInitializing.getAndSet(true)) {
+            Log.w(TAG, "initializeAsync() called on a client that is already started or starting - this is a no-op.")
             return
         }
 
@@ -150,6 +151,7 @@ class StatsigClient() : LifecycleEventListener {
         options: StatsigOptions = StatsigOptions(),
     ): InitializationDetails? {
         if (isInitializing.getAndSet(true)) {
+            Log.w(TAG, "initialize() called on a client that is already started or starting - this is a no-op.")
             return null
         }
         errorBoundary.setKey(sdkKey)
