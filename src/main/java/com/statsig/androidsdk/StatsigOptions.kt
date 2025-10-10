@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import androidx.annotation.VisibleForTesting
 import com.google.gson.annotations.SerializedName
 
 enum class Tier {
@@ -9,6 +10,9 @@ enum class Tier {
 }
 
 private const val TIER_KEY: String = "tier"
+
+@VisibleForTesting
+const val AUTO_VALUE_UPDATE_INTERVAL_MINIMUM_VALUE: Double = 1.0
 const val DEFAULT_INIT_API = "https://featureassets.org/v1/"
 const val DEFAULT_EVENT_API = "https://prodregistryv2.org/v1/"
 
@@ -20,19 +24,23 @@ const val DEFAULT_EVENT_API = "https://prodregistryv2.org/v1/"
  * @property initTimeoutMs the amount of time to wait for an initialize() response from the server
  * NOTE: gates/configs will still be fetched in the background if this time is exceeded, but the
  * callback to initialize will fire after, at most, the time specified
+ * @property autoValueUpdateIntervalMinutes Only applies if enableAutoValueUpdate is true.
+ * Controls how frequently calls to refresh the current users values are made. Time is in minutes
+ * and defaults to 1 minute. Minimum value is 1 minute.
+ * @param autoValueUpdateIntervalMinutes see [com.statsig.androidsdk.StatsigOptions.autoValueUpdateIntervalMinutes]
  */
 class StatsigOptions(
     /**
-     The endpoint to use for initialize statsig SDK. You should not need to override this
-     unless you implement a proxy
+     * The endpoint to use for initialize statsig SDK. You should not need to override this
+     * unless you implement a proxy
      */
     @SerializedName("api") var api: String = DEFAULT_INIT_API,
 
     /**
-     The endpoint to use for logging events. Default is "https://api.statsig.com/v1".
-     The SDK will hit different endpoints for initialize
-     to evaluate gates and for logEvent to log event data. The api option controls the evaluation
-     endpoint, and eventLoggingApi controls the event logging endpoint.
+     * The endpoint to use for logging events. Default is "https://api.statsig.com/v1".
+     * The SDK will hit different endpoints for initialize
+     * to evaluate gates and for logEvent to log event data. The api option controls the evaluation
+     * endpoint, and eventLoggingApi controls the event logging endpoint.
      */
     @SerializedName("eventLoggingAPI") var eventLoggingAPI: String = DEFAULT_EVENT_API,
     /**
@@ -75,11 +83,13 @@ class StatsigOptions(
      * values for the current user.
      */
     @SerializedName("enableAutoValueUpdate") var enableAutoValueUpdate: Boolean = false,
+
     /**
-     * Only applies if enableAutoValueUpdate is true. Controls how frequently calls to refresh the current
-     * users values are made. Time is in minutes and defaults to 1 minute. Minimum value is 1 minute.
+     * Only applies if enableAutoValueUpdate is true. Controls how frequently calls to refresh the
+     * current users values are made. Time is in minutes and defaults to 1 minute.
+     * Minimum value is 1 minute.
      */
-    @SerializedName("autoValueUpdateIntervalMinutes") var autoValueUpdateIntervalMinutes: Double = 1.0,
+    autoValueUpdateIntervalMinutes: Double = 1.0,
     /**
      * overrides the stableID in the SDK that is set for the user
      */
@@ -131,6 +141,10 @@ class StatsigOptions(
 
     loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
 ) : StatsigRuntimeMutableOptions(loggingEnabled) {
+
+    @SerializedName("autoValueUpdateIntervalMinutes")
+    var autoValueUpdateIntervalMinutes =
+        autoValueUpdateIntervalMinutes.coerceAtLeast(AUTO_VALUE_UPDATE_INTERVAL_MINIMUM_VALUE)
 
     private var environment: MutableMap<String, String>? = null
 
