@@ -29,7 +29,7 @@ class ErrorBoundaryTest {
         TestUtil.mockDispatchers()
         val coroutineScope = TestCoroutineScope()
         boundary = ErrorBoundary(coroutineScope)
-        boundary.setKey("client-key")
+        boundary.initialize("client-key")
         boundary.urlString = wireMockRule.url("/v1/sdk_exception")
 
         stubFor(post(urlMatching("/v1/sdk_exception")).willReturn(aResponse().withStatus(202)))

@@ -21,8 +21,11 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
     private var seen = HashSet<String>()
     private var diagnostics: Diagnostics? = null
 
-    fun setKey(apiKey: String) {
+    private lateinit var urlConnectionProvider: UrlConnectionProvider
+
+    fun initialize(apiKey: String, urlConnectionProvider: UrlConnectionProvider = defaultProvider) {
         this.apiKey = apiKey
+        this.urlConnectionProvider = urlConnectionProvider
     }
 
     fun getUrl(): String {
@@ -103,7 +106,7 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
                 )
                 val postData = Gson().toJson(body)
 
-                val conn = url.openConnection() as HttpURLConnection
+                val conn = urlConnectionProvider.open(url) as HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.doOutput = true
                 conn.setRequestProperty("Content-Type", "application/json")

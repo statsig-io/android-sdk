@@ -41,6 +41,9 @@ class StatsigClient() : LifecycleEventListener {
     private lateinit var diagnostics: Diagnostics
     private var initTime: Long = System.currentTimeMillis()
 
+    @VisibleForTesting
+    var urlConnectionProvider: UrlConnectionProvider = defaultProvider
+
     internal var errorBoundary = ErrorBoundary()
 
     private var pollingJob: Job? = null
@@ -88,8 +91,7 @@ class StatsigClient() : LifecycleEventListener {
             Log.w(TAG, "initializeAsync() called on a client that is already started or starting - this is a no-op.")
             return
         }
-
-        errorBoundary.setKey(sdkKey)
+        errorBoundary.initialize(sdkKey, urlConnectionProvider)
         errorBoundary.capture(
             {
                 val normalizedUser = setup(application, sdkKey, user, options)
@@ -154,7 +156,7 @@ class StatsigClient() : LifecycleEventListener {
             Log.w(TAG, "initialize() called on a client that is already started or starting - this is a no-op.")
             return null
         }
-        errorBoundary.setKey(sdkKey)
+        errorBoundary.initialize(sdkKey, urlConnectionProvider)
         return errorBoundary.captureAsync(
             {
                 val normalizedUser = setup(application, sdkKey, user, options)
@@ -982,6 +984,7 @@ class StatsigClient() : LifecycleEventListener {
                                 this@StatsigClient.store.getFullChecksum(
                                     this@StatsigClient.user,
                                 ),
+                                this@StatsigClient.urlConnectionProvider,
                             )
                         }
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse && !options.initializeOffline) {
@@ -1062,7 +1065,7 @@ class StatsigClient() : LifecycleEventListener {
         exceptionHandler = errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         val networkFallbackResolver =
-            NetworkFallbackResolver(errorBoundary, getSharedPrefs(), statsigScope)
+            NetworkFallbackResolver(errorBoundary, getSharedPrefs(), statsigScope, urlConnectionProvider)
         store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
@@ -1075,6 +1078,7 @@ class StatsigClient() : LifecycleEventListener {
                     networkFallbackResolver,
                     statsigScope,
                     store,
+                    urlConnectionProvider,
                 )
         }
         statsigMetadata =
@@ -1154,6 +1158,7 @@ class StatsigClient() : LifecycleEventListener {
                             hashUsed = if (this@StatsigClient.options.disableHashing == true) { HashAlgorithm.NONE } else { HashAlgorithm.DJB2 },
                             previousDerivedFields = previousDerivedFields,
                             fullChecksum = fullChecksum,
+                            urlConnectionProvider = urlConnectionProvider,
                         )
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
                         diagnostics.markStart(

@@ -79,6 +79,7 @@ internal interface StatsigNetwork {
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
         fullChecksum: String?,
+        urlConnectionProvider: UrlConnectionProvider = defaultProvider,
     ): InitializeResponse?
 
     fun pollForChanges(
@@ -108,7 +109,8 @@ internal fun StatsigNetwork(
     networkFallbackResolver: NetworkFallbackResolver,
     coroutineScope: CoroutineScope,
     store: Store,
-): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, sharedPrefs, options, networkFallbackResolver, coroutineScope, store)
+    urlConnectionProvider: UrlConnectionProvider = defaultProvider,
+): StatsigNetwork = StatsigNetworkImpl(context, sdkKey, sharedPrefs, options, networkFallbackResolver, coroutineScope, store, urlConnectionProvider)
 
 internal class StatsigNetworkImpl(
     context: Context,
@@ -118,6 +120,7 @@ internal class StatsigNetworkImpl(
     private val networkResolver: NetworkFallbackResolver,
     private val coroutineScope: CoroutineScope,
     private val store: Store,
+    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider,
 ) : StatsigNetwork {
 
     private val gson = StatsigUtil.getGson()
@@ -136,6 +139,7 @@ internal class StatsigNetworkImpl(
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
         fullChecksum: String?,
+        urlConnectionProvider: UrlConnectionProvider,
     ): InitializeResponse {
         val retry = options.initRetryLimit
         networkResolver.initializeFallbackInfo()
@@ -510,7 +514,7 @@ internal class StatsigNetworkImpl(
             try {
                 urlConfig.fallbackUrl = networkResolver.getActiveFallbackUrlFromMemory(urlConfig)
                 val url = URL(urlConfig.fallbackUrl ?: urlConfig.getUrl())
-                connection = url.openConnection() as HttpURLConnection
+                connection = urlConnectionProvider.open(url) as HttpURLConnection
                 if (requestCacheKey != null && urlConfig.endpoint != Endpoint.Rgstr) {
                     if (initializeRequestsMap.size > MAX_INITIALIZE_REQUESTS) {
                         initializeRequestsMap.values.forEach { it.disconnect() }
