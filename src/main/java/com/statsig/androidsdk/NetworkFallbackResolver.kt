@@ -20,6 +20,7 @@ internal class NetworkFallbackResolver(
     private val errorBoundary: ErrorBoundary,
     private val sharedPreferences: SharedPreferences,
     private val statsigScope: CoroutineScope,
+    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider,
 ) {
     private var fallbackInfo: MutableMap<Endpoint, FallbackInfoEntry>? = null
     private val dnsQueryCooldowns: MutableMap<Endpoint, Long> = mutableMapOf()
@@ -102,7 +103,7 @@ internal class NetworkFallbackResolver(
         dnsQueryCooldowns[urlConfig.endpoint] = Date().time + COOLDOWN_TIME_MS
 
         val result = mutableListOf<String>()
-        val records = fetchTxtRecords()
+        val records = fetchTxtRecords(urlConnectionProvider)
         val path = extractPathFromUrl(urlConfig.defaultUrl)
 
         for (record in records) {

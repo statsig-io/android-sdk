@@ -18,8 +18,8 @@ const val DNS_QUERY_ENDPOINT = "https://cloudflare-dns.com/dns-query"
 val DOMAIN_CHARS = listOf('i', 'e', 'd') // valid domain characters: 'i', 'e', 'd'
 const val MAX_START_LOOKUP = 200
 
-suspend fun fetchTxtRecords(): List<String> = withContext(Dispatchers.IO) {
-    val connection = createHttpConnection(DNS_QUERY_ENDPOINT)
+suspend fun fetchTxtRecords(urlConnectionProvider: UrlConnectionProvider = defaultProvider): List<String> = withContext(Dispatchers.IO) {
+    val connection = createHttpConnection(DNS_QUERY_ENDPOINT, urlConnectionProvider)
 
     try {
         connection.outputStream.use { outputStream ->
@@ -44,8 +44,8 @@ suspend fun fetchTxtRecords(): List<String> = withContext(Dispatchers.IO) {
     }
 }
 
-private fun createHttpConnection(url: String): HttpURLConnection {
-    val connection = URL(url).openConnection() as HttpURLConnection
+private fun createHttpConnection(url: String, urlConnectionProvider: UrlConnectionProvider = defaultProvider): HttpURLConnection {
+    val connection = urlConnectionProvider.open(URL(url))as HttpURLConnection
     connection.apply {
         requestMethod = "POST"
         setRequestProperty("Content-Type", "application/dns-message")
