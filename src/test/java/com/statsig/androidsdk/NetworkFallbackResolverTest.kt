@@ -10,6 +10,8 @@ import com.statsig.androidsdk.isDomainFailure
 import io.mockk.MockKAnnotations
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -44,7 +46,6 @@ class NetworkFallbackResolverTest {
         )
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     internal fun setup() = runBlocking {
         MockKAnnotations.init(this)
@@ -57,7 +58,7 @@ class NetworkFallbackResolverTest {
     }
 
     @Test
-    fun getsFallbackInfo() = runBlocking {
+    fun getsFallbackInfo() {
         val editor = testSharedPrefs.edit()
         val json = """
             {
@@ -76,8 +77,9 @@ class NetworkFallbackResolverTest {
         assertTrue("gets the cached url", activeUrl == "fallback.example.com")
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun wipesFallbackInfoWhenExpired() = runBlocking {
+    fun wipesFallbackInfoWhenExpired() {
         val editor = testSharedPrefs.edit()
         val json = """
             {
@@ -92,6 +94,7 @@ class NetworkFallbackResolverTest {
         editor.apply()
 
         val result = resolver.getActiveFallbackUrlFromMemory(DEFAULT_INIT_URL_CONFIG)
+        TestUtil.coroutineScope.advanceUntilIdle()
         val cache = resolver.readFallbackInfoFromCache()
 
         assertNull(result)
@@ -99,7 +102,7 @@ class NetworkFallbackResolverTest {
     }
 
     @Test
-    fun bumpsExpiryTimeWhenUrlIsSuccessfullyUsed() = runBlocking {
+    fun bumpsExpiryTimeWhenUrlIsSuccessfullyUsed() = runTest {
         val editor = testSharedPrefs.edit()
         val json = """
             {
@@ -111,7 +114,7 @@ class NetworkFallbackResolverTest {
             }
         """.trimIndent()
         editor.putString(STORAGE_KEY, json)
-        editor.apply()
+        editor.commit()
 
         resolver.initializeFallbackInfo()
         resolver.tryBumpExpiryTime(SDK_KEY, DEFAULT_INIT_URL_CONFIG)
@@ -123,7 +126,7 @@ class NetworkFallbackResolverTest {
     }
 
     @Test
-    fun useUserFallbackIfProvided() = runBlocking {
+    fun useUserFallbackIfProvided() = runTest {
         resolver.initializeFallbackInfo()
         val activeUrl = resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG)
         assertNull("no active url should be returned for user fallback", activeUrl)
@@ -135,7 +138,7 @@ class NetworkFallbackResolverTest {
     }
 
     @Test
-    fun doNotFetchFallbackForCustomUrl() = runBlocking {
+    fun doNotFetchFallbackForCustomUrl() = runTest {
         resolver.initializeFallbackInfo()
         val activeUrl = resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG)
         assertNull("no active url should be returned for custom url", activeUrl)

@@ -5,8 +5,8 @@ import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.junit.WireMockRule
 import io.mockk.unmockkAll
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestCoroutineScope
-import kotlinx.coroutines.test.runBlockingTest
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -27,7 +27,7 @@ class ErrorBoundaryTest {
     @Before
     internal fun setup() {
         TestUtil.mockDispatchers()
-        val coroutineScope = TestCoroutineScope()
+        val coroutineScope = TestScope(UnconfinedTestDispatcher())
         boundary = ErrorBoundary(coroutineScope)
         boundary.initialize("client-key")
         boundary.urlString = wireMockRule.url("/v1/sdk_exception")
@@ -51,7 +51,7 @@ class ErrorBoundaryTest {
     val wireMockRule = WireMockRule()
 
     @Test
-    fun testLoggingToEndpoint() = runBlockingTest {
+    fun testLoggingToEndpoint() {
         boundary.capture({
             throw IOException("Test")
         })
@@ -77,7 +77,7 @@ class ErrorBoundaryTest {
     }
 
     @Test
-    fun testItDoesNotLogTheSameExceptionMultipleTimes() = runBlockingTest {
+    fun testItDoesNotLogTheSameExceptionMultipleTimes() {
         boundary.capture({
             throw IOException("Test")
         })

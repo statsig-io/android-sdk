@@ -6,12 +6,13 @@ import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import io.mockk.*
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestCoroutineDispatcher
-import kotlinx.coroutines.test.TestCoroutineScope
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert
@@ -22,10 +23,11 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestUtil {
     companion object {
-        private val dispatcher = TestCoroutineDispatcher()
-        val coroutineScope = TestCoroutineScope(dispatcher)
 
-        fun mockDispatchers(): TestCoroutineDispatcher {
+        private val dispatcher = UnconfinedTestDispatcher()
+        val coroutineScope = TestScope(dispatcher)
+
+        fun mockDispatchers(): CoroutineDispatcher {
             Dispatchers.setMain(dispatcher)
             mockkConstructor(CoroutineDispatcherProvider::class)
             mockkConstructor(MainCoroutineDispatcher::class)

@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.SharedPreferences
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.test.TestCoroutineScope
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,7 +34,7 @@ class LogEventCompressionTest {
                 testSharedPrefs,
                 options,
                 mockk<NetworkFallbackResolver>(),
-                TestCoroutineScope(),
+                TestUtil.coroutineScope,
                 store,
             )
         return network

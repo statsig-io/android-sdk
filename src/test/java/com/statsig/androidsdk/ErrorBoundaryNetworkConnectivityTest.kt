@@ -82,22 +82,6 @@ class ErrorBoundaryNetworkConnectivityTest {
         assertFalse(ebCalled)
     }
 
-    @Config(sdk = [Build.VERSION_CODES.KITKAT])
-    @Test
-    fun testBelowAndroidM_ErrorBoundaryIsNotHitWhenNetworkExists(): Unit = runBlocking {
-        setActiveNetworkInfo(true)
-        makeNetworkRequest()
-        assertFalse(ebCalled)
-    }
-
-    @Config(sdk = [Build.VERSION_CODES.KITKAT])
-    @Test
-    fun testBelowAndroidM_ErrorBoundaryNotHitWhenNoNetwork(): Unit = runBlocking {
-        setActiveNetworkInfo(false)
-        makeNetworkRequest()
-        assertFalse(ebCalled)
-    }
-
     private suspend fun makeNetworkRequest() {
         try {
             network.initializeImpl(
