@@ -4,6 +4,7 @@ import android.app.Application
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.junit.WireMockRule
 import io.mockk.unmockkAll
+import java.io.IOException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -16,7 +17,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.ConscryptMode
-import java.io.IOException
 
 @RunWith(RobolectricTestRunner::class)
 @ConscryptMode(ConscryptMode.Mode.OFF)
@@ -59,8 +59,8 @@ class ErrorBoundaryTest {
         verify(
             postRequestedFor(urlEqualTo("/v1/sdk_exception")).withHeader(
                 "STATSIG-API-KEY",
-                equalTo("client-key"),
-            ).withRequestBody(matchingJsonPath("\$[?(@.exception == 'java.io.IOException')]")),
+                equalTo("client-key")
+            ).withRequestBody(matchingJsonPath("\$[?(@.exception == 'java.io.IOException')]"))
         )
     }
 
@@ -86,8 +86,8 @@ class ErrorBoundaryTest {
             1,
             postRequestedFor(urlEqualTo("/v1/sdk_exception")).withHeader(
                 "STATSIG-API-KEY",
-                equalTo("client-key"),
-            ),
+                equalTo("client-key")
+            )
         )
     }
 
@@ -96,13 +96,11 @@ class ErrorBoundaryTest {
         // Expect exceptions thrown from user defined callbacks to be caught
         // by the ErrorBoundary but not logged
         val callback = object : IStatsigCallback {
-            override fun onStatsigInitialize() {
+            override fun onStatsigInitialize(): Unit =
                 throw IOException("Thrown from onStatsigInitialize")
-            }
 
-            override fun onStatsigUpdateUser() {
+            override fun onStatsigUpdateUser(): Unit =
                 throw IOException("Thrown from onStatsigUpdateUser")
-            }
         }
         Statsig.client.statsigNetwork = TestUtil.mockNetwork()
         try {
@@ -119,8 +117,8 @@ class ErrorBoundaryTest {
             0,
             postRequestedFor(urlEqualTo("/v1/sdk_exception")).withHeader(
                 "STATSIG-API-KEY",
-                equalTo("client-key"),
-            ),
+                equalTo("client-key")
+            )
         )
     }
 }

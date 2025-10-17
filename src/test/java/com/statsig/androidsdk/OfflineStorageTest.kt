@@ -34,7 +34,7 @@ class OfflineStorageTest {
             StatsigOptions(),
             mockk(),
             mockk(),
-            mockk(),
+            mockk()
         )
     }
 
@@ -47,7 +47,7 @@ class OfflineStorageTest {
             StatsigOfflineRequest(now - threeDaysInMs - 300_000, "too old 3"),
             StatsigOfflineRequest(now - 3_000, "recent 1"),
             StatsigOfflineRequest(now - 2_000, "recent 2"),
-            StatsigOfflineRequest(now - 1_000, "recent 3"),
+            StatsigOfflineRequest(now - 1_000, "recent 3")
         )
 
         val json = gson.toJson(StatsigPendingRequests(logs))
@@ -70,7 +70,7 @@ class OfflineStorageTest {
             StatsigOfflineRequest(
                 timestamp = now - (11 - i) * 1_000L,
                 requestBody = "log $i",
-                retryCount = 0,
+                retryCount = 0
             )
         }
 

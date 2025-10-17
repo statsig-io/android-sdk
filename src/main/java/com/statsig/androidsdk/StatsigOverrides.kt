@@ -11,11 +11,10 @@ data class StatsigOverrides(
     val configs: ConcurrentHashMap<String, Map<String, Any>>,
 
     @SerializedName("layers")
-    val layers: ConcurrentHashMap<String, Map<String, Any>>,
+    val layers: ConcurrentHashMap<String, Map<String, Any>>
 ) {
     companion object {
-        fun empty(): StatsigOverrides {
-            return StatsigOverrides(ConcurrentHashMap(), ConcurrentHashMap(), ConcurrentHashMap())
-        }
+        fun empty(): StatsigOverrides =
+            StatsigOverrides(ConcurrentHashMap(), ConcurrentHashMap(), ConcurrentHashMap())
     }
 }

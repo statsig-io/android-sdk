@@ -20,13 +20,22 @@ internal class ConfigEvaluation(
     val isExperimentGroup: Boolean = false,
     val isActive: Boolean = false,
     val isUnrecognized: Boolean = false,
-    var configVersion: Int? = null,
+    var configVersion: Int? = null
 ) {
     var undelegatedSecondaryExposures: ArrayList<Map<String, String>> = secondaryExposures
 }
 
 internal enum class ConfigCondition {
-    PUBLIC, FAIL_GATE, PASS_GATE, IP_BASED, UA_BASED, USER_FIELD, CURRENT_TIME, ENVIRONMENT_FIELD, USER_BUCKET, UNIT_ID,
+    PUBLIC,
+    FAIL_GATE,
+    PASS_GATE,
+    IP_BASED,
+    UA_BASED,
+    USER_FIELD,
+    CURRENT_TIME,
+    ENVIRONMENT_FIELD,
+    USER_BUCKET,
+    UNIT_ID
 }
 
 internal class Evaluator(private val store: SpecStore) {
@@ -57,7 +66,7 @@ internal class Evaluator(private val store: SpecStore) {
                     spec.defaultValue.getValue(),
                     spec.defaultValue,
                     "disabled",
-                    configVersion = spec.version,
+                    configVersion = spec.version
                 )
             }
 
@@ -85,7 +94,7 @@ internal class Evaluator(private val store: SpecStore) {
                         secondaryExposures,
                         isExperimentGroup = rule.isExperimentGroup ?: false,
                         isActive = spec.isActive,
-                        configVersion = spec.version,
+                        configVersion = spec.version
                     )
                 }
             }
@@ -98,7 +107,7 @@ internal class Evaluator(private val store: SpecStore) {
                 null,
                 secondaryExposures,
                 configVersion = spec.version,
-                isActive = spec.isActive,
+                isActive = spec.isActive
             )
         } catch (e: UnsupportedEvaluationException) {
             // Return default value for unsupported evaluation
@@ -110,7 +119,7 @@ internal class Evaluator(private val store: SpecStore) {
                 ruleID = "default",
                 explicitParameters = spec.explicitParameters ?: listOf(),
                 configVersion = spec.version,
-                isActive = spec.isActive,
+                isActive = spec.isActive
             )
         }
     }
@@ -133,14 +142,14 @@ internal class Evaluator(private val store: SpecStore) {
             rule.id,
             rule.groupName,
             secondaryExposures,
-            isExperimentGroup = rule.isExperimentGroup == true,
+            isExperimentGroup = rule.isExperimentGroup == true
         )
     }
 
     private fun evaluateDelegate(
         user: StatsigUser,
         rule: SpecRule,
-        secondaryExposures: ArrayList<Map<String, String>>,
+        secondaryExposures: ArrayList<Map<String, String>>
     ): ConfigEvaluation? {
         val configDelegate = rule.configDelegate ?: return null
         val config = store.getConfig(configDelegate) ?: return null
@@ -160,7 +169,7 @@ internal class Evaluator(private val store: SpecStore) {
             configDelegate = configDelegate,
             explicitParameters = config.explicitParameters,
             isExperimentGroup = delegatedResult.isExperimentGroup,
-            isActive = delegatedResult.isActive,
+            isActive = delegatedResult.isActive
         )
 
         evaluation.undelegatedSecondaryExposures = undelegatedSecondaryExposures
@@ -191,7 +200,7 @@ internal class Evaluator(private val store: SpecStore) {
                         val newExposure = mapOf(
                             "gate" to name,
                             "gateValue" to result.booleanValue.toString(),
-                            "ruleID" to result.ruleID,
+                            "ruleID" to result.ruleID
                         )
                         secondaryExposures.add(newExposure)
                     }
@@ -206,7 +215,7 @@ internal class Evaluator(private val store: SpecStore) {
                         result.returnableValue,
                         "",
                         "",
-                        secondaryExposures,
+                        secondaryExposures
                     )
                 }
 
@@ -224,7 +233,11 @@ internal class Evaluator(private val store: SpecStore) {
 
                 ConfigCondition.USER_BUCKET -> {
                     val salt =
-                        EvaluatorUtils.getValueAsString(condition.additionalValues?.let { it["salt"] })
+                        EvaluatorUtils.getValueAsString(
+                            condition.additionalValues?.let {
+                                it["salt"]
+                            }
+                        )
                     val unitID = EvaluatorUtils.getUnitID(user, condition.idType) ?: ""
                     value = computeUserHash("$salt.$unitID").mod(1000UL)
                 }
@@ -235,7 +248,9 @@ internal class Evaluator(private val store: SpecStore) {
 
                 else -> {
                     Log.d("STATSIG", "Unsupported evaluation condition: $conditionEnum")
-                    throw UnsupportedEvaluationException("Unsupported evaluation condition: $conditionEnum")
+                    throw UnsupportedEvaluationException(
+                        "Unsupported evaluation condition: $conditionEnum"
+                    )
                 }
             }
 
@@ -247,7 +262,7 @@ internal class Evaluator(private val store: SpecStore) {
                         return ConfigEvaluation(booleanValue = false)
                     }
                     return ConfigEvaluation(
-                        doubleValue > doubleTargetValue,
+                        doubleValue > doubleTargetValue
                     )
                 }
 
@@ -258,7 +273,7 @@ internal class Evaluator(private val store: SpecStore) {
                         return ConfigEvaluation(booleanValue = false)
                     }
                     return ConfigEvaluation(
-                        doubleValue >= doubleTargetValue,
+                        doubleValue >= doubleTargetValue
                     )
                 }
 
@@ -270,7 +285,7 @@ internal class Evaluator(private val store: SpecStore) {
                     }
                     return ConfigEvaluation(
 
-                        doubleValue < doubleTargetValue,
+                        doubleValue < doubleTargetValue
                     )
                 }
 
@@ -282,7 +297,7 @@ internal class Evaluator(private val store: SpecStore) {
                     }
                     return ConfigEvaluation(
 
-                        doubleValue <= doubleTargetValue,
+                        doubleValue <= doubleTargetValue
                     )
                 }
 
@@ -290,10 +305,10 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         versionCompareHelper(
                             value,
-                            condition.targetValue,
+                            condition.targetValue
                         ) { v1: String, v2: String ->
                             EvaluatorUtils.versionCompare(v1, v2) > 0
-                        },
+                        }
                     )
                 }
 
@@ -301,10 +316,10 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         versionCompareHelper(
                             value,
-                            condition.targetValue,
+                            condition.targetValue
                         ) { v1: String, v2: String ->
                             EvaluatorUtils.versionCompare(v1, v2) >= 0
-                        },
+                        }
                     )
                 }
 
@@ -312,10 +327,10 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         versionCompareHelper(
                             value,
-                            condition.targetValue,
+                            condition.targetValue
                         ) { v1: String, v2: String ->
                             EvaluatorUtils.versionCompare(v1, v2) < 0
-                        },
+                        }
                     )
                 }
 
@@ -323,10 +338,10 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         versionCompareHelper(
                             value,
-                            condition.targetValue,
+                            condition.targetValue
                         ) { v1: String, v2: String ->
                             EvaluatorUtils.versionCompare(v1, v2) <= 0
-                        },
+                        }
                     )
                 }
 
@@ -334,10 +349,10 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         versionCompareHelper(
                             value,
-                            condition.targetValue,
+                            condition.targetValue
                         ) { v1: String, v2: String ->
                             EvaluatorUtils.versionCompare(v1, v2) == 0
-                        },
+                        }
                     )
                 }
 
@@ -345,10 +360,10 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         versionCompareHelper(
                             value,
-                            condition.targetValue,
+                            condition.targetValue
                         ) { v1: String, v2: String ->
                             EvaluatorUtils.versionCompare(v1, v2) != 0
-                        },
+                        }
                     )
                 }
 
@@ -356,7 +371,7 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         EvaluatorUtils.matchStringInArray(value, condition.targetValue) { a, b ->
                             a.equals(b, true)
-                        },
+                        }
                     )
                 }
 
@@ -364,7 +379,7 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         !EvaluatorUtils.matchStringInArray(value, condition.targetValue) { a, b ->
                             a.equals(b, true)
-                        },
+                        }
                     )
                 }
 
@@ -372,7 +387,7 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         EvaluatorUtils.matchStringInArray(value, condition.targetValue) { a, b ->
                             a.equals(b, false)
-                        },
+                        }
                     )
                 }
 
@@ -380,7 +395,7 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         !EvaluatorUtils.matchStringInArray(value, condition.targetValue) { a, b ->
                             a.equals(b, false)
-                        },
+                        }
                     )
                 }
 
@@ -388,7 +403,7 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         EvaluatorUtils.matchStringInArray(value, condition.targetValue) { a, b ->
                             a.startsWith(b, true)
-                        },
+                        }
                     )
                 }
 
@@ -396,7 +411,7 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         EvaluatorUtils.matchStringInArray(value, condition.targetValue) { a, b ->
                             a.endsWith(b, true)
-                        },
+                        }
                     )
                 }
 
@@ -404,7 +419,7 @@ internal class Evaluator(private val store: SpecStore) {
                     return ConfigEvaluation(
                         EvaluatorUtils.matchStringInArray(value, condition.targetValue) { a, b ->
                             a.contains(b, true)
-                        },
+                        }
                     )
                 }
 
@@ -413,23 +428,23 @@ internal class Evaluator(private val store: SpecStore) {
 
                         !EvaluatorUtils.matchStringInArray(value, condition.targetValue) { a, b ->
                             a.contains(b, true)
-                        },
+                        }
                     )
                 }
 
                 "str_matches" -> {
                     val targetValue = EvaluatorUtils.getValueAsString(condition.targetValue)
                         ?: return ConfigEvaluation(
-                            booleanValue = false,
+                            booleanValue = false
                         )
 
                     val strValue =
                         EvaluatorUtils.getValueAsString(value) ?: return ConfigEvaluation(
-                            booleanValue = false,
+                            booleanValue = false
                         )
 
                     return ConfigEvaluation(
-                        booleanValue = Regex(targetValue).containsMatchIn(strValue),
+                        booleanValue = Regex(targetValue).containsMatchIn(strValue)
                     )
                 }
 
@@ -447,7 +462,7 @@ internal class Evaluator(private val store: SpecStore) {
                             return@compareDates a.before(b)
                         },
                         value,
-                        condition.targetValue,
+                        condition.targetValue
                     )
                 }
 
@@ -457,7 +472,7 @@ internal class Evaluator(private val store: SpecStore) {
                             return@compareDates a.after(b)
                         },
                         value,
-                        condition.targetValue,
+                        condition.targetValue
                     )
                 }
 
@@ -466,26 +481,33 @@ internal class Evaluator(private val store: SpecStore) {
                         { a: Date, b: Date ->
                             calendarOne.time = a
                             calendarTwo.time = b
-                            return@compareDates calendarOne[Calendar.YEAR] == calendarTwo[Calendar.YEAR] && calendarOne[Calendar.DAY_OF_YEAR] == calendarTwo[Calendar.DAY_OF_YEAR]
+                            return@compareDates calendarOne[Calendar.YEAR] ==
+                                calendarTwo[Calendar.YEAR] &&
+                                calendarOne[Calendar.DAY_OF_YEAR] ==
+                                calendarTwo[Calendar.DAY_OF_YEAR]
                         },
                         value,
-                        condition.targetValue,
+                        condition.targetValue
                     )
                 }
 
                 else -> {
-                    throw UnsupportedEvaluationException("Unsupported evaluation conditon operator: ${condition.operator}")
+                    throw UnsupportedEvaluationException(
+                        "Unsupported evaluation conditon operator: ${condition.operator}"
+                    )
                 }
             }
         } catch (e: IllegalArgumentException) {
-            throw UnsupportedEvaluationException("IllegalArgumentException when evaluate conditions")
+            throw UnsupportedEvaluationException(
+                "IllegalArgumentException when evaluate conditions"
+            )
         }
     }
 
     private fun versionCompareHelper(
         version1: Any?,
         version2: Any?,
-        compare: (v1: String, v2: String) -> Boolean,
+        compare: (v1: String, v2: String) -> Boolean
     ): Boolean {
         var version1Str = EvaluatorUtils.getValueAsString(version1)
         var version2Str = EvaluatorUtils.getValueAsString(version2)
@@ -514,15 +536,14 @@ internal class Evaluator(private val store: SpecStore) {
         }
     }
 
-    private fun evaluatePassPercent(user: StatsigUser, spec: Spec, rule: SpecRule): Boolean {
-        return computeUserHash(
+    private fun evaluatePassPercent(user: StatsigUser, spec: Spec, rule: SpecRule): Boolean =
+        computeUserHash(
             spec.salt +
                 '.' +
                 (rule.salt ?: rule.id) +
                 '.' +
-                (EvaluatorUtils.getUnitID(user, rule.idType) ?: ""),
+                (EvaluatorUtils.getUnitID(user, rule.idType) ?: "")
         ).mod(10000UL) < (rule.passPercentage.times(100.0)).toULong()
-    }
 
     private fun computeUserHash(input: String): ULong {
         hashLookupTable[input]?.let {

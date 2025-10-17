@@ -31,7 +31,10 @@ class CacheKeyWithSDKKeyTest {
         cacheById[user.getCacheKeyDEPRECATED()] = values
         // Write a cached by original key
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", StatsigUtil.getGson().toJson(cacheById)).apply()
+        testSharedPrefs.edit().putString(
+            "Statsig.CACHE_BY_USER",
+            StatsigUtil.getGson().toJson(cacheById)
+        ).apply()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockBrokenNetwork())
 
         return@runBlocking
@@ -49,7 +52,10 @@ class CacheKeyWithSDKKeyTest {
     fun testWriteToCacheWithNewKey() = runBlocking {
         Statsig.client.shutdown()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())
-        val cacheById = StatsigUtil.getGson().fromJson(StatsigUtil.getFromSharedPrefs(testSharedPrefs, "Statsig.CACHE_BY_USER"), Map::class.java)
+        val cacheById = StatsigUtil.getGson().fromJson(
+            StatsigUtil.getFromSharedPrefs(testSharedPrefs, "Statsig.CACHE_BY_USER"),
+            Map::class.java
+        )
         assertThat(cacheById.keys).contains("${user.toHashString()}:client-apikey")
     }
 }

@@ -7,6 +7,8 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -18,14 +20,12 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicBoolean
 
 @VisibleForTesting
 internal const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
 
-class StatsigClient() : LifecycleEventListener {
+class StatsigClient : LifecycleEventListener {
     companion object {
         private const val TAG: String = "statsig::StatsigClient"
     }
@@ -85,10 +85,13 @@ class StatsigClient() : LifecycleEventListener {
         sdkKey: String,
         user: StatsigUser? = null,
         callback: IStatsigCallback? = null,
-        options: StatsigOptions = StatsigOptions(),
+        options: StatsigOptions = StatsigOptions()
     ) {
         if (isInitializing.getAndSet(true)) {
-            Log.w(TAG, "initializeAsync() called on a client that is already started or starting - this is a no-op.")
+            Log.w(
+                TAG,
+                "initializeAsync() called on a client that is already started or starting - this is a no-op."
+            )
             return
         }
         errorBoundary.initialize(sdkKey, urlConnectionProvider)
@@ -120,14 +123,14 @@ class StatsigClient() : LifecycleEventListener {
                             false,
                             InitializeResponse.FailedInitializeResponse(
                                 InitializeFailReason.InternalError,
-                                it,
-                            ),
+                                it
+                            )
                         )
                     callback?.onStatsigInitialize(initDetails)
                 } catch (e: Exception) {
                     throw ExternalException(e.message)
                 }
-            },
+            }
         )
     }
 
@@ -150,10 +153,13 @@ class StatsigClient() : LifecycleEventListener {
         application: Application,
         sdkKey: String,
         user: StatsigUser? = null,
-        options: StatsigOptions = StatsigOptions(),
+        options: StatsigOptions = StatsigOptions()
     ): InitializationDetails? {
         if (isInitializing.getAndSet(true)) {
-            Log.w(TAG, "initialize() called on a client that is already started or starting - this is a no-op.")
+            Log.w(
+                TAG,
+                "initialize() called on a client that is already started or starting - this is a no-op."
+            )
             return null
         }
         errorBoundary.initialize(sdkKey, urlConnectionProvider)
@@ -172,10 +178,10 @@ class StatsigClient() : LifecycleEventListener {
                     false,
                     InitializeResponse.FailedInitializeResponse(
                         InitializeFailReason.InternalError,
-                        it,
-                    ),
+                        it
+                    )
                 )
-            },
+            }
         )
     }
 
@@ -197,7 +203,7 @@ class StatsigClient() : LifecycleEventListener {
                 result = gate
             },
             tag = functionName,
-            configName = gateName,
+            configName = gateName
         )
 
         val res = result ?: FeatureGate.getError(gateName)
@@ -223,7 +229,7 @@ class StatsigClient() : LifecycleEventListener {
                 result = gate
             },
             tag = functionName,
-            configName = gateName,
+            configName = gateName
         )
         val res = result ?: FeatureGate.getError(gateName)
         options.evaluationCallback?.invoke(res)
@@ -242,7 +248,7 @@ class StatsigClient() : LifecycleEventListener {
                 result = gate
             },
             tag = functionName,
-            configName = gateName,
+            configName = gateName
         )
 
         val res = result ?: FeatureGate.getError(gateName)
@@ -261,7 +267,7 @@ class StatsigClient() : LifecycleEventListener {
                 result = gate
             },
             tag = functionName,
-            configName = gateName,
+            configName = gateName
         )
         val res = result ?: FeatureGate.getError(gateName)
         options.evaluationCallback?.invoke(res)
@@ -286,7 +292,7 @@ class StatsigClient() : LifecycleEventListener {
                 result = config
             },
             tag = functionName,
-            configName = configName,
+            configName = configName
         )
         options.evaluationCallback?.invoke(result)
         return result
@@ -309,7 +315,7 @@ class StatsigClient() : LifecycleEventListener {
                 result = getDynamicConfigEvaluation(configName)
             },
             tag = functionName,
-            configName = configName,
+            configName = configName
         )
         options.evaluationCallback?.invoke(result)
         return result
@@ -336,7 +342,7 @@ class StatsigClient() : LifecycleEventListener {
                 logExposure(experimentName, res)
             },
             tag = functionName,
-            configName = experimentName,
+            configName = experimentName
         )
         options.evaluationCallback?.invoke(res)
         return res
@@ -353,7 +359,7 @@ class StatsigClient() : LifecycleEventListener {
      */
     fun getExperimentWithExposureLoggingDisabled(
         experimentName: String,
-        keepDeviceValue: Boolean = false,
+        keepDeviceValue: Boolean = false
     ): DynamicConfig {
         val functionName = "getExperimentWithExposureLoggingDisabled"
         enforceInitialized(functionName)
@@ -367,7 +373,7 @@ class StatsigClient() : LifecycleEventListener {
                 }
             },
             configName = experimentName,
-            tag = functionName,
+            tag = functionName
         )
         options.evaluationCallback?.invoke(exp)
         return exp
@@ -393,7 +399,7 @@ class StatsigClient() : LifecycleEventListener {
                 }
             },
             tag = functionName,
-            configName = layerName,
+            configName = layerName
         )
         options.evaluationCallback?.invoke(layer)
         return layer
@@ -410,7 +416,7 @@ class StatsigClient() : LifecycleEventListener {
      */
     fun getLayerWithExposureLoggingDisabled(
         layerName: String,
-        keepDeviceValue: Boolean = false,
+        keepDeviceValue: Boolean = false
     ): Layer {
         val functionName = "getLayerWithExposureLoggingDisabled"
         enforceInitialized(functionName)
@@ -424,7 +430,7 @@ class StatsigClient() : LifecycleEventListener {
                 }
             },
             tag = functionName,
-            configName = layerName,
+            configName = layerName
         )
         options.evaluationCallback?.invoke(layer)
         return layer
@@ -432,7 +438,7 @@ class StatsigClient() : LifecycleEventListener {
 
     fun getParameterStore(
         parameterStoreName: String,
-        options: ParameterStoreEvaluationOptions? = null,
+        options: ParameterStoreEvaluationOptions? = null
     ): ParameterStore {
         val functionName = "getParameterStore"
         enforceInitialized(functionName)
@@ -441,7 +447,7 @@ class StatsigClient() : LifecycleEventListener {
             HashMap(),
             parameterStoreName,
             store.getEvaluationDetails(false),
-            options,
+            options
         )
         errorBoundary.capture(
             {
@@ -450,7 +456,7 @@ class StatsigClient() : LifecycleEventListener {
                 paramStore = onDeviceEvalAdapter?.getParamStore(this, paramStore) ?: paramStore
             },
             tag = functionName,
-            configName = parameterStoreName,
+            configName = parameterStoreName
         )
         return paramStore
     }
@@ -480,7 +486,7 @@ class StatsigClient() : LifecycleEventListener {
 
                 statsigScope.launch { logger.log(event) }
             },
-            tag = functionName,
+            tag = functionName
         )
     }
 
@@ -502,7 +508,7 @@ class StatsigClient() : LifecycleEventListener {
                 event.user = user
                 statsigScope.launch { logger.log(event) }
             },
-            tag = functionName,
+            tag = functionName
         )
     }
 
@@ -523,7 +529,7 @@ class StatsigClient() : LifecycleEventListener {
                 event.user = user
                 statsigScope.launch { logger.log(event) }
             },
-            tag = functionName,
+            tag = functionName
         )
     }
 
@@ -540,7 +546,7 @@ class StatsigClient() : LifecycleEventListener {
                 this.logger.setLoggingEnabled(runtimeMutableOptions.loggingEnabled)
                 Log.v(TAG, "Runtime options successfully updated")
             },
-            tag = functionName,
+            tag = functionName
         )
     }
 
@@ -558,7 +564,7 @@ class StatsigClient() : LifecycleEventListener {
     fun updateUserAsync(
         user: StatsigUser?,
         callback: IStatsigCallback? = null,
-        values: Map<String, Any>? = null,
+        values: Map<String, Any>? = null
     ) {
         val functionName = "updateUserAsync"
         enforceInitialized(functionName)
@@ -566,7 +572,7 @@ class StatsigClient() : LifecycleEventListener {
             {
                 diagnostics.markStart(
                     KeyType.OVERALL,
-                    overrideContext = ContextType.UPDATE_USER,
+                    overrideContext = ContextType.UPDATE_USER
                 )
                 this.user = normalizeUser(user)
                 this.resetUser()
@@ -590,7 +596,7 @@ class StatsigClient() : LifecycleEventListener {
                     }
                 }
             },
-            tag = functionName,
+            tag = functionName
         )
     }
 
@@ -634,7 +640,7 @@ class StatsigClient() : LifecycleEventListener {
             {
                 diagnostics.markStart(
                     KeyType.OVERALL,
-                    overrideContext = ContextType.UPDATE_USER,
+                    overrideContext = ContextType.UPDATE_USER
                 )
                 statsigScope.launch {
                     updateUserImpl()
@@ -648,7 +654,7 @@ class StatsigClient() : LifecycleEventListener {
                     }
                 }
             },
-            tag = functionName,
+            tag = functionName
         )
     }
 
@@ -676,7 +682,7 @@ class StatsigClient() : LifecycleEventListener {
         enforceInitialized(functionName)
         errorBoundary.capture(
             { result = store.getCurrentCacheValuesAndEvaluationReason() },
-            tag = functionName,
+            tag = functionName
         )
         return result ?: ExternalInitializeResponse.getUninitialized()
     }
@@ -714,7 +720,7 @@ class StatsigClient() : LifecycleEventListener {
                 statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
                 Log.v(TAG, "overrideGate() completed")
             },
-            tag = "overrideGate",
+            tag = "overrideGate"
         )
     }
 
@@ -729,7 +735,7 @@ class StatsigClient() : LifecycleEventListener {
                 statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
                 Log.v(TAG, "overrideConfig() completed")
             },
-            tag = "overrideConfig",
+            tag = "overrideConfig"
         )
     }
 
@@ -744,7 +750,7 @@ class StatsigClient() : LifecycleEventListener {
                 statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
                 Log.v(TAG, "overrideLayer() completed")
             },
-            tag = "overrideLayer",
+            tag = "overrideLayer"
         )
     }
 
@@ -803,7 +809,7 @@ class StatsigClient() : LifecycleEventListener {
                 logExposure(gateName, gate, isManual = true)
             },
             tag = functionName,
-            configName = gateName,
+            configName = gateName
         )
     }
 
@@ -816,7 +822,7 @@ class StatsigClient() : LifecycleEventListener {
                 logExposure(configName, config, isManual = true)
             },
             tag = functionName,
-            configName = configName,
+            configName = configName
         )
     }
 
@@ -834,7 +840,7 @@ class StatsigClient() : LifecycleEventListener {
                 logExposure(configName, exp, isManual = true)
             },
             tag = functionName,
-            configName = configName,
+            configName = configName
         )
     }
 
@@ -847,7 +853,7 @@ class StatsigClient() : LifecycleEventListener {
     fun manuallyLogLayerParameterExposure(
         layerName: String,
         parameterName: String,
-        keepDeviceValue: Boolean,
+        keepDeviceValue: Boolean
     ) {
         val functionName = "logManualLayerExposure"
         enforceInitialized(functionName)
@@ -857,7 +863,7 @@ class StatsigClient() : LifecycleEventListener {
                 logLayerParameterExposure(layer, parameterName, isManual = true)
             },
             configName = layerName,
-            tag = functionName,
+            tag = functionName
         )
     }
 
@@ -869,7 +875,7 @@ class StatsigClient() : LifecycleEventListener {
                 logExposure(gate.getName(), gate, isManual = true)
             },
             tag = functionName,
-            configName = gate.getName(),
+            configName = gate.getName()
         )
     }
 
@@ -881,7 +887,7 @@ class StatsigClient() : LifecycleEventListener {
                 logExposure(config.getName(), config, isManual = true)
             },
             tag = functionName,
-            configName = config.getName(),
+            configName = config.getName()
         )
     }
 
@@ -893,14 +899,11 @@ class StatsigClient() : LifecycleEventListener {
                 logExposure(experiment.getName(), experiment, isManual = true)
             },
             tag = functionName,
-            configName = experiment.getName(),
+            configName = experiment.getName()
         )
     }
 
-    fun manuallyLogLayerParameterExposure(
-        layer: Layer,
-        parameterName: String,
-    ) {
+    fun manuallyLogLayerParameterExposure(layer: Layer, parameterName: String) {
         val functionName = "logManualLayerExposure"
         enforceInitialized(functionName)
         errorBoundary.capture(
@@ -908,7 +911,7 @@ class StatsigClient() : LifecycleEventListener {
                 logLayerParameterExposure(layer, parameterName, isManual = true)
             },
             configName = layer.getName(),
-            tag = functionName,
+            tag = functionName
         )
     }
 
@@ -927,7 +930,7 @@ class StatsigClient() : LifecycleEventListener {
                     "values" to currentValues,
                     "evalReason" to store.reason,
                     "user" to user.getCopyForEvaluation(),
-                    "options" to options.toMap(),
+                    "options" to options.toMap()
                 )
             DebugView.show(context, sdkKey, map, callback)
         })
@@ -943,20 +946,20 @@ class StatsigClient() : LifecycleEventListener {
                         this@StatsigClient.diagnostics.markEnd(
                             KeyType.OVERALL,
                             evalDetails.reason === EvaluationReason.Bootstrap,
-                            additionalMarker = Marker(evaluationDetails = evalDetails),
+                            additionalMarker = Marker(evaluationDetails = evalDetails)
                         )
                         logger.logDiagnostics()
                         return@captureAsync InitializationDetails(
                             0,
                             true,
-                            null,
+                            null
                         )
                     }
                     if (this@StatsigClient.options.loadCacheAsync) {
                         diagnostics.markStart(
                             KeyType.INITIALIZE,
                             StepType.LOAD_CACHE,
-                            Marker(isBlocking = false),
+                            Marker(isBlocking = false)
                         )
                         this@StatsigClient.store.syncLoadFromLocalStorage()
                         diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
@@ -969,7 +972,7 @@ class StatsigClient() : LifecycleEventListener {
                                 this@StatsigClient.options.api,
                                 user,
                                 this@StatsigClient.store.getLastUpdateTime(
-                                    this@StatsigClient.user,
+                                    this@StatsigClient.user
                                 ),
                                 this@StatsigClient.statsigMetadata,
                                 statsigScope,
@@ -977,25 +980,29 @@ class StatsigClient() : LifecycleEventListener {
                                 this@StatsigClient.diagnostics,
                                 if (this@StatsigClient.options.disableHashing == true) {
                                     HashAlgorithm.NONE
-                                } else { HashAlgorithm.DJB2 },
+                                } else {
+                                    HashAlgorithm.DJB2
+                                },
                                 this@StatsigClient.store.getPreviousDerivedFields(
-                                    this@StatsigClient.user,
+                                    this@StatsigClient.user
                                 ),
                                 this@StatsigClient.store.getFullChecksum(
-                                    this@StatsigClient.user,
-                                ),
+                                    this@StatsigClient.user
+                                )
                             )
                         }
-                    if (initResponse is InitializeResponse.SuccessfulInitializeResponse && !options.initializeOffline) {
+                    if (initResponse is InitializeResponse.SuccessfulInitializeResponse &&
+                        !options.initializeOffline
+                    ) {
                         this@StatsigClient.diagnostics.markStart(
                             KeyType.INITIALIZE,
-                            StepType.PROCESS,
+                            StepType.PROCESS
                         )
                         this@StatsigClient.store.save(initResponse, user)
                         this@StatsigClient.diagnostics.markEnd(
                             KeyType.INITIALIZE,
                             true,
-                            StepType.PROCESS,
+                            StepType.PROCESS
                         )
                     }
 
@@ -1006,7 +1013,7 @@ class StatsigClient() : LifecycleEventListener {
                             try {
                                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(
                                     this@StatsigClient.options.eventLoggingAPI,
-                                    this@StatsigClient.options.logEventFallbackUrls,
+                                    this@StatsigClient.options.logEventFallbackUrls
                                 )
                             } catch (e: Exception) {
                                 // best effort attempt to capture failed log events
@@ -1022,7 +1029,9 @@ class StatsigClient() : LifecycleEventListener {
                         success,
                         if (initResponse is InitializeResponse.FailedInitializeResponse) {
                             initResponse
-                        } else { null },
+                        } else {
+                            null
+                        }
                     )
                 },
                 { e: Exception ->
@@ -1031,11 +1040,15 @@ class StatsigClient() : LifecycleEventListener {
                         0,
                         false,
                         InitializeResponse.FailedInitializeResponse(
-                            if (e is TimeoutCancellationException) { InitializeFailReason.CoroutineTimeout } else { InitializeFailReason.InternalError },
-                            e,
-                        ),
+                            if (e is TimeoutCancellationException) {
+                                InitializeFailReason.CoroutineTimeout
+                            } else {
+                                InitializeFailReason.InternalError
+                            },
+                            e
+                        )
                     )
-                },
+                }
             )
         }
     }
@@ -1045,11 +1058,11 @@ class StatsigClient() : LifecycleEventListener {
         application: Application,
         sdkKey: String,
         user: StatsigUser? = null,
-        options: StatsigOptions = StatsigOptions(),
+        options: StatsigOptions = StatsigOptions()
     ): StatsigUser {
         if (!sdkKey.startsWith("client-") && !sdkKey.startsWith("test-")) {
             throw IllegalArgumentException(
-                "Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console",
+                "Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console"
             )
         }
         initTime = System.currentTimeMillis()
@@ -1064,7 +1077,12 @@ class StatsigClient() : LifecycleEventListener {
         exceptionHandler = errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         val networkFallbackResolver =
-            NetworkFallbackResolver(errorBoundary, getSharedPrefs(), statsigScope, urlConnectionProvider)
+            NetworkFallbackResolver(
+                errorBoundary,
+                getSharedPrefs(),
+                statsigScope,
+                urlConnectionProvider
+            )
         store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
@@ -1077,7 +1095,7 @@ class StatsigClient() : LifecycleEventListener {
                     networkFallbackResolver,
                     statsigScope,
                     store,
-                    urlConnectionProvider,
+                    urlConnectionProvider
                 )
         }
         statsigMetadata =
@@ -1103,7 +1121,7 @@ class StatsigClient() : LifecycleEventListener {
                 normalizedUser,
                 diagnostics,
                 options.logEventFallbackUrls,
-                options.loggingEnabled,
+                options.loggingEnabled
             )
         populateStatsigMetadata()
 
@@ -1116,7 +1134,7 @@ class StatsigClient() : LifecycleEventListener {
             diagnostics.markStart(
                 KeyType.INITIALIZE,
                 StepType.LOAD_CACHE,
-                Marker(isBlocking = true),
+                Marker(isBlocking = true)
             )
             this@StatsigClient.store.syncLoadFromLocalStorage()
             diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
@@ -1154,32 +1172,38 @@ class StatsigClient() : LifecycleEventListener {
                             statsigScope,
                             ContextType.UPDATE_USER,
                             diagnostics = this@StatsigClient.diagnostics,
-                            hashUsed = if (this@StatsigClient.options.disableHashing == true) { HashAlgorithm.NONE } else { HashAlgorithm.DJB2 },
+                            hashUsed = if (this@StatsigClient.options.disableHashing ==
+                                true
+                            ) {
+                                HashAlgorithm.NONE
+                            } else {
+                                HashAlgorithm.DJB2
+                            },
                             previousDerivedFields = previousDerivedFields,
-                            fullChecksum = fullChecksum,
+                            fullChecksum = fullChecksum
                         )
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
                         diagnostics.markStart(
                             KeyType.INITIALIZE,
                             StepType.PROCESS,
-                            overrideContext = ContextType.UPDATE_USER,
+                            overrideContext = ContextType.UPDATE_USER
                         )
                         store.save(initResponse, this@StatsigClient.user)
                         diagnostics.markEnd(
                             KeyType.INITIALIZE,
                             true,
                             StepType.PROCESS,
-                            overrideContext = ContextType.UPDATE_USER,
+                            overrideContext = ContextType.UPDATE_USER
                         )
                     }
                     pollForUpdates()
                     logEndDiagnostics(
                         initResponse is InitializeResponse.SuccessfulInitializeResponse,
                         ContextType.UPDATE_USER,
-                        initResponse,
+                        initResponse
                     )
                 },
-                { logEndDiagnosticsWhenException(ContextType.UPDATE_USER, it) },
+                { logEndDiagnosticsWhenException(ContextType.UPDATE_USER, it) }
             )
         }
     }
@@ -1196,7 +1220,7 @@ class StatsigClient() : LifecycleEventListener {
 
     private fun getExperimentEvaluation(
         experimentName: String,
-        keepDeviceValue: Boolean,
+        keepDeviceValue: Boolean
     ): DynamicConfig {
         val experiment = store.getExperiment(experimentName, keepDeviceValue)
         return onDeviceEvalAdapter?.getDynamicConfig(experiment, user) ?: experiment
@@ -1205,7 +1229,7 @@ class StatsigClient() : LifecycleEventListener {
     private fun getLayerEvaluation(
         client: StatsigClient?,
         layerName: String,
-        keepDeviceValue: Boolean,
+        keepDeviceValue: Boolean
     ): Layer {
         val layer = store.getLayer(client, layerName, keepDeviceValue)
         return onDeviceEvalAdapter?.getLayer(client, layer, user) ?: layer
@@ -1214,7 +1238,7 @@ class StatsigClient() : LifecycleEventListener {
     internal fun logLayerParameterExposure(
         layer: Layer,
         parameterName: String,
-        isManual: Boolean = false,
+        isManual: Boolean = false
     ) {
         if (!isInitialized()) {
             return
@@ -1237,13 +1261,11 @@ class StatsigClient() : LifecycleEventListener {
             parameterName,
             isExplicit,
             layer.getEvaluationDetails(),
-            isManual,
+            isManual
         )
     }
 
-    internal fun getStore(): Store {
-        return store
-    }
+    internal fun getStore(): Store = store
 
     private fun logExposure(name: String, config: DynamicConfig, isManual: Boolean = false) {
         logger.logExposure(name, config, user, isManual)
@@ -1270,14 +1292,12 @@ class StatsigClient() : LifecycleEventListener {
         return stableID
     }
 
-    fun isInitialized(): Boolean {
-        return this.initialized.get()
-    }
+    fun isInitialized(): Boolean = this.initialized.get()
 
     internal fun enforceInitialized(functionName: String) {
         if (!this.initialized.get()) {
             throw IllegalStateException(
-                "The SDK must be initialized prior to invoking $functionName",
+                "The SDK must be initialized prior to invoking $functionName"
             )
         }
     }
@@ -1304,7 +1324,7 @@ class StatsigClient() : LifecycleEventListener {
                     user,
                     statsigMetadata,
                     (options.autoValueUpdateIntervalMinutes * 60 * 1000).toLong(),
-                    options.initializeFallbackUrls,
+                    options.initializeFallbackUrls
                 )
                 .onEach {
                     if (it != null) {
@@ -1328,9 +1348,8 @@ class StatsigClient() : LifecycleEventListener {
         }
     }
 
-    internal fun getSharedPrefs(): SharedPreferences {
-        return application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
-    }
+    internal fun getSharedPrefs(): SharedPreferences =
+        application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
 
     internal suspend fun saveStringToSharedPrefs(key: String, value: String) {
         StatsigUtil.saveStringToSharedPrefs(getSharedPrefs(), key, value)
@@ -1352,7 +1371,7 @@ class StatsigClient() : LifecycleEventListener {
     private fun logEndDiagnostics(
         success: Boolean,
         context: ContextType,
-        initResponse: InitializeResponse?,
+        initResponse: InitializeResponse?
     ) {
         this@StatsigClient.diagnostics.markEnd(
             KeyType.OVERALL,
@@ -1363,13 +1382,13 @@ class StatsigClient() : LifecycleEventListener {
                 error =
                 if (initResponse is InitializeResponse.FailedInitializeResponse) {
                     Diagnostics.formatFailedResponse(
-                        initResponse,
+                        initResponse
                     )
                 } else {
                     null
-                },
+                }
             ),
-            overrideContext = context,
+            overrideContext = context
         )
         logger.logDiagnostics(context)
     }
@@ -1384,10 +1403,10 @@ class StatsigClient() : LifecycleEventListener {
                     Marker(
                         error =
                         Marker.ErrorMessage(
-                            message = "${e?.javaClass?.name}: ${e?.message}",
-                        ),
+                            message = "${e?.javaClass?.name}: ${e?.message}"
+                        )
                     ),
-                    overrideContext = context,
+                    overrideContext = context
                 )
                 this@StatsigClient.logger.logDiagnostics(context)
                 statsigScope.launch(dispatcherProvider.io) { this@StatsigClient.logger.flush() }
@@ -1404,7 +1423,7 @@ class StatsigClient() : LifecycleEventListener {
         statsigScope.launch {
             statsigNetwork.apiRetryFailedLogs(
                 this@StatsigClient.options.eventLoggingAPI,
-                this@StatsigClient.options.logEventFallbackUrls,
+                this@StatsigClient.options.logEventFallbackUrls
             )
         }
     }

@@ -2,12 +2,12 @@ package com.statsig.androidsdk
 
 import android.util.Log
 import com.google.gson.annotations.SerializedName
-import kotlinx.coroutines.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
+import kotlinx.coroutines.*
 
 private const val EXPOSURE_DEDUPE_INTERVAL: Long = 10 * 60 * 1000
 
@@ -25,7 +25,7 @@ internal const val NON_EXPOSED_CHECKS_EVENT = "statsig::non_exposed_checks"
 
 internal data class LogEventData(
     @SerializedName("events") val events: ArrayList<LogEvent>,
-    @SerializedName("statsigMetadata") val statsigMetadata: StatsigMetadata,
+    @SerializedName("statsigMetadata") val statsigMetadata: StatsigMetadata
 )
 
 internal class StatsigLogger(
@@ -37,7 +37,7 @@ internal class StatsigLogger(
     private val statsigUser: StatsigUser,
     private val diagnostics: Diagnostics,
     private val fallbackUrls: List<String>? = null,
-    private var loggingEnabled: Boolean,
+    private var loggingEnabled: Boolean
 ) {
     companion object {
         private const val TAG: String = "statsig::StatsigLogger"
@@ -87,7 +87,12 @@ internal class StatsigLogger(
             val eventsCount = events.size.toString()
             val flushEvents = ArrayList(events)
             events = ConcurrentLinkedQueue()
-            statsigNetwork.apiPostLogs(api, gson.toJson(LogEventData(flushEvents, statsigMetadata)), eventsCount, fallbackUrls)
+            statsigNetwork.apiPostLogs(
+                api,
+                gson.toJson(LogEventData(flushEvents, statsigMetadata)),
+                eventsCount,
+                fallbackUrls
+            )
             Log.v(TAG, "flush() completed with $eventsCount events")
         }
     }
@@ -97,7 +102,7 @@ internal class StatsigLogger(
             name = name,
             value = gate.getValue(),
             ruleID = gate.getRuleID(),
-            reason = gate.getEvaluationDetails().reason,
+            reason = gate.getEvaluationDetails().reason
         )
         if (!shouldLogExposure(key)) {
             Log.v(TAG, "logExposure() skipped due to recent exposure to same gate")
@@ -113,7 +118,7 @@ internal class StatsigLogger(
                 "gateValue" to gate.getValue().toString(),
                 "ruleID" to gate.getRuleID(),
                 "reason" to gate.getEvaluationDetails().reason.toString(),
-                "time" to gate.getEvaluationDetails().time.toString(),
+                "time" to gate.getEvaluationDetails().time.toString()
             )
             addManualFlag(metadata, isManual)
 
@@ -127,7 +132,7 @@ internal class StatsigLogger(
         val key = ExposureKey.Config(
             name,
             config.getRuleID(),
-            config.getEvaluationDetails().reason,
+            config.getEvaluationDetails().reason
         )
         if (!shouldLogExposure(key)) return
 
@@ -138,7 +143,7 @@ internal class StatsigLogger(
                 "config" to name,
                 "ruleID" to config.getRuleID(),
                 "reason" to config.getEvaluationDetails().reason.toString(),
-                "time" to config.getEvaluationDetails().time.toString(),
+                "time" to config.getEvaluationDetails().time.toString()
             )
 
             config.getRulePassed()?.let {
@@ -163,7 +168,7 @@ internal class StatsigLogger(
         parameterName: String,
         isExplicitParameter: Boolean,
         details: EvaluationDetails,
-        isManual: Boolean,
+        isManual: Boolean
     ) {
         val key = ExposureKey.Layer(
             configName = configName,
@@ -171,7 +176,7 @@ internal class StatsigLogger(
             allocatedExperiment = allocatedExperiment,
             parameterName = parameterName,
             isExplicitParameter = isExplicitParameter,
-            reason = details.reason,
+            reason = details.reason
         )
         if (!shouldLogExposure(key)) return
         val metadata = mutableMapOf(
@@ -181,7 +186,7 @@ internal class StatsigLogger(
             "parameterName" to parameterName,
             "isExplicitParameter" to isExplicitParameter.toString(),
             "reason" to details.reason.toString(),
-            "time" to details.time.toString(),
+            "time" to details.time.toString()
         )
         addManualFlag(metadata, isManual)
 
@@ -217,7 +222,13 @@ internal class StatsigLogger(
         if (markers.isEmpty()) {
             return
         }
-        val optionsLoggingCopy = if (context == ContextType.INITIALIZE) diagnostics.statsigOptionsLoggingCopy else null
+        val optionsLoggingCopy = if (context ==
+            ContextType.INITIALIZE
+        ) {
+            diagnostics.statsigOptionsLoggingCopy
+        } else {
+            null
+        }
         val event = this.makeDiagnosticsEvent(context, markers, optionsLoggingCopy)
         coroutineScope.launch(singleThreadDispatcher) { log(event) }
         diagnostics.clearContext()
@@ -227,7 +238,10 @@ internal class StatsigLogger(
         this.loggingEnabled = loggingEnabled
     }
 
-    private fun addManualFlag(metadata: MutableMap<String, String>, isManual: Boolean): MutableMap<String, String> {
+    private fun addManualFlag(
+        metadata: MutableMap<String, String>,
+        isManual: Boolean
+    ): MutableMap<String, String> {
         if (isManual) {
             metadata["isManualExposure"] = "true"
         }
@@ -251,11 +265,20 @@ internal class StatsigLogger(
         nonExposedChecks[configName] = count + 1
     }
 
-    private fun makeDiagnosticsEvent(context: ContextType, markers: Collection<Marker>, statsigOptions: Map<String, Any?>?): LogEvent {
+    private fun makeDiagnosticsEvent(
+        context: ContextType,
+        markers: Collection<Marker>,
+        statsigOptions: Map<String, Any?>?
+    ): LogEvent {
         // Need to verify if the JSON is in the right format for log event
         val event = LogEvent(DIAGNOSTICS_EVENT)
         event.user = this.statsigUser
-        event.metadata = mapOf("context" to context.toString().lowercase(), "markers" to gson.toJson(markers), "statsigOptions" to gson.toJson(statsigOptions))
+        event.metadata =
+            mapOf(
+                "context" to context.toString().lowercase(),
+                "markers" to gson.toJson(markers),
+                "statsigOptions" to gson.toJson(statsigOptions)
+            )
         return event
     }
 

@@ -39,19 +39,17 @@ class InitializationRetryFailedLogsTest {
             .commit()
 
         val dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse {
-                return when {
-                    request.path!!.contains("initialize") -> {
-                        MockResponse()
-                            .setBody(gson.toJson(TestUtil.makeInitializeResponse()))
-                            .setResponseCode(200)
-                    }
-                    request.path!!.contains("log_event") -> {
-                        logEventHits++
-                        MockResponse().setResponseCode(200)
-                    }
-                    else -> MockResponse().setResponseCode(404)
+            override fun dispatch(request: RecordedRequest): MockResponse = when {
+                request.path!!.contains("initialize") -> {
+                    MockResponse()
+                        .setBody(gson.toJson(TestUtil.makeInitializeResponse()))
+                        .setResponseCode(200)
                 }
+                request.path!!.contains("log_event") -> {
+                    logEventHits++
+                    MockResponse().setResponseCode(200)
+                }
+                else -> MockResponse().setResponseCode(404)
             }
         }
         mockWebServer.dispatcher = dispatcher
@@ -63,7 +61,7 @@ class InitializationRetryFailedLogsTest {
             app,
             "client-key",
             StatsigUser("test"),
-            StatsigOptions(api = url, eventLoggingAPI = url),
+            StatsigOptions(api = url, eventLoggingAPI = url)
         )
         assertEquals(0, logEventHits)
 
@@ -90,7 +88,7 @@ class InitializationRetryFailedLogsTest {
             "client-key",
             StatsigUser("test"),
             callback,
-            StatsigOptions(api = url, eventLoggingAPI = url),
+            StatsigOptions(api = url, eventLoggingAPI = url)
         )
 
         val gateResult = Statsig.checkGate("test_gate")
@@ -122,7 +120,7 @@ class InitializationRetryFailedLogsTest {
             app,
             "client-key",
             StatsigUser("test"),
-            StatsigOptions(api = url, eventLoggingAPI = url),
+            StatsigOptions(api = url, eventLoggingAPI = url)
         )
         Statsig.shutdown()
 

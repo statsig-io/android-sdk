@@ -4,6 +4,8 @@ import android.app.Application
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.spyk
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -16,8 +18,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 class StatsigInitializationTimeoutTest {
@@ -33,8 +33,8 @@ class StatsigInitializationTimeoutTest {
     fun setup() {
         mockWebServer = MockWebServer()
         val dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse {
-                return if (request.path!!.contains("sdk_exception")) {
+            override fun dispatch(request: RecordedRequest): MockResponse =
+                if (request.path!!.contains("sdk_exception")) {
                     hitErrorBoundary.countDown()
                     runBlocking {
                         delay(1000)
@@ -45,7 +45,6 @@ class StatsigInitializationTimeoutTest {
                 } else {
                     MockResponse().setResponseCode(404)
                 }
-            }
         }
         mockWebServer.dispatcher = dispatcher
         mockWebServer.start()
@@ -67,7 +66,7 @@ class StatsigInitializationTimeoutTest {
         every {
             println("causing exception")
             client["pollForUpdates"]()
-        } throws(Exception("trigger the error boundary"))
+        } throws (Exception("trigger the error boundary"))
 
         every {
             errorBoundary.getUrl()
@@ -87,7 +86,13 @@ class StatsigInitializationTimeoutTest {
         var initializationDetails: InitializationDetails? = null
         var initTimeout = 500L
         runBlocking {
-            initializationDetails = client.initialize(app, "client-key", StatsigUser("test_user"), StatsigOptions(initTimeoutMs = initTimeout))
+            initializationDetails =
+                client.initialize(
+                    app,
+                    "client-key",
+                    StatsigUser("test_user"),
+                    StatsigOptions(initTimeoutMs = initTimeout)
+                )
         }
         // initialize timeout was hit, we got a value back and we are considered initialized
         assert(initializationDetails != null)
@@ -97,7 +102,7 @@ class StatsigInitializationTimeoutTest {
         assertTrue(hitErrorBoundary.await(1, TimeUnit.SECONDS))
         assertTrue(
             "initialization time ${initializationDetails!!.duration} not less than initTimeout $initTimeout",
-            initializationDetails!!.duration < initTimeout + 100L,
+            initializationDetails!!.duration < initTimeout + 100L
         )
 
         // error boundary was hit, but has not completed at this point, so the initialization timeout worked

@@ -10,12 +10,12 @@ class FeatureGate(
     private val rule: String = "",
     private val groupName: String? = null,
     private val secondaryExposures: Array<Map<String, String>> = arrayOf(),
-    private val idType: String? = null,
+    private val idType: String? = null
 ) : BaseConfig(name, details) {
     internal constructor(
         gateName: String,
         apiFeatureGate: APIFeatureGate,
-        evalDetails: EvaluationDetails,
+        evalDetails: EvaluationDetails
     ) : this(
         gateName,
         evalDetails,
@@ -23,45 +23,34 @@ class FeatureGate(
         apiFeatureGate.ruleID,
         apiFeatureGate.groupName,
         apiFeatureGate.secondaryExposures ?: arrayOf(),
-        apiFeatureGate.idType,
+        apiFeatureGate.idType
     )
 
     internal constructor(
         gateName: String,
         evaluation: ConfigEvaluation,
-        details: EvaluationDetails,
+        details: EvaluationDetails
     ) : this(
         gateName,
         details,
         evaluation.booleanValue,
         evaluation.ruleID,
         evaluation.groupName,
-        evaluation.secondaryExposures.toTypedArray(),
+        evaluation.secondaryExposures.toTypedArray()
     )
 
     internal companion object {
-        fun getError(name: String): FeatureGate {
-            return FeatureGate(name, EvaluationDetails(EvaluationReason.Error, lcut = 0), false, "")
-        }
+        fun getError(name: String): FeatureGate =
+            FeatureGate(name, EvaluationDetails(EvaluationReason.Error, lcut = 0), false, "")
     }
 
-    fun getValue(): Boolean {
-        return this.value
-    }
+    fun getValue(): Boolean = this.value
 
-    fun getRuleID(): String {
-        return this.rule
-    }
+    fun getRuleID(): String = this.rule
 
-    fun getGroupName(): String? {
-        return this.groupName
-    }
+    fun getGroupName(): String? = this.groupName
 
-    fun getSecondaryExposures(): Array<Map<String, String>> {
-        return this.secondaryExposures
-    }
+    fun getSecondaryExposures(): Array<Map<String, String>> = this.secondaryExposures
 
-    fun getIDType(): String? {
-        return this.idType
-    }
+    fun getIDType(): String? = this.idType
 }

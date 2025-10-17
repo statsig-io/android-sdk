@@ -74,7 +74,15 @@ class EvaluationCallbackTest {
 
         val evalCallback: (BaseConfig) -> Unit = ::evalCallback
 
-        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "custom_stable_id", evaluationCallback = evalCallback), network = network)
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(
+                overrideStableID = "custom_stable_id",
+                evaluationCallback = evalCallback
+            ),
+            network = network
+        )
         client = Statsig.client
 
         assertTrue(client.checkGate("always_on"))

@@ -7,29 +7,27 @@ enum class Endpoint(val value: String) {
     Rgstr("log_event"),
 
     @SerializedName("initialize")
-    Initialize("initialize"), ;
+    Initialize("initialize") ;
 
-    override fun toString(): String {
-        return value
-    }
+    override fun toString(): String = value
 }
 
 typealias EndpointDnsKey = String // 'i' | 'e' | 'd'
 
 val ENDPOINT_DNS_KEY_MAP: Map<Endpoint, EndpointDnsKey> = mapOf(
     Endpoint.Initialize to "i",
-    Endpoint.Rgstr to "e",
+    Endpoint.Rgstr to "e"
 )
 
 val NetworkDefault: Map<Endpoint, String> = mapOf(
     Endpoint.Initialize to DEFAULT_INIT_API,
-    Endpoint.Rgstr to DEFAULT_EVENT_API,
+    Endpoint.Rgstr to DEFAULT_EVENT_API
 )
 
 class UrlConfig(
     val endpoint: Endpoint,
     inputApi: String? = null,
-    var userFallbackUrls: List<String>? = null,
+    var userFallbackUrls: List<String>? = null
 ) {
     val endpointDnsKey: EndpointDnsKey = ENDPOINT_DNS_KEY_MAP[endpoint] ?: ""
     var defaultUrl: String
@@ -49,7 +47,5 @@ class UrlConfig(
         }
     }
 
-    fun getUrl(): String {
-        return customUrl ?: defaultUrl
-    }
+    fun getUrl(): String = customUrl ?: defaultUrl
 }

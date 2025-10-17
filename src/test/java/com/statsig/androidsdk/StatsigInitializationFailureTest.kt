@@ -8,6 +8,8 @@ import io.mockk.mockkConstructor
 import io.mockk.spyk
 import io.mockk.unmockkAll
 import io.mockk.verify
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before
@@ -15,8 +17,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 class StatsigInitializationFailureTest {
@@ -43,9 +43,8 @@ class StatsigInitializationFailureTest {
         client.statsigNetwork = network
         TestUtil.mockDispatchers()
         callback = object : IStatsigCallback {
-            override fun onStatsigUpdateUser() {
+            override fun onStatsigUpdateUser(): Unit =
                 throw Exception("Update user should not be called")
-            }
 
             override fun onStatsigInitialize(initDetails: InitializationDetails) {
                 this@StatsigInitializationFailureTest.initDetails = initDetails
@@ -71,10 +70,18 @@ class StatsigInitializationFailureTest {
         } answers {
             throw Exception("Throwing exceptions from bootstrap")
         }
-        initDetails = client.initialize(app, "client-key", StatsigUser("test_user"), StatsigOptions(initializeValues = mapOf()))
+        initDetails =
+            client.initialize(
+                app,
+                "client-key",
+                StatsigUser("test_user"),
+                StatsigOptions(initializeValues = mapOf())
+            )
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
-        assert(initDetails?.failureDetails?.exception?.message == "Throwing exceptions from bootstrap")
+        assert(
+            initDetails?.failureDetails?.exception?.message == "Throwing exceptions from bootstrap"
+        )
         // Wait for logEvent to happen
         logEventCountdown.await(3, TimeUnit.SECONDS)
         assert(logEventRequests.size === 1)
@@ -82,7 +89,10 @@ class StatsigInitializationFailureTest {
         verify {
             eb.logException(any())
         }
-        val markers = Gson().fromJson(logEventRequests[0].events[0].metadata?.get("markers") ?: "", Array<Marker>::class.java)
+        val markers = Gson().fromJson(
+            logEventRequests[0].events[0].metadata?.get("markers") ?: "",
+            Array<Marker>::class.java
+        )
         assert(markers.size === 4)
         assert(markers[3].success === false)
         assert(client.isInitialized())
@@ -100,7 +110,10 @@ class StatsigInitializationFailureTest {
 
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
-        assert(initDetails?.failureDetails?.exception?.message == "Mock throwing exception when registering lifecycle callbacks")
+        assert(
+            initDetails?.failureDetails?.exception?.message ==
+                "Mock throwing exception when registering lifecycle callbacks"
+        )
         // Logger has not been initialized because it's not initialized
         assert(logEventRequests.size === 0)
         verify {
@@ -119,11 +132,19 @@ class StatsigInitializationFailureTest {
             throw Exception("Throwing exceptions from bootstrap")
         }
         assert(initDetails === null)
-        client.initializeAsync(app, "client-key", StatsigUser("test_user"), callback, StatsigOptions(initializeValues = mapOf()))
+        client.initializeAsync(
+            app,
+            "client-key",
+            StatsigUser("test_user"),
+            callback,
+            StatsigOptions(initializeValues = mapOf())
+        )
         initializationCountdown.await(1, TimeUnit.SECONDS)
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
-        assert(initDetails?.failureDetails?.exception?.message == "Throwing exceptions from bootstrap")
+        assert(
+            initDetails?.failureDetails?.exception?.message == "Throwing exceptions from bootstrap"
+        )
         // Wait for logEvent to happen
         logEventCountdown.await(3, TimeUnit.SECONDS)
         assert(logEventRequests.size === 1)
@@ -131,7 +152,10 @@ class StatsigInitializationFailureTest {
         verify {
             eb.logException(any())
         }
-        var markers = Gson().fromJson(logEventRequests[0].events[0].metadata?.get("markers") ?: "", Array<Marker>::class.java)
+        var markers = Gson().fromJson(
+            logEventRequests[0].events[0].metadata?.get("markers") ?: "",
+            Array<Marker>::class.java
+        )
         assert(markers.size === 4)
         assert(markers[3].success === false)
         assert(markers[3].key === KeyType.OVERALL)
@@ -150,7 +174,10 @@ class StatsigInitializationFailureTest {
         initializationCountdown.await(100, TimeUnit.SECONDS)
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
-        assert(initDetails?.failureDetails?.exception?.message == "Something wrong happen when connecting to network")
+        assert(
+            initDetails?.failureDetails?.exception?.message ==
+                "Something wrong happen when connecting to network"
+        )
         // Wait for logEvent to happen
         logEventCountdown.await(3, TimeUnit.SECONDS)
         assert(logEventRequests.size === 1)
@@ -158,7 +185,10 @@ class StatsigInitializationFailureTest {
         verify {
             eb.logException(any())
         }
-        val markers = Gson().fromJson(logEventRequests[0].events[0].metadata?.get("markers") ?: "", Array<Marker>::class.java)
+        val markers = Gson().fromJson(
+            logEventRequests[0].events[0].metadata?.get("markers") ?: "",
+            Array<Marker>::class.java
+        )
         assert(markers.size === 4)
         assert(markers[3].success === false)
         assert(client.isInitialized())
@@ -176,7 +206,10 @@ class StatsigInitializationFailureTest {
         logEventCountdown.await(3, TimeUnit.SECONDS)
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
-        assert(initDetails?.failureDetails?.exception?.message == "Mock throwing exception when registering lifecycle callbacks")
+        assert(
+            initDetails?.failureDetails?.exception?.message ==
+                "Mock throwing exception when registering lifecycle callbacks"
+        )
         // Logger has not been initialized because it's not initialized
         assert(logEventRequests.size === 0)
         verify {
@@ -187,7 +220,14 @@ class StatsigInitializationFailureTest {
 
     @Test
     fun testInitializeEarlyFailure() = runBlocking {
-        every { client["setup"](allAny<Application>(), allAny<String>(), allAny<StatsigUser>(), allAny<StatsigOptions>()) } answers {
+        every {
+            client["setup"](
+                allAny<Application>(),
+                allAny<String>(),
+                allAny<StatsigUser>(),
+                allAny<StatsigOptions>()
+            )
+        } answers {
             throw Exception("Unsuccessful setup")
         }
         initDetails = client.initialize(app, "client-key", StatsigUser("test_user"))
@@ -197,7 +237,14 @@ class StatsigInitializationFailureTest {
 
     @Test
     fun testInitializeAsyncEarlyFailure() = runBlocking {
-        every { client["setup"](allAny<Application>(), allAny<String>(), allAny<StatsigUser>(), allAny<StatsigOptions>()) } answers {
+        every {
+            client["setup"](
+                allAny<Application>(),
+                allAny<String>(),
+                allAny<StatsigUser>(),
+                allAny<StatsigOptions>()
+            )
+        } answers {
             throw Exception("Unsuccessful setup")
         }
         client.initializeAsync(app, "client-key", StatsigUser("test_user"), callback)
@@ -223,7 +270,8 @@ class StatsigInitializationFailureTest {
             logEventRequests.add(logs)
             logEventCountdown.countDown()
         }
-        initDetails = client.initialize(app, "client-key", StatsigUser("test_user"), StatsigOptions())
+        initDetails =
+            client.initialize(app, "client-key", StatsigUser("test_user"), StatsigOptions())
         countDownLatch.countDown()
         assert(initDetails?.success === false)
         assert(initDetails?.failureDetails?.reason === InitializeFailReason.InternalError)
@@ -234,7 +282,10 @@ class StatsigInitializationFailureTest {
         verify {
             eb.logException(any())
         }
-        val markers = Gson().fromJson(logEventRequests[0].events[0].metadata?.get("markers") ?: "", Array<Marker>::class.java)
+        val markers = Gson().fromJson(
+            logEventRequests[0].events[0].metadata?.get("markers") ?: "",
+            Array<Marker>::class.java
+        )
         assert(markers.size === 4)
         assert(markers[3].success === false)
         assert(client.isInitialized())

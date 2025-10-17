@@ -23,10 +23,7 @@ class LogEventCompressionTest {
         TestUtil.mockHashing()
     }
 
-    private fun setupNetwork(
-        store: Store,
-        options: StatsigOptions,
-    ): StatsigNetworkImpl {
+    private fun setupNetwork(store: Store, options: StatsigOptions): StatsigNetworkImpl {
         val network =
             StatsigNetworkImpl(
                 app,
@@ -35,7 +32,7 @@ class LogEventCompressionTest {
                 options,
                 mockk<NetworkFallbackResolver>(),
                 TestUtil.coroutineScope,
-                store,
+                store
             )
         return network
     }

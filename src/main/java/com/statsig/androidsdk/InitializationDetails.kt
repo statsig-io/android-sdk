@@ -15,5 +15,5 @@ data class InitializationDetails(
     @SerializedName("success")
     var success: Boolean,
     @SerializedName("failureDetails")
-    var failureDetails: InitializeResponse.FailedInitializeResponse? = null,
+    var failureDetails: InitializeResponse.FailedInitializeResponse? = null
 )

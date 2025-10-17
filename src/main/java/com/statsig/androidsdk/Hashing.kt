@@ -11,20 +11,18 @@ enum class HashAlgorithm(val value: String) {
     DJB2("djb2"),
 
     @SerializedName("none")
-    NONE("none"),
+    NONE("none")
 }
 
 internal object Hashing {
     private val sha256Cache = BoundedMemo<String, String>()
     private val djb2Cache = BoundedMemo<String, String>()
 
-    fun getHashedString(input: String, algorithm: HashAlgorithm?): String {
-        return when (algorithm) {
-            HashAlgorithm.DJB2 -> djb2Cache.computeIfAbsent(input) { getDJB2HashString(it) }
-            HashAlgorithm.SHA256 -> sha256Cache.computeIfAbsent(input) { getSHA256HashString(it) }
-            HashAlgorithm.NONE -> input
-            else -> sha256Cache.computeIfAbsent(input) { getSHA256HashString(it) }
-        }
+    fun getHashedString(input: String, algorithm: HashAlgorithm?): String = when (algorithm) {
+        HashAlgorithm.DJB2 -> djb2Cache.computeIfAbsent(input) { getDJB2HashString(it) }
+        HashAlgorithm.SHA256 -> sha256Cache.computeIfAbsent(input) { getSHA256HashString(it) }
+        HashAlgorithm.NONE -> input
+        else -> sha256Cache.computeIfAbsent(input) { getSHA256HashString(it) }
     }
 
     private fun getSHA256HashString(input: String): String {

@@ -11,7 +11,7 @@ internal interface LifecycleEventListener {
 
 internal class StatsigActivityLifecycleListener(
     private val application: Application,
-    private val listener: LifecycleEventListener,
+    private val listener: LifecycleEventListener
 ) : Application.ActivityLifecycleCallbacks {
 
     private var currentActivity: Activity? = null
@@ -28,9 +28,7 @@ internal class StatsigActivityLifecycleListener(
         application.unregisterActivityLifecycleCallbacks(this)
     }
 
-    fun getCurrentActivity(): Activity? {
-        return currentActivity
-    }
+    fun getCurrentActivity(): Activity? = currentActivity
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
         currentActivity = activity
@@ -62,13 +60,9 @@ internal class StatsigActivityLifecycleListener(
         }
     }
 
-    private fun isApplicationVisible(): Boolean {
-        return started > stopped
-    }
+    private fun isApplicationVisible(): Boolean = started > stopped
 
-    private fun isApplicationInForeground(): Boolean {
-        return resumed > paused
-    }
+    private fun isApplicationInForeground(): Boolean = resumed > paused
 
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
     }

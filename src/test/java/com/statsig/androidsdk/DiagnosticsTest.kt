@@ -52,13 +52,16 @@ class DiagnosticsTest {
         val options = StatsigOptions(
             api = "http://statsig.api",
             initializeValues = mapOf(),
-            initTimeoutMs = 10000,
+            initTimeoutMs = 10000
         )
         runBlocking {
             client.initialize(app, "client-key", StatsigUser("test-user"), options)
             client.shutdown()
         }
-        val optionsLoggingCopy: Map<String, Any> = Gson().fromJson(logEvents[0].events[0].metadata?.get("statsigOptions"), object : TypeToken<Map<String, Any>>() {}.type)
+        val optionsLoggingCopy: Map<String, Any> = Gson().fromJson(
+            logEvents[0].events[0].metadata?.get("statsigOptions"),
+            object : TypeToken<Map<String, Any>>() {}.type
+        )
         assertEquals(optionsLoggingCopy["api"], "http://statsig.api")
         assertEquals(optionsLoggingCopy["initializeValues"], "SET")
         assertEquals(optionsLoggingCopy["initTimeoutMs"], 10000.0)

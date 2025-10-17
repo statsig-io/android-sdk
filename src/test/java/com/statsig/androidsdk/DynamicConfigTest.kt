@@ -14,13 +14,14 @@ class DynamicConfigTest {
             "test_config",
             EvaluationDetails(EvaluationReason.Network, lcut = 0),
             TestUtil.getConfigValueMap(),
-            "default",
+            "default"
         )
     }
 
     @Test
     fun testDummy() {
-        val dummyConfig = DynamicConfig("", EvaluationDetails(EvaluationReason.Unrecognized, lcut = 0))
+        val dummyConfig =
+            DynamicConfig("", EvaluationDetails(EvaluationReason.Unrecognized, lcut = 0))
         assertEquals("provided default", dummyConfig.getString("test", "provided default"))
         assertEquals(true, dummyConfig.getBoolean("test", true))
         assertEquals(12, dummyConfig.getInt("test", 12))
@@ -42,7 +43,7 @@ class DynamicConfigTest {
             "test_config",
             EvaluationDetails(EvaluationReason.Uninitialized, lcut = 0),
             mapOf(),
-            "default",
+            "default"
         )
 
         assertEquals("provided default", emptyConfig.getString("test", "provided default"))
@@ -94,9 +95,9 @@ class DynamicConfigTest {
                 "nestedString" to "nested",
                 "nestedBoolean" to true,
                 "nestedDouble" to 13.74,
-                "nestedLong" to 13L,
+                "nestedLong" to 13L
             ),
-            dc.getDictionary("testNested", mapOf()),
+            dc.getDictionary("testNested", mapOf())
         )
     }
 }

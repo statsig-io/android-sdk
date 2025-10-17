@@ -37,9 +37,9 @@ class StoreTest {
         value: String,
         inExperiment: Boolean = false,
         active: Boolean = false,
-        hasUpdates: Boolean = true,
-    ): InitializeResponse.SuccessfulInitializeResponse {
-        return InitializeResponse.SuccessfulInitializeResponse(
+        hasUpdates: Boolean = true
+    ): InitializeResponse.SuccessfulInitializeResponse =
+        InitializeResponse.SuccessfulInitializeResponse(
             featureGates =
             mutableMapOf(
                 "gate!" to
@@ -48,8 +48,8 @@ class StoreTest {
                         inExperiment,
                         "id",
                         null,
-                        arrayOf(),
-                    ),
+                        arrayOf()
+                    )
             ),
             configs =
             mutableMapOf(
@@ -59,7 +59,7 @@ class StoreTest {
                         mutableMapOf("key" to value),
                         "id",
                         null,
-                        arrayOf(),
+                        arrayOf()
                     ),
                 "exp!" to
                     APIDynamicConfig(
@@ -70,7 +70,7 @@ class StoreTest {
                         arrayOf(),
                         isDeviceBased = false,
                         isUserInExperiment = inExperiment,
-                        isExperimentActive = active,
+                        isExperimentActive = active
                     ),
                 "device_exp!" to
                     APIDynamicConfig(
@@ -81,7 +81,7 @@ class StoreTest {
                         arrayOf(),
                         isDeviceBased = true,
                         isUserInExperiment = inExperiment,
-                        isExperimentActive = active,
+                        isExperimentActive = active
                     ),
                 "exp_non_stick!" to
                     APIDynamicConfig(
@@ -92,19 +92,25 @@ class StoreTest {
                         arrayOf(),
                         isDeviceBased = false,
                         isUserInExperiment = inExperiment,
-                        isExperimentActive = active,
-                    ),
+                        isExperimentActive = active
+                    )
             ),
             layerConfigs = null,
             hasUpdates = hasUpdates,
             time = 1621637839,
-            derivedFields = mapOf(),
+            derivedFields = mapOf()
         )
-    }
 
     @Test
     fun testCacheById() = runBlocking {
-        val store = Store(TestUtil.coroutineScope, TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
+        val store =
+            Store(
+                TestUtil.coroutineScope,
+                TestUtil.getTestSharedPrefs(app),
+                userJkw,
+                "client-apikey",
+                StatsigOptions()
+            )
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         store.resetUser(userDloomb)
@@ -130,7 +136,7 @@ class StoreTest {
                         mutableMapOf("key" to Long.MAX_VALUE),
                         "id",
                         null,
-                        arrayOf(),
+                        arrayOf()
                     ),
                 "double!" to
                     APIDynamicConfig(
@@ -138,18 +144,21 @@ class StoreTest {
                         mutableMapOf("key" to Double.MIN_VALUE),
                         "id",
                         null,
-                        arrayOf(),
-                    ),
+                        arrayOf()
+                    )
             ),
             time = 1621637839,
-            hasUpdates = true,
+            hasUpdates = true
         )
         TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(), network)
         assertEquals(Long.MAX_VALUE, Statsig.getConfig("long").getLong("key", 0L))
         assertEquals(Double.MIN_VALUE, Statsig.getConfig("double").getDouble("key", 0.0), 0.0)
         network = TestUtil.mockBrokenNetwork()
         TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(loadCacheAsync = true), network)
-        assertEquals(EvaluationReason.Cache, Statsig.getConfig("long").getEvaluationDetails().reason)
+        assertEquals(
+            EvaluationReason.Cache,
+            Statsig.getConfig("long").getEvaluationDetails().reason
+        )
         assertEquals(Long.MAX_VALUE, Statsig.getConfig("long").getLong("key", 0L))
         assertEquals(Double.MIN_VALUE, Statsig.getConfig("double").getDouble("key", 0.0), 0.0)
     }
@@ -157,7 +166,8 @@ class StoreTest {
     @Test
     fun testEvaluationReasons() = runBlocking {
         val sharedPrefs = TestUtil.getTestSharedPrefs(app)
-        var store = Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+        var store =
+            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
 
         // check before there is any value
         var exp = store.getExperiment("exp", false)
@@ -190,12 +200,15 @@ class StoreTest {
         assertEquals(EvaluationReason.NetworkNotModified, exp.getEvaluationDetails().reason)
 
         // re-initialize store, and check before any "network" value is saved
-        Thread.sleep(1000) // wait 1 sec before reinitializing so that we can check the evaluation time in details has not advanced
-        store = Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+        // wait 1 sec before reinitializing so that we can check
+        // the evaluation time in details has not advanced
+        Thread.sleep(1000)
+        store =
+            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         exp = store.getExperiment(
             "exp",
-            true,
+            true
         ) // set keepDeviceValue to true so we can check for sticky value next
         store.persistStickyValues()
 
@@ -204,7 +217,8 @@ class StoreTest {
         assertEquals(time, exp.getEvaluationDetails().time)
 
         // re-initialize and check the previously saved sticky value
-        store = Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+        store =
+            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v1", inExperiment = true, active = true), userJkw)
         store.persistStickyValues()
@@ -216,7 +230,14 @@ class StoreTest {
 
     @Test
     fun testConfigNameNotHashed() = runBlocking {
-        val store = Store(TestUtil.coroutineScope, TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
+        val store =
+            Store(
+                TestUtil.coroutineScope,
+                TestUtil.getTestSharedPrefs(app),
+                userJkw,
+                "client-apikey",
+                StatsigOptions()
+            )
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         val config = store.getExperiment("config", false)
@@ -227,7 +248,14 @@ class StoreTest {
 
     @Test
     fun testStickyBucketing() = runBlocking {
-        val store = Store(TestUtil.coroutineScope, TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
+        val store =
+            Store(
+                TestUtil.coroutineScope,
+                TestUtil.getTestSharedPrefs(app),
+                userJkw,
+                "client-apikey",
+                StatsigOptions()
+            )
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         // getting values with keepDeviceValue = false first
@@ -292,7 +320,14 @@ class StoreTest {
 
     @Test
     fun testInactiveExperimentStickyBehavior() = runBlocking {
-        val store = Store(TestUtil.coroutineScope, TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
+        val store =
+            Store(
+                TestUtil.coroutineScope,
+                TestUtil.getTestSharedPrefs(app),
+                userJkw,
+                "client-apikey",
+                StatsigOptions()
+            )
         store.save(getInitValue("v0", inExperiment = true, active = false), userJkw)
 
         var exp = store.getExperiment("exp", true)
@@ -306,7 +341,14 @@ class StoreTest {
 
     @Test
     fun testStickyBehaviorWhenResettingUser() = runBlocking {
-        val store = Store(TestUtil.coroutineScope, TestUtil.getTestSharedPrefs(app), userJkw, "client-apikey", StatsigOptions())
+        val store =
+            Store(
+                TestUtil.coroutineScope,
+                TestUtil.getTestSharedPrefs(app),
+                userJkw,
+                "client-apikey",
+                StatsigOptions()
+            )
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
 
         // getting values with keepDeviceValue = false first
@@ -349,7 +391,8 @@ class StoreTest {
     @Test
     fun testStickyBehaviorAcrossSessions() = runBlocking {
         val sharedPrefs = TestUtil.getTestSharedPrefs(app)
-        var store = Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+        var store =
+            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         val v0Values = getInitValue("v0", inExperiment = true, active = true)
         store.save(v0Values, userJkw)
@@ -366,7 +409,8 @@ class StoreTest {
         assertEquals("v0", nonStickExp.getString("key", ""))
 
         // Reinitialize, same user ID, should keep sticky values
-        store = Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+        store =
+            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         val configs = v0Values.configs as MutableMap<String, APIDynamicConfig>
 
@@ -381,12 +425,13 @@ class StoreTest {
         assertTrue(
             "Should still get original v0 not v0_alt",
             exp.getString("key", "") == "v0" &&
-                deviceExp.getString("key", "") == "v0",
+                deviceExp.getString("key", "") == "v0"
         )
 
         // Re-create store with a different user ID, update the values, user should still get sticky
         // value for device and only device
-        store = Store(TestUtil.coroutineScope, sharedPrefs, userTore, "client-apikey", StatsigOptions())
+        store =
+            Store(TestUtil.coroutineScope, sharedPrefs, userTore, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v1", inExperiment = true, active = true), userTore)
 
@@ -400,7 +445,8 @@ class StoreTest {
         assertEquals("v1", nonStickExp.getString("key", ""))
 
         // Re-create store with the original user ID, check that sticky values are persisted
-        store = Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+        store =
+            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v2", inExperiment = true, active = true), userJkw)
 
@@ -426,15 +472,17 @@ class StoreTest {
                 "test_config!" to APIDynamicConfig(
                     "test_config!",
                     mutableMapOf("key" to "first"),
-                    "default",
-                ),
+                    "default"
+                )
             ),
             time = networkTime,
-            hasUpdates = true,
+            hasUpdates = true
         )
         val user = StatsigUser("123")
         TestUtil.startStatsigAndWait(app, user, StatsigOptions(), network)
-        coVerify { network.initialize(any(), any(), null, any(), any(), any(), any(), any(), any(), any()) }
+        coVerify {
+            network.initialize(any(), any(), null, any(), any(), any(), any(), any(), any(), any())
+        }
         assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
         network = TestUtil.mockNetwork(
@@ -442,15 +490,28 @@ class StoreTest {
                 "test_config!" to APIDynamicConfig(
                     "test_config!",
                     mutableMapOf("key" to "second"),
-                    "default",
-                ),
+                    "default"
+                )
             ),
             time = networkTime - 1,
-            hasUpdates = false,
+            hasUpdates = false
         )
         Statsig.client.statsigNetwork = network
         runBlocking { Statsig.updateUser(user) }
-        coVerify { network.initialize(any(), any(), networkTime, any(), any(), any(), any(), any(), any(), any()) }
+        coVerify {
+            network.initialize(
+                api = any(),
+                user = any(),
+                sinceTime = networkTime,
+                metadata = any(),
+                coroutineScope = any(),
+                context = any(),
+                diagnostics = any(),
+                hashUsed = any(),
+                previousDerivedFields = any(),
+                fullChecksum = any()
+            )
+        }
         assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
     }
@@ -463,15 +524,17 @@ class StoreTest {
                 "test_config!" to APIDynamicConfig(
                     "test_config!",
                     mutableMapOf("key" to "first"),
-                    "default",
-                ),
+                    "default"
+                )
             ),
             time = networkTime,
-            hasUpdates = true,
+            hasUpdates = true
         )
         val user = StatsigUser("123")
         TestUtil.startStatsigAndWait(app, user, StatsigOptions(), network)
-        coVerify { network.initialize(any(), any(), null, any(), any(), any(), any(), any(), any(), any()) }
+        coVerify {
+            network.initialize(any(), any(), null, any(), any(), any(), any(), any(), any(), any())
+        }
         assertEquals(networkTime, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("first", Statsig.getConfig("test_config").getString("key", ""))
         network = TestUtil.mockNetwork(
@@ -479,32 +542,43 @@ class StoreTest {
                 "test_config!" to APIDynamicConfig(
                     "test_config!",
                     mutableMapOf("key" to "second"),
-                    "default",
-                ),
+                    "default"
+                )
             ),
             time = networkTime + 1,
-            hasUpdates = true,
+            hasUpdates = true
         )
         Statsig.client.statsigNetwork = network
         runBlocking { Statsig.refreshCache() }
-        coVerify { network.initialize(any(), any(), networkTime, any(), any(), any(), any(), any(), any(), any()) }
+        coVerify {
+            network.initialize(
+                api = any(),
+                user = any(),
+                sinceTime = networkTime,
+                metadata = any(),
+                coroutineScope = any(),
+                context = any(),
+                diagnostics = any(),
+                hashUsed = any(),
+                previousDerivedFields = any(),
+                fullChecksum = any()
+            )
+        }
         assertEquals(networkTime + 1, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("second", Statsig.getConfig("test_config").getString("key", ""))
     }
 
     private fun newConfigUpdatingValue(
         config: APIDynamicConfig,
-        newValue: Map<String, Any>,
-    ): APIDynamicConfig {
-        return APIDynamicConfig(
-            config.name,
-            newValue,
-            config.ruleID,
-            config.groupName,
-            config.secondaryExposures,
-            isDeviceBased = config.isDeviceBased,
-            isUserInExperiment = config.isUserInExperiment,
-            isExperimentActive = config.isExperimentActive,
-        )
-    }
+        newValue: Map<String, Any>
+    ): APIDynamicConfig = APIDynamicConfig(
+        config.name,
+        newValue,
+        config.ruleID,
+        config.groupName,
+        config.secondaryExposures,
+        isDeviceBased = config.isDeviceBased,
+        isUserInExperiment = config.isUserInExperiment,
+        isExperimentActive = config.isExperimentActive
+    )
 }

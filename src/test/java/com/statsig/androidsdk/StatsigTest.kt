@@ -5,6 +5,8 @@ import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.spyk
 import io.mockk.unmockkAll
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
@@ -20,8 +22,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 class StatsigTest {
@@ -62,12 +62,17 @@ class StatsigTest {
         val now = System.currentTimeMillis()
         user.customIDs = mapOf("random_id" to "abcde")
 
-        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "custom_stable_id"), network = network)
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(overrideStableID = "custom_stable_id"),
+            network = network
+        )
         client = Statsig.client
 
         assertEquals(
             Gson().toJson(initUser?.customIDs),
-            Gson().toJson(mapOf("random_id" to "abcde")),
+            Gson().toJson(mapOf("random_id" to "abcde"))
         )
         assertTrue(client.checkGate("always_on"))
         assertTrue(client.checkGateWithExposureLoggingDisabled("always_on_v2"))
@@ -81,7 +86,7 @@ class StatsigTest {
         assertEquals(42, config.getInt("number", 0))
         assertEquals(
             "default string instead",
-            config.getString("otherNumber", "default string instead"),
+            config.getString("otherNumber", "default string instead")
         )
         assertEquals("default", config.getRuleID())
         assertNull(config.getGroupName())
@@ -136,7 +141,13 @@ class StatsigTest {
 
         // validate diagnostics
         assertEquals(parsedLogs.events[0].eventName, "statsig::diagnostics")
-        parsedLogs = LogEventData(parsedLogs.events.filter { it -> it.eventName != "statsig::diagnostics" } as ArrayList<LogEvent>, parsedLogs.statsigMetadata)
+        parsedLogs =
+            LogEventData(
+                parsedLogs.events.filter { it ->
+                    it.eventName != "statsig::diagnostics"
+                } as ArrayList<LogEvent>,
+                parsedLogs.statsigMetadata
+            )
 
         // validate gate exposure
         assertEquals(parsedLogs.events[0].eventName, "statsig::gate_exposure")
@@ -156,15 +167,15 @@ class StatsigTest {
                     mapOf(
                         "gate" to "dependent_gate",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_1",
+                        "ruleID" to "rule_id_1"
                     ),
                     mapOf(
                         "gate" to "dependent_gate_2",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_2",
-                    ),
-                ),
-            ),
+                        "ruleID" to "rule_id_2"
+                    )
+                )
+            )
         )
 
         // validate non-existent gate's evaluation reason
@@ -186,10 +197,10 @@ class StatsigTest {
                     mapOf(
                         "gate" to "dependent_gate",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_1",
-                    ),
-                ),
-            ),
+                        "ruleID" to "rule_id_1"
+                    )
+                )
+            )
         )
 
         // validate exp exposure
@@ -209,7 +220,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[6].value, 1.0)
         assertEquals(
             Gson().toJson(parsedLogs.events[6].metadata),
-            Gson().toJson(mapOf("key" to "value")),
+            Gson().toJson(mapOf("key" to "value"))
         )
         assertNull(parsedLogs.events[6].secondaryExposures)
 
@@ -218,7 +229,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[7].value, null)
         assertEquals(
             Gson().toJson(parsedLogs.events[7].metadata),
-            Gson().toJson(mapOf("key" to "value2")),
+            Gson().toJson(mapOf("key" to "value2"))
         )
         assertNull(parsedLogs.events[7].secondaryExposures)
 
@@ -248,7 +259,7 @@ class StatsigTest {
             app,
             user,
             StatsigOptions(optOutNonSdkMetadata = true, overrideStableID = "custom_stable_id"),
-            network = network,
+            network = network
         )
         client = Statsig.client
         assertTrue(client.checkGate("always_on"))
@@ -315,7 +326,7 @@ class StatsigTest {
                 override fun onStatsigUpdateUser() {
                     updateCountdown.countDown()
                 }
-            },
+            }
         )
         updateCountdown.await(1, TimeUnit.SECONDS)
         assertEquals(initUser?.userID, "test-user-2")
@@ -334,7 +345,13 @@ class StatsigTest {
         val user = StatsigUser("test-user")
         val timeout = 800L
         val option = StatsigOptions(initTimeoutMs = timeout)
-        val setupMethod = client.javaClass.getDeclaredMethod("setup", Application::class.java, String::class.java, StatsigUser::class.java, StatsigOptions::class.java)
+        val setupMethod = client.javaClass.getDeclaredMethod(
+            "setup",
+            Application::class.java,
+            String::class.java,
+            StatsigUser::class.java,
+            StatsigOptions::class.java
+        )
         setupMethod.isAccessible = true
         setupMethod.invoke(client, app, "client-key", user, option)
         // initialize function blocking timeout
@@ -342,19 +359,43 @@ class StatsigTest {
         client.statsigNetwork = network
         coEvery {
             network["initializeImpl"](
-                allAny<String>(), allAny<StatsigUser>(), allAny<Long>(), allAny<StatsigMetadata>(), allAny<ContextType>(), allAny<Diagnostics>(),
-                allAny<Int>(), allAny<Int>(), allAny<HashAlgorithm>(), allAny<Map<String, String>>(), allAny<String>(), allAny<List<String>>(),
+                allAny<String>(),
+                allAny<StatsigUser>(),
+                allAny<Long>(),
+                allAny<StatsigMetadata>(),
+                allAny<ContextType>(),
+                allAny<Diagnostics>(),
+                allAny<Int>(),
+                allAny<Int>(),
+                allAny<HashAlgorithm>(),
+                allAny<Map<String, String>>(),
+                allAny<String>(),
+                allAny<List<String>>()
             )
         } coAnswers {
             Thread.sleep(timeout) // Block the thread
-            InitializeResponse.FailedInitializeResponse(InitializeFailReason.InternalError, Exception("eXAMPLE"))
+            InitializeResponse.FailedInitializeResponse(
+                InitializeFailReason.InternalError,
+                Exception("eXAMPLE")
+            )
         }
         val scope = client.javaClass.getDeclaredField("statsigScope")
         scope.isAccessible = true
         val statsigScope = scope.get(client)
 
         try {
-            client.statsigNetwork.initialize(option.api, user, 0, StatsigMetadata(), statsigScope as CoroutineScope, ContextType.INITIALIZE, null, HashAlgorithm.DJB2, mapOf(), null)
+            client.statsigNetwork.initialize(
+                api = option.api,
+                user = user,
+                sinceTime = 0,
+                metadata = StatsigMetadata(),
+                statsigScope as CoroutineScope,
+                ContextType.INITIALIZE,
+                diagnostics = null,
+                hashUsed = HashAlgorithm.DJB2,
+                previousDerivedFields = mapOf(),
+                fullChecksum = null
+            )
         } catch (e: Exception) {
             assert(e is TimeoutCancellationException)
             assert(e.message!!.contains("Timed out waiting for $timeout ms"))
@@ -366,7 +407,12 @@ class StatsigTest {
     @Test
     fun testObjectBasedManualExposureMethods() {
         val user = StatsigUser("test_user")
-        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "test_stable_id"), network = network)
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(overrideStableID = "test_stable_id"),
+            network = network
+        )
         client = Statsig.client
 
         val gate = client.getFeatureGateWithExposureLoggingDisabled("always_on")
@@ -417,12 +463,19 @@ class StatsigTest {
     @Test
     fun testObjectBasedManualExposureWithNonExistentObjects() {
         val user = StatsigUser("test_user")
-        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "test_stable_id"), network = network)
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(overrideStableID = "test_stable_id"),
+            network = network
+        )
         client = Statsig.client
 
         val nonExistentGate = client.getFeatureGateWithExposureLoggingDisabled("nonexistent_gate")
         val nonExistentConfig = client.getConfigWithExposureLoggingDisabled("nonexistent_config")
-        val nonExistentExperiment = client.getExperimentWithExposureLoggingDisabled("nonexistent_exp")
+        val nonExistentExperiment = client.getExperimentWithExposureLoggingDisabled(
+            "nonexistent_exp"
+        )
         val nonExistentLayer = client.getLayerWithExposureLoggingDisabled("nonexistent_layer")
 
         client.manuallyLogGateExposure(nonExistentGate)
@@ -448,13 +501,15 @@ class StatsigTest {
         assertEquals("nonexistent_gate", gateLog!!.metadata!!["gate"])
 
         val configLog = manualExposureLogs.find {
-            it.eventName == "statsig::config_exposure" && it.metadata!!["config"] == "nonexistent_config"
+            it.eventName == "statsig::config_exposure" &&
+                it.metadata!!["config"] == "nonexistent_config"
         }
         assertNotNull("Config exposure log should exist", configLog)
         assertEquals("nonexistent_config", configLog!!.metadata!!["config"])
 
         val expLog = manualExposureLogs.find {
-            it.eventName == "statsig::config_exposure" && it.metadata!!["config"] == "nonexistent_exp"
+            it.eventName == "statsig::config_exposure" &&
+                it.metadata!!["config"] == "nonexistent_exp"
         }
         assertNotNull("Experiment exposure log should exist", expLog)
         assertEquals("nonexistent_exp", expLog!!.metadata!!["config"])
