@@ -1,16 +1,16 @@
 package com.statsig.androidsdk
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 val FEATURE_ASSETS_DNS_QUERY = byteArrayOf(
     0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d,
     0x66, 0x65, 0x61, 0x74, 0x75, 0x72, 0x65, 0x61, 0x73, 0x73, 0x65, 0x74, 0x73,
-    0x03, 0x6f, 0x72, 0x67, 0x00, 0x00, 0x10, 0x00, 0x01,
+    0x03, 0x6f, 0x72, 0x67, 0x00, 0x00, 0x10, 0x00, 0x01
 )
 
 const val DNS_QUERY_ENDPOINT = "https://cloudflare-dns.com/dns-query"
@@ -18,7 +18,9 @@ const val DNS_QUERY_ENDPOINT = "https://cloudflare-dns.com/dns-query"
 val DOMAIN_CHARS = listOf('i', 'e', 'd') // valid domain characters: 'i', 'e', 'd'
 const val MAX_START_LOOKUP = 200
 
-suspend fun fetchTxtRecords(urlConnectionProvider: UrlConnectionProvider = defaultProvider): List<String> = withContext(Dispatchers.IO) {
+suspend fun fetchTxtRecords(
+    urlConnectionProvider: UrlConnectionProvider = defaultProvider
+): List<String> = withContext(Dispatchers.IO) {
     val connection = createHttpConnection(DNS_QUERY_ENDPOINT, urlConnectionProvider)
 
     try {
@@ -44,7 +46,10 @@ suspend fun fetchTxtRecords(urlConnectionProvider: UrlConnectionProvider = defau
     }
 }
 
-private fun createHttpConnection(url: String, urlConnectionProvider: UrlConnectionProvider = defaultProvider): HttpURLConnection {
+private fun createHttpConnection(
+    url: String,
+    urlConnectionProvider: UrlConnectionProvider = defaultProvider
+): HttpURLConnection {
     val connection = urlConnectionProvider.open(URL(url))as HttpURLConnection
     connection.apply {
         requestMethod = "POST"

@@ -4,9 +4,9 @@ import android.content.SharedPreferences
 import androidx.annotation.VisibleForTesting
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
 
 private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
 private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
@@ -15,12 +15,12 @@ private const val LOCAL_OVERRIDES_KEY: String = "Statsig.LOCAL_OVERRIDES"
 private const val CACHE_KEY_MAPPING_KEY: String = "Statsig.CACHE_KEY_MAPPING"
 
 private data class StickyUserExperiments(
-    @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>,
+    @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>
 )
 
 private data class DeprecatedStickyUserExperiments(
     @SerializedName("user_id") val userID: String?,
-    @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>,
+    @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>
 )
 
 @VisibleForTesting
@@ -28,10 +28,16 @@ private data class Cache(
     @SerializedName("values") var values: InitializeResponse.SuccessfulInitializeResponse,
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments,
     @SerializedName("userHash") var userHash: String,
-    @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis(),
+    @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
 )
 
-internal class Store(private val statsigScope: CoroutineScope, private val sharedPrefs: SharedPreferences, user: StatsigUser, private val sdkKey: String, private val options: StatsigOptions) {
+internal class Store(
+    private val statsigScope: CoroutineScope,
+    private val sharedPrefs: SharedPreferences,
+    user: StatsigUser,
+    private val sdkKey: String,
+    private val options: StatsigOptions
+) {
     var reason: EvaluationReason
 
     private val gson = StatsigUtil.getGson()
@@ -63,9 +69,18 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
     fun syncLoadFromLocalStorage() {
         val cachedResponse = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
-        val cachedDeviceValues = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
-        val cachedLocalOverrides = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
-        val cachedCacheKeyMapping = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, CACHE_KEY_MAPPING_KEY)
+        val cachedDeviceValues = StatsigUtil.syncGetFromSharedPrefs(
+            sharedPrefs,
+            STICKY_DEVICE_EXPERIMENTS_KEY
+        )
+        val cachedLocalOverrides = StatsigUtil.syncGetFromSharedPrefs(
+            sharedPrefs,
+            LOCAL_OVERRIDES_KEY
+        )
+        val cachedCacheKeyMapping = StatsigUtil.syncGetFromSharedPrefs(
+            sharedPrefs,
+            CACHE_KEY_MAPPING_KEY
+        )
         if (cachedResponse != null) {
             val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
             try {
@@ -82,7 +97,10 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         if (cachedDeviceValues != null) {
             val type = object : TypeToken<MutableMap<String, APIDynamicConfig>>() {}.type
             try {
-                val localSticky: Map<String, APIDynamicConfig> = gson.fromJson(cachedDeviceValues, type)
+                val localSticky: Map<String, APIDynamicConfig> = gson.fromJson(
+                    cachedDeviceValues,
+                    type
+                )
                 stickyDeviceExperiments = ConcurrentHashMap(localSticky)
             } catch (_: Exception) {
                 statsigScope.launch(dispatcherProvider.io) {
@@ -132,7 +150,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         try {
             currentCache.values = gson.fromJson(
                 gson.toJson(initializeValues),
-                InitializeResponse.SuccessfulInitializeResponse::class.java,
+                InitializeResponse.SuccessfulInitializeResponse::class.java
             )
             cacheKeyMapping[currentUserCacheKeyV2] = currentFullUserCacheKey
             cacheById[currentFullUserCacheKey] = currentCache
@@ -156,12 +174,15 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         if (fullHashCachedValues != null) {
             return fullHashCachedValues
         }
-        var cachedValues = cacheById[this.getScopedCacheKey(user)] ?: cacheById[user.getCacheKeyDEPRECATED()]
+        var cachedValues =
+            cacheById[this.getScopedCacheKey(user)] ?: cacheById[user.getCacheKeyDEPRECATED()]
         if (cachedValues != null) {
             return cachedValues
         }
 
-        var cacheMapping = cacheKeyMapping[this.getScopedCacheKey(user)] ?: cacheKeyMapping[user.getCacheKeyDEPRECATED()]
+        var cacheMapping =
+            cacheKeyMapping[this.getScopedCacheKey(user)]
+                ?: cacheKeyMapping[user.getCacheKeyDEPRECATED()]
         if (cacheMapping != null) {
             cachedValues = cacheById[cacheMapping]
             if (cachedValues != null) {
@@ -193,13 +214,11 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         return cachedValues?.values?.fullChecksum ?: null
     }
 
-    private fun getScopedCacheKey(user: StatsigUser): String {
-        return this.options.customCacheKey(this.sdkKey, user)
-    }
+    private fun getScopedCacheKey(user: StatsigUser): String =
+        this.options.customCacheKey(this.sdkKey, user)
 
-    private fun getScopedFullUserCacheKey(user: StatsigUser): String {
-        return "${user.toHashString()}:${this.sdkKey}"
-    }
+    private fun getScopedFullUserCacheKey(user: StatsigUser): String =
+        "${user.toHashString()}:${this.sdkKey}"
 
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
         val cacheKey = this.getScopedCacheKey(user)
@@ -241,7 +260,11 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         var cacheKeyMappingString = gson.toJson(cacheKeyMapping)
 
         StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, cacheString)
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_KEY_MAPPING_KEY, cacheKeyMappingString)
+        StatsigUtil.saveStringToSharedPrefs(
+            sharedPrefs,
+            CACHE_KEY_MAPPING_KEY,
+            cacheKeyMappingString
+        )
     }
 
     fun checkGate(gateName: String): FeatureGate {
@@ -251,11 +274,13 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
                 gateName,
                 getEvaluationDetails(false, EvaluationReason.LocalOverride),
                 overriddenValue,
-                "override",
+                "override"
             )
         }
         var gate = currentCache.values.featureGates?.get(gateName)
-            ?: currentCache.values.featureGates?.get(Hashing.getHashedString(gateName, currentCache.values.hashUsed))
+            ?: currentCache.values.featureGates?.get(
+                Hashing.getHashedString(gateName, currentCache.values.hashUsed)
+            )
         val gateOrDefault = gate ?: return FeatureGate(gateName, getEvaluationDetails(false), false)
         return FeatureGate(gateName, gateOrDefault, getEvaluationDetails(true))
     }
@@ -267,7 +292,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
                 configName,
                 getEvaluationDetails(false, EvaluationReason.LocalOverride),
                 overrideValue,
-                "override",
+                "override"
             )
         }
 
@@ -275,10 +300,9 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         return hydrateDynamicConfig(configName, getEvaluationDetails(data != null), data)
     }
 
-    private fun getConfigData(name: String): APIDynamicConfig? {
-        return currentCache.values.let {
-            it.configs?.get(name) ?: it.configs?.get(Hashing.getHashedString(name, currentCache.values.hashUsed))
-        }
+    private fun getConfigData(name: String): APIDynamicConfig? = currentCache.values.let {
+        it.configs?.get(name)
+            ?: it.configs?.get(Hashing.getHashedString(name, currentCache.values.hashUsed))
     }
 
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
@@ -288,22 +312,29 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
                 experimentName,
                 getEvaluationDetails(false, EvaluationReason.LocalOverride),
                 overrideValue,
-                "override",
+                "override"
             )
         }
 
         val latestValue = currentCache.values.configs?.get(experimentName)
-            ?: currentCache.values.configs?.get(Hashing.getHashedString(experimentName, currentCache.values.hashUsed))
+            ?: currentCache.values.configs?.get(
+                Hashing.getHashedString(experimentName, currentCache.values.hashUsed)
+            )
         val details = getEvaluationDetails(latestValue != null)
-        val finalValue = getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
+        val finalValue =
+            getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
         return hydrateDynamicConfig(
             experimentName,
             details,
-            finalValue,
+            finalValue
         )
     }
 
-    fun getLayer(client: StatsigClient?, layerName: String, keepDeviceValue: Boolean = false): Layer {
+    fun getLayer(
+        client: StatsigClient?,
+        layerName: String,
+        keepDeviceValue: Boolean = false
+    ): Layer {
         val overrideValue = localOverrides.layers[layerName]
         if (overrideValue != null) {
             return Layer(
@@ -311,14 +342,17 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
                 layerName,
                 getEvaluationDetails(false, EvaluationReason.LocalOverride),
                 overrideValue,
-                "override",
+                "override"
             )
         }
 
         val latestValue = currentCache.values.layerConfigs?.get(layerName)
-            ?: currentCache.values.layerConfigs?.get(Hashing.getHashedString(layerName, currentCache.values.hashUsed))
+            ?: currentCache.values.layerConfigs?.get(
+                Hashing.getHashedString(layerName, currentCache.values.hashUsed)
+            )
         val details = getEvaluationDetails(latestValue != null)
-        val finalValue = getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, details, true)
+        val finalValue =
+            getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, details, true)
         return if (finalValue != null) {
             Layer(client, layerName, finalValue, details)
         } else {
@@ -326,19 +360,35 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         }
     }
 
-    fun getParamStore(client: StatsigClient, paramStoreName: String, options: ParameterStoreEvaluationOptions?): ParameterStore {
+    fun getParamStore(
+        client: StatsigClient,
+        paramStoreName: String,
+        options: ParameterStoreEvaluationOptions?
+    ): ParameterStore {
         val values = currentCache.values
         if (values.paramStores == null) {
-            return ParameterStore(client, HashMap(), paramStoreName, getEvaluationDetails(false), options)
+            return ParameterStore(
+                client,
+                HashMap(),
+                paramStoreName,
+                getEvaluationDetails(false),
+                options
+            )
         }
         var paramStore = values.paramStores[paramStoreName]
         if (paramStore != null) {
-            return ParameterStore(client, paramStore, paramStoreName, getEvaluationDetails(true), options)
+            return ParameterStore(
+                client,
+                paramStore,
+                paramStoreName,
+                getEvaluationDetails(true),
+                options
+            )
         }
 
         val hashedParamStoreName = Hashing.getHashedString(
             paramStoreName,
-            currentCache.values.hashUsed,
+            currentCache.values.hashUsed
         )
         paramStore = values.paramStores[hashedParamStoreName]
         return ParameterStore(
@@ -346,17 +396,19 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
             paramStore ?: HashMap(),
             paramStoreName,
             getEvaluationDetails(paramStore != null),
-            options,
+            options
         )
     }
 
-    internal fun getGlobalEvaluationDetails(): EvaluationDetails {
-        return EvaluationDetails(this.reason, currentCache.evaluationTime ?: System.currentTimeMillis(), lcut = currentCache.values.time)
-    }
+    internal fun getGlobalEvaluationDetails(): EvaluationDetails = EvaluationDetails(
+        this.reason,
+        currentCache.evaluationTime ?: System.currentTimeMillis(),
+        lcut = currentCache.values.time
+    )
 
     internal fun getEvaluationDetails(
         valueExists: Boolean,
-        reasonOverride: EvaluationReason? = null,
+        reasonOverride: EvaluationReason? = null
     ): EvaluationDetails {
         if (valueExists) {
             return getGlobalEvaluationDetails()
@@ -370,7 +422,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         return EvaluationDetails(
             reason = reasonOverride ?: reason,
             time = System.currentTimeMillis(),
-            lcut = this.currentCache.values.time,
+            lcut = this.currentCache.values.time
         )
     }
 
@@ -380,7 +432,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         latestValue: APIDynamicConfig?,
         keepDeviceValue: Boolean,
         details: EvaluationDetails,
-        isLayer: Boolean,
+        isLayer: Boolean
     ): APIDynamicConfig? {
         // We don't want sticky behavior. Clear any sticky values and return latest.
         if (!keepDeviceValue) {
@@ -442,48 +494,51 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
     }
 
     suspend fun saveOverridesToLocalStorage() {
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
-    }
-
-    fun getAllOverrides(): StatsigOverrides {
-        return StatsigOverrides(
-            localOverrides.gates,
-            localOverrides.configs,
-            localOverrides.layers,
+        StatsigUtil.saveStringToSharedPrefs(
+            sharedPrefs,
+            LOCAL_OVERRIDES_KEY,
+            gson.toJson(localOverrides)
         )
     }
 
-    fun getSDKFlags(): Map<String, Any>? {
-        return currentCache.values.sdkFlags
-    }
+    fun getAllOverrides(): StatsigOverrides = StatsigOverrides(
+        localOverrides.gates,
+        localOverrides.configs,
+        localOverrides.layers
+    )
 
-    fun getCurrentCacheValuesAndEvaluationReason(): ExternalInitializeResponse {
-        return ExternalInitializeResponse(gson.toJson(currentCache.values), getEvaluationDetails(true))
-    }
+    fun getSDKFlags(): Map<String, Any>? = currentCache.values.sdkFlags
 
-    fun getCurrentValuesAsString(): String {
-        return gson.toJson(currentCache.values)
-    }
+    fun getCurrentCacheValuesAndEvaluationReason(): ExternalInitializeResponse =
+        ExternalInitializeResponse(gson.toJson(currentCache.values), getEvaluationDetails(true))
 
-    fun getCachedInitializationResponse(): InitializeResponse.SuccessfulInitializeResponse {
-        return currentCache.values
-    }
+    fun getCurrentValuesAsString(): String = gson.toJson(currentCache.values)
+
+    fun getCachedInitializationResponse(): InitializeResponse.SuccessfulInitializeResponse =
+        currentCache.values
 
     private fun hydrateDynamicConfig(
         name: String,
         details: EvaluationDetails,
-        config: APIDynamicConfig?,
-    ): DynamicConfig {
-        return if (config != null) {
-            DynamicConfig(name, config, details)
-        } else {
-            DynamicConfig(name, details)
-        }
+        config: APIDynamicConfig?
+    ): DynamicConfig = if (config != null) {
+        DynamicConfig(name, config, details)
+    } else {
+        DynamicConfig(name, details)
     }
 
     private fun createEmptyCache(): Cache {
         val emptyInitResponse =
-            InitializeResponse.SuccessfulInitializeResponse(mapOf(), mapOf(), mapOf(), false, null, 0, mapOf(), null)
+            InitializeResponse.SuccessfulInitializeResponse(
+                mapOf(),
+                mapOf(),
+                mapOf(),
+                false,
+                null,
+                0,
+                mapOf(),
+                null
+            )
         val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
         return Cache(emptyInitResponse, emptyStickyUserExperiments, "", System.currentTimeMillis())
     }
@@ -515,7 +570,8 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
 
     private fun getStickyValue(expName: String): APIDynamicConfig? {
         val hashName = Hashing.getHashedString(expName, currentCache.values.hashUsed)
-        return currentCache.stickyUserExperiments.experiments[hashName] ?: stickyDeviceExperiments[hashName]
+        return currentCache.stickyUserExperiments.experiments[hashName]
+            ?: stickyDeviceExperiments[hashName]
     }
 
     suspend fun persistStickyValues() {
@@ -523,7 +579,7 @@ internal class Store(private val statsigScope: CoroutineScope, private val share
         StatsigUtil.saveStringToSharedPrefs(
             sharedPrefs,
             STICKY_DEVICE_EXPERIMENTS_KEY,
-            gson.toJson(stickyDeviceExperiments),
+            gson.toJson(stickyDeviceExperiments)
         )
     }
 }

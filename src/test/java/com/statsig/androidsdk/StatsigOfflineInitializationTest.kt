@@ -3,13 +3,14 @@ package com.statsig.androidsdk
 import android.app.Application
 import io.mockk.coEvery
 import io.mockk.mockk
+import java.util.concurrent.CountDownLatch
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.util.concurrent.CountDownLatch
 
 @RunWith(RobolectricTestRunner::class)
 class StatsigOfflineInitializationTest {
@@ -37,7 +38,13 @@ class StatsigOfflineInitializationTest {
     @Test
     fun testInitializeOffline() = runBlocking {
         // Initialize async offline
-        Statsig.client.initializeAsync(app, "client-apikey", user, options = StatsigOptions(initializeOffline = true), callback = InitializeCallback(initializeCountdown))
+        Statsig.client.initializeAsync(
+            app,
+            "client-apikey",
+            user,
+            options = StatsigOptions(initializeOffline = true),
+            callback = InitializeCallback(initializeCountdown)
+        )
         initializeCountdown.await()
         var config = Statsig.client.getConfig("test_config")
         assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)
@@ -46,7 +53,12 @@ class StatsigOfflineInitializationTest {
         Statsig.shutdown()
         // Initialize offline
         Statsig.client.statsigNetwork = mockNetwork()
-        Statsig.client.initialize(app, "client-apikey", user, StatsigOptions(initializeOffline = true))
+        Statsig.client.initialize(
+            app,
+            "client-apikey",
+            user,
+            StatsigOptions(initializeOffline = true)
+        )
         config = Statsig.client.getConfig("test_config")
         assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)
         assert(config.getString("string", "DEFAULT") == "test")
@@ -54,7 +66,12 @@ class StatsigOfflineInitializationTest {
         Statsig.shutdown()
         assert(logs.size == 2)
         assert(logs[0].events[0].eventName == "statsig::diagnostics")
-        var diagnosticMarkers = (gson.fromJson(logs[0].events[0].metadata!!["markers"], Collection::class.java)).map {
+        var diagnosticMarkers = (
+            gson.fromJson(
+                logs[0].events[0].metadata!!["markers"],
+                Collection::class.java
+            )
+            ).map {
             gson.fromJson(gson.toJson(it), Marker::class.java)
         }
         println(diagnosticMarkers.size)
@@ -65,9 +82,10 @@ class StatsigOfflineInitializationTest {
         assert(diagnosticMarkers[3].action == ActionType.END)
         assert(diagnosticMarkers[3].success == true)
 
-        diagnosticMarkers = (gson.fromJson(logs[1].events[0].metadata!!["markers"], Collection::class.java)).map {
-            gson.fromJson(gson.toJson(it), Marker::class.java)
-        }
+        diagnosticMarkers =
+            (gson.fromJson(logs[1].events[0].metadata!!["markers"], Collection::class.java)).map {
+                gson.fromJson(gson.toJson(it), Marker::class.java)
+            }
         println(diagnosticMarkers.size)
         assert(diagnosticMarkers.size == 4)
         assert(diagnosticMarkers[0].key == KeyType.OVERALL)
@@ -80,7 +98,13 @@ class StatsigOfflineInitializationTest {
     @Test
     fun testInitializeOfflineAndUpdateUser() = runBlocking {
         // Initialize async offline
-        Statsig.client.initializeAsync(app, "client-apikey", user, options = StatsigOptions(initializeOffline = true), callback = InitializeCallback(initializeCountdown))
+        Statsig.client.initializeAsync(
+            app,
+            "client-apikey",
+            user,
+            options = StatsigOptions(initializeOffline = true),
+            callback = InitializeCallback(initializeCountdown)
+        )
         initializeCountdown.await()
         var config = Statsig.client.getConfig("test_config")
         assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)
@@ -103,7 +127,18 @@ class StatsigOfflineInitializationTest {
         } answers {}
 
         coEvery {
-            statsigNetwork.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
+            statsigNetwork.initialize(
+                api = any(),
+                user = any(),
+                sinceTime = any(),
+                metadata = any(),
+                coroutineScope = any(),
+                context = any(),
+                diagnostics = any(),
+                hashUsed = any(),
+                previousDerivedFields = any(),
+                fullChecksum = any()
+            )
         } coAnswers {
             initializeNetworkCalled++
             TestUtil.makeInitializeResponse()

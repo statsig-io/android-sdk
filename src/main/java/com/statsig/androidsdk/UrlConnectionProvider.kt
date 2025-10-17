@@ -11,7 +11,5 @@ interface UrlConnectionProvider {
 }
 
 internal val defaultProvider = object : UrlConnectionProvider {
-    override fun open(url: URL): URLConnection {
-        return url.openConnection()
-    }
+    override fun open(url: URL): URLConnection = url.openConnection()
 }

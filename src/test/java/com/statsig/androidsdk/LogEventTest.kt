@@ -68,7 +68,7 @@ class LogEventTest {
             assert(logEventRequests.size == 1)
             assert(
                 StatsigUtil.getFromSharedPrefs(testSharedPrefs, "StatsigNetwork.OFFLINE_LOGS")!!
-                    .isNotEmpty(),
+                    .isNotEmpty()
             )
             assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
             assert(logEventRequests[0].events[1].eventName == "viewCartIcon")
@@ -87,8 +87,8 @@ class LogEventTest {
             setup(
                 StatsigOptions(
                     eventLoggingAPI = "https://fake.statsig.com/v1",
-                    loggingEnabled = false,
-                ),
+                    loggingEnabled = false
+                )
             )
             Statsig.logEvent("viewCartIcon")
             Statsig.logEvent("clickCartIcon")
@@ -119,8 +119,8 @@ class LogEventTest {
             setup(
                 StatsigOptions(
                     eventLoggingAPI = "https://fake.statsig.com/v1",
-                    loggingEnabled = false,
-                ),
+                    loggingEnabled = false
+                )
             )
             // Add events to exceed the StatsigLogger max buffer size
             for (x in 1..MAX_EVENT_BUFFER_SIZE) {
@@ -142,11 +142,11 @@ class LogEventTest {
         val apiPermutations = arrayOf(
             arrayOf(
                 "https://initialize.fake.statsig.com/v1",
-                "https://logevent.fake.statsig.com/v1",
+                "https://logevent.fake.statsig.com/v1"
             ),
             arrayOf("default", "default"),
             arrayOf("https://initialize.fake.statsig.com/v1", "default"),
-            arrayOf("default", "https://lgevent.fake.statsig.com/v1"),
+            arrayOf("default", "https://lgevent.fake.statsig.com/v1")
         )
         apiPermutations.forEach {
             verifyAPI(it[0], it[1])
@@ -179,7 +179,7 @@ class LogEventTest {
                 any(),
                 any(),
                 any(),
-                any(),
+                any()
             )
         }
         coVerify { network.apiPostLogs(expectedLogEventApi, any(), any()) }
@@ -192,7 +192,7 @@ class LogEventTest {
             testSharedPrefs,
             StatsigUser(),
             "client-apikey",
-            StatsigOptions(),
+            StatsigOptions()
         )
         val network = spyk(
             StatsigNetwork(
@@ -202,14 +202,14 @@ class LogEventTest {
                 StatsigOptions(),
                 mockk(),
                 TestUtil.coroutineScope,
-                store,
-            ),
+                store
+            )
         )
         coEvery {
             network.apiPostLogs(any(), any(), any())
         } answers {
             logEventRequests.add(
-                StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java),
+                StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java)
             )
             callOriginal()
         }
@@ -219,7 +219,7 @@ class LogEventTest {
             StatsigUtil.saveStringToSharedPrefs(
                 testSharedPrefs,
                 "StatsigNetwork.OFFLINE_LOGS",
-                StatsigUtil.getGson().toJson(StatsigPendingRequests(listOf(firstArg()))),
+                StatsigUtil.getGson().toJson(StatsigPendingRequests(listOf(firstArg())))
             )
         }
         mockNetwork(network)

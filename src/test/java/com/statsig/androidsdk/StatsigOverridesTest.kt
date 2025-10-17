@@ -18,13 +18,13 @@ class StatsigOverridesTest {
     private val aValueMap = mapOf(
         "str" to "string-val",
         "bool" to true,
-        "num" to 123,
+        "num" to 123
     )
 
     private val aConfig = mapOf(
         "str" to "string-val",
         "bool" to true,
-        "num" to 123,
+        "num" to 123
     )
 
     @Before

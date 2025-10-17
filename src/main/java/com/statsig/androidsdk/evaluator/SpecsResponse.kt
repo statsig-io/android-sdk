@@ -20,7 +20,7 @@ internal data class SpecsResponse(
     @SerializedName("time") val time: Long = 0,
     @SerializedName("has_updates") val hasUpdates: Boolean,
     @SerializedName("diagnostics") val diagnostics: Map<String, Int>? = null,
-    @SerializedName("default_environment") val defaultEnvironment: String? = null,
+    @SerializedName("default_environment") val defaultEnvironment: String? = null
 )
 
 internal data class Spec(
@@ -36,7 +36,7 @@ internal data class Spec(
     @SerializedName("explicitParameters") val explicitParameters: List<String>?,
     @SerializedName("hasSharedParams") val hasSharedParams: Boolean?,
     @SerializedName("targetAppIDs") val targetAppIDs: List<String>? = null,
-    @SerializedName("version") val version: Int? = null,
+    @SerializedName("version") val version: Int? = null
 )
 
 internal data class SpecRule(
@@ -49,7 +49,7 @@ internal data class SpecRule(
     @SerializedName("idType") val idType: String,
     @SerializedName("groupName") val groupName: String,
     @SerializedName("configDelegate") val configDelegate: String?,
-    @SerializedName("isExperimentGroup") val isExperimentGroup: Boolean?,
+    @SerializedName("isExperimentGroup") val isExperimentGroup: Boolean?
 )
 
 internal data class SpecCondition(
@@ -58,19 +58,19 @@ internal data class SpecCondition(
     @SerializedName("operator") val operator: String?,
     @SerializedName("field") val field: String?,
     @SerializedName("additionalValues") val additionalValues: Map<String, Any>?,
-    @SerializedName("idType") val idType: String,
+    @SerializedName("idType") val idType: String
 )
 
 internal data class SpecParamStore(
     @SerializedName("targetAppIDs") val targetAppIDs: List<String>,
-    @SerializedName("parameters") val parameters: Map<String, Map<String, Any>>,
+    @SerializedName("parameters") val parameters: Map<String, Map<String, Any>>
 )
 
 @JsonAdapter(ReturnableValue.CustomSerializer::class)
 internal data class ReturnableValue(
     val booleanValue: Boolean? = null,
     val rawJson: String = "null",
-    val mapValue: Map<String, Any>? = null,
+    val mapValue: Map<String, Any>? = null
 ) {
     fun getValue(): Any? {
         if (booleanValue != null) {
@@ -85,11 +85,12 @@ internal data class ReturnableValue(
     }
 
     internal class CustomSerializer :
-        JsonDeserializer<ReturnableValue>, JsonSerializer<ReturnableValue> {
+        JsonDeserializer<ReturnableValue>,
+        JsonSerializer<ReturnableValue> {
         override fun deserialize(
             json: JsonElement?,
             typeOfT: Type?,
-            context: JsonDeserializationContext?,
+            context: JsonDeserializationContext?
         ): ReturnableValue {
             if (json == null) {
                 return ReturnableValue()
@@ -113,7 +114,7 @@ internal data class ReturnableValue(
         override fun serialize(
             src: ReturnableValue?,
             typeOfSrc: Type?,
-            context: JsonSerializationContext?,
+            context: JsonSerializationContext?
         ): JsonElement {
             if (src == null) {
                 return JsonNull.INSTANCE

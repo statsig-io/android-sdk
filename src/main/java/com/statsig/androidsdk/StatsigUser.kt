@@ -22,7 +22,7 @@ internal const val STATSIG_NULL_USER: String = "Statsig.NULL_USER"
  */
 data class StatsigUser(
     @SerializedName("userID")
-    var userID: String? = null,
+    var userID: String? = null
 ) {
     @SerializedName("email")
     var email: String? = null
@@ -107,7 +107,6 @@ data class StatsigUser(
         return id
     }
 
-    internal fun toHashString(): String {
-        return Hashing.getHashedString(StatsigUtil.getGson().toJson(this), HashAlgorithm.DJB2)
-    }
+    internal fun toHashString(): String =
+        Hashing.getHashedString(StatsigUtil.getGson().toJson(this), HashAlgorithm.DJB2)
 }

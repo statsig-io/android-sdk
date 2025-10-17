@@ -70,7 +70,12 @@ class InitializationTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun testRetry() = runTest(dispatcher) {
-        val options = StatsigOptions(api = mockWebServer.url("/v1").toString(), initRetryLimit = 2, initTimeoutMs = 10000L)
+        val options =
+            StatsigOptions(
+                api = mockWebServer.url("/v1").toString(),
+                initRetryLimit = 2,
+                initTimeoutMs = 10000L
+            )
         val client = StatsigClient()
 
         client.initialize(app, "client-key", user, options)

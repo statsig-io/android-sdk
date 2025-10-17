@@ -33,16 +33,16 @@ class NetworkFallbackResolverTest {
 
         val DEFAULT_INIT_URL_CONFIG = UrlConfig(
             Endpoint.Initialize,
-            DEFAULT_INIT_API,
+            DEFAULT_INIT_API
         )
         val USER_FALLBACK_CONFIG = UrlConfig(
             Endpoint.Initialize,
             DEFAULT_INIT_API,
-            listOf("fallback.example.com"),
+            listOf("fallback.example.com")
         )
         val CUSTOM_FALLBACK_CONFIG = UrlConfig(
             Endpoint.Initialize,
-            "custom.api.com",
+            "custom.api.com"
         )
     }
 
@@ -54,7 +54,8 @@ class NetworkFallbackResolverTest {
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         testSharedPrefs.edit().clear().commit()
         TestUtil.mockHashing()
-        resolver = NetworkFallbackResolver(ErrorBoundary(), testSharedPrefs, TestUtil.coroutineScope)
+        resolver =
+            NetworkFallbackResolver(ErrorBoundary(), testSharedPrefs, TestUtil.coroutineScope)
     }
 
     @Test
@@ -122,7 +123,10 @@ class NetworkFallbackResolverTest {
         val cache = resolver.readFallbackInfoFromCache()
         assertTrue("cache should not be empty", cache != null)
         val expiryTime = cache?.get(Endpoint.Initialize)?.expiryTime ?: 0L
-        assertTrue("Expiry time should be bumped", expiryTime > (System.currentTimeMillis() + SIX_DAYS))
+        assertTrue(
+            "Expiry time should be bumped",
+            expiryTime > (System.currentTimeMillis() + SIX_DAYS)
+        )
     }
 
     @Test
@@ -130,11 +134,20 @@ class NetworkFallbackResolverTest {
         resolver.initializeFallbackInfo()
         val activeUrl = resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG)
         assertNull("no active url should be returned for user fallback", activeUrl)
-        resolver.tryFetchUpdatedFallbackInfo(SDK_KEY, USER_FALLBACK_CONFIG, "NetworkError when attempting to fetch resource", false, true)
+        resolver.tryFetchUpdatedFallbackInfo(
+            SDK_KEY,
+            USER_FALLBACK_CONFIG,
+            "NetworkError when attempting to fetch resource",
+            false,
+            true
+        )
 
         val cache = resolver.readFallbackInfoFromCache()
         assertTrue("cache should not be empty", cache != null)
-        assertTrue("cache should contain user fallback", cache?.get(Endpoint.Initialize)?.url == "fallback.example.com")
+        assertTrue(
+            "cache should contain user fallback",
+            cache?.get(Endpoint.Initialize)?.url == "fallback.example.com"
+        )
     }
 
     @Test
@@ -142,7 +155,13 @@ class NetworkFallbackResolverTest {
         resolver.initializeFallbackInfo()
         val activeUrl = resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG)
         assertNull("no active url should be returned for custom url", activeUrl)
-        resolver.tryFetchUpdatedFallbackInfo(SDK_KEY, CUSTOM_FALLBACK_CONFIG, "NetworkError when attempting to fetch resource", false, true)
+        resolver.tryFetchUpdatedFallbackInfo(
+            SDK_KEY,
+            CUSTOM_FALLBACK_CONFIG,
+            "NetworkError when attempting to fetch resource",
+            false,
+            true
+        )
 
         val cache = resolver.readFallbackInfoFromCache()
         assertTrue("cache should be empty", cache == null)

@@ -6,6 +6,9 @@ import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import io.mockk.*
+import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,9 +19,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert
-import java.io.IOException
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestUtil {
@@ -81,7 +81,7 @@ class TestUtil {
             @Suppress("UNCHECKED_CAST")
             return gson.fromJson(
                 string,
-                Map::class.java,
+                Map::class.java
             ) as Map<String, Any>
         }
 
@@ -95,29 +95,29 @@ class TestUtil {
                     mapOf(
                         "gate" to "dependent_gate",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_1",
+                        "ruleID" to "rule_id_1"
                     ),
                     mapOf(
                         "gate" to "dependent_gate_2",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_2",
-                    ),
-                ),
+                        "ruleID" to "rule_id_2"
+                    )
+                )
             ),
             "always_off!" to APIFeatureGate(
                 "always_off!",
                 false,
                 "always_off_rule_id",
                 "always_off_group",
-                arrayOf(),
+                arrayOf()
             ),
             "always_on_v2!" to APIFeatureGate(
                 "always_on_v2!",
                 true,
                 "always_on_v2_rule_id",
                 "always_on_v2_group",
-                arrayOf(),
-            ),
+                arrayOf()
+            )
         )
 
         private val dummyDynamicConfigs = mapOf(
@@ -130,16 +130,16 @@ class TestUtil {
                     mapOf(
                         "gate" to "dependent_gate",
                         "gateValue" to "true",
-                        "ruleID" to "rule_id_1",
-                    ),
-                ),
+                        "ruleID" to "rule_id_1"
+                    )
+                )
             ),
             "exp!" to APIDynamicConfig(
                 "exp!",
                 mutableMapOf("string" to "test", "number" to 42, "otherNumber" to 17),
                 "exp_rule",
                 "exp_group",
-                arrayOf(),
+                arrayOf()
             ),
             "layer_exp!" to APIDynamicConfig(
                 "layer_exp!",
@@ -148,7 +148,7 @@ class TestUtil {
                 "exp_group",
                 arrayOf(),
                 isExperimentActive = true,
-                isUserInExperiment = true,
+                isUserInExperiment = true
             ),
             "other_layer_exp!" to APIDynamicConfig(
                 "other_layer_exp!",
@@ -157,30 +157,30 @@ class TestUtil {
                 "exp_group",
                 arrayOf(),
                 isExperimentActive = true,
-                isUserInExperiment = true,
-            ),
+                isUserInExperiment = true
+            )
         )
 
         val dummyHoldoutExposure = mapOf(
             "gate" to "holdout!",
             "gateValue" to "true",
-            "ruleID" to "assadfs",
+            "ruleID" to "assadfs"
         )
 
         val dummyTargetingGateExposure = mapOf(
             "gate" to "targeting!",
             "gateValue" to "true",
-            "ruleID" to "asdf57",
+            "ruleID" to "asdf57"
         )
 
         val dummySecondaryExposures = arrayOf(
             dummyHoldoutExposure,
             dummyHoldoutExposure,
-            dummyTargetingGateExposure,
+            dummyTargetingGateExposure
         )
 
         val dummyUndelegatedSecondaryExposures = arrayOf(
-            dummyHoldoutExposure,
+            dummyHoldoutExposure
         )
 
         private val dummyLayerConfigs = mapOf(
@@ -193,24 +193,24 @@ class TestUtil {
                 isExperimentActive = true,
                 isUserInExperiment = true,
                 allocatedExperimentName = "layer_exp!",
-                explicitParameters = arrayOf("string", "number"),
+                explicitParameters = arrayOf("string", "number")
             ),
             "unallocated_layer!" to APIDynamicConfig(
                 "unallocated_layer!",
                 mapOf(
                     "string" to "default_string",
                     "number" to 9942,
-                    "otherNumber" to 9917,
+                    "otherNumber" to 9917
                 ),
                 "default",
                 secondaryExposures = arrayOf(
-                    dummyHoldoutExposure,
+                    dummyHoldoutExposure
                 ),
                 undelegatedSecondaryExposures = arrayOf(
-                    dummyHoldoutExposure,
+                    dummyHoldoutExposure
                 ),
-                allocatedExperimentName = "",
-            ),
+                allocatedExperimentName = ""
+            )
         )
 
         internal fun makeInitializeResponse(
@@ -218,24 +218,23 @@ class TestUtil {
             dynamicConfigs: Map<String, APIDynamicConfig> = dummyDynamicConfigs,
             layerConfigs: Map<String, APIDynamicConfig> = dummyLayerConfigs,
             time: Long? = null,
-            hasUpdates: Boolean = true,
-        ): InitializeResponse.SuccessfulInitializeResponse {
-            return InitializeResponse.SuccessfulInitializeResponse(
+            hasUpdates: Boolean = true
+        ): InitializeResponse.SuccessfulInitializeResponse =
+            InitializeResponse.SuccessfulInitializeResponse(
                 featureGates = featureGates,
                 configs = dynamicConfigs,
                 layerConfigs = layerConfigs,
                 hasUpdates = hasUpdates,
                 time = time ?: 1621637839,
-                derivedFields = mapOf(),
+                derivedFields = mapOf()
             )
-        }
 
         @JvmName("startStatsigAndWait")
         internal fun startStatsigAndWait(
             app: Application,
             user: StatsigUser = StatsigUser("jkw"),
             options: StatsigOptions = StatsigOptions(),
-            network: StatsigNetwork? = null,
+            network: StatsigNetwork? = null
         ) = runBlocking {
             val countdown = CountDownLatch(1)
             val callback = object : IStatsigCallback {
@@ -260,7 +259,7 @@ class TestUtil {
         internal fun startStatsigAndDontWait(
             app: Application,
             user: StatsigUser,
-            options: StatsigOptions,
+            options: StatsigOptions
         ) {
             Statsig.client = StatsigClient()
 
@@ -269,7 +268,7 @@ class TestUtil {
                 Application::class.java,
                 String::class.java,
                 StatsigUser::class.java,
-                StatsigOptions::class.java,
+                StatsigOptions::class.java
             )
             setupMethod.isAccessible = true
             setupMethod.invoke(Statsig.client, app, "client-test", user, options)
@@ -281,7 +280,7 @@ class TestUtil {
             sdkKey: String,
             user: StatsigUser,
             options: StatsigOptions = StatsigOptions(),
-            network: StatsigNetwork? = null,
+            network: StatsigNetwork? = null
         ) = runBlocking {
             if (network != null) {
                 client.statsigNetwork = network
@@ -289,9 +288,7 @@ class TestUtil {
             client.initialize(app, sdkKey, user, options)
         }
 
-        fun getMockApp(): Application {
-            return mockk()
-        }
+        fun getMockApp(): Application = mockk()
 
         @JvmName("captureLogs")
         internal fun captureLogs(network: StatsigNetwork, onLog: ((LogEventData) -> Unit)? = null) {
@@ -302,9 +299,8 @@ class TestUtil {
             }
         }
 
-        fun getTestSharedPrefs(context: Context): SharedPreferences {
-            return context.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
-        }
+        fun getTestSharedPrefs(context: Context): SharedPreferences =
+            context.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
 
         fun mockHashing() {
             mockkObject(Hashing)
@@ -316,9 +312,7 @@ class TestUtil {
         }
 
         @JvmName("mockBrokenNetwork")
-        internal fun mockBrokenNetwork(
-            onLog: ((LogEventData) -> Unit)? = null,
-        ): StatsigNetwork {
+        internal fun mockBrokenNetwork(onLog: ((LogEventData) -> Unit)? = null): StatsigNetwork {
             val statsigNetwork = mockk<StatsigNetwork>()
             coEvery {
                 statsigNetwork.apiRetryFailedLogs(any())
@@ -328,7 +322,7 @@ class TestUtil {
 
             coEvery {
                 statsigNetwork.initialize(
-                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
                 )
             } answers {
                 throw IOException("Example exception in StatsigNetwork initialize")
@@ -343,7 +337,7 @@ class TestUtil {
                 statsigNetwork.apiPostLogs(any(), any(), any())
             } answers {
                 onLog?.invoke(
-                    StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java),
+                    StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java)
                 )
                 throw IOException("Example exception in StatsigNetwork apiPostLogs")
             }
@@ -358,7 +352,7 @@ class TestUtil {
             time: Long? = null,
             hasUpdates: Boolean = true,
             captureUser: ((StatsigUser) -> Unit)? = null,
-            onLog: ((LogEventData) -> Unit)? = null,
+            onLog: ((LogEventData) -> Unit)? = null
         ): StatsigNetwork {
             val statsigNetwork = mockk<StatsigNetwork>()
 
@@ -368,7 +362,7 @@ class TestUtil {
 
             coEvery {
                 statsigNetwork.initialize(
-                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
+                    any(), any(), any(), any(), any(), any(), any(), any(), any(), any()
                 )
             } coAnswers {
                 captureUser?.invoke(secondArg())
@@ -383,7 +377,7 @@ class TestUtil {
                 statsigNetwork.apiPostLogs(any(), any(), any())
             } answers {
                 onLog?.invoke(
-                    StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java),
+                    StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java)
                 )
             }
 

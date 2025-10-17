@@ -35,7 +35,11 @@ internal object StatsigUtil {
         }
     }
 
-    internal suspend fun saveStringToSharedPrefs(sharedPrefs: SharedPreferences?, key: String, value: String) {
+    internal suspend fun saveStringToSharedPrefs(
+        sharedPrefs: SharedPreferences?,
+        key: String,
+        value: String
+    ) {
         if (sharedPrefs == null) {
             return
         }
@@ -71,9 +75,7 @@ internal object StatsigUtil {
         }
     }
 
-    internal fun getGson(): Gson {
-        return GsonBuilder()
-            .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
-            .create()
-    }
+    internal fun getGson(): Gson = GsonBuilder()
+        .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+        .create()
 }

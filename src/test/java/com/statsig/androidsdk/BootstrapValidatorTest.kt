@@ -15,12 +15,14 @@ class BootstrapValidatorTest {
         assertTrue(BootstrapValidator.isValid(initializeValues, user))
         // With CustomIDs
         user.customIDs = HashMap(customIDs)
-        initializeValues["evaluated_keys"] = mapOf("userID" to "test_user", "customIDs" to (HashMap(customIDs)))
+        initializeValues["evaluated_keys"] =
+            mapOf("userID" to "test_user", "customIDs" to (HashMap(customIDs)))
         assertTrue(BootstrapValidator.isValid(mapOf(), user))
         // With StableID
         var newCustomIDs = HashMap(customIDs)
         newCustomIDs["stableID"] = "a"
-        initializeValues["evaluated_keys"] = mapOf("userID" to "test_user", "customIDs" to newCustomIDs)
+        initializeValues["evaluated_keys"] =
+            mapOf("userID" to "test_user", "customIDs" to newCustomIDs)
         assertTrue(BootstrapValidator.isValid(initializeValues, user))
 
         // mismatched user id
@@ -30,7 +32,8 @@ class BootstrapValidatorTest {
         // mismatched customID
         newCustomIDs = HashMap(customIDs)
         newCustomIDs["id_3"] = "value_3"
-        initializeValues["evaluated_keys"] = mapOf("userID" to "test_user", "customIDs" to newCustomIDs)
+        initializeValues["evaluated_keys"] =
+            mapOf("userID" to "test_user", "customIDs" to newCustomIDs)
         assertFalse(BootstrapValidator.isValid(initializeValues, user2))
 
         // No user id

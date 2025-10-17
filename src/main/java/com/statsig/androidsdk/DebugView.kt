@@ -17,7 +17,12 @@ import com.google.gson.Gson
 typealias DebugViewCallback = (Boolean) -> Unit // RELOAD_REQUIRED -> callback
 class DebugView {
     companion object {
-        fun show(context: Context, sdkKey: String, state: Map<String, Any?>, callback: DebugViewCallback?) {
+        fun show(
+            context: Context,
+            sdkKey: String,
+            state: Map<String, Any?>,
+            callback: DebugViewCallback?
+        ) {
             val dialog = Dialog(context, android.R.style.Theme_Black_NoTitleBar_Fullscreen)
             val client = DebugWebViewClient(Gson().toJson(state))
             val chromeClient = DebugWebChromeClient(dialog, callback)
@@ -26,19 +31,25 @@ class DebugView {
             dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
             dialog.setOnKeyListener(
                 DialogInterface.OnKeyListener { _, keyCode, event ->
-                    if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP && webView.canGoBack()) {
+                    if (keyCode == KeyEvent.KEYCODE_BACK && event.action == KeyEvent.ACTION_UP &&
+                        webView.canGoBack()
+                    ) {
                         webView.goBack()
 
-                        if (webView.url?.split("/")?.last()?.startsWith("client_sdk_debugger") == true) {
+                        if (webView.url?.split("/")?.last()?.startsWith("client_sdk_debugger") ==
+                            true
+                        ) {
                             dialog.dismiss()
                         }
                         return@OnKeyListener true
                     }
                     return@OnKeyListener false
-                },
+                }
             )
 
-            webView.loadUrl("https://console.statsig.com/client_sdk_debugger_redirect?sdkKey=$sdkKey")
+            webView.loadUrl(
+                "https://console.statsig.com/client_sdk_debugger_redirect?sdkKey=$sdkKey"
+            )
 
             dialog.setContentView(webView)
             dialog.show()
@@ -46,14 +57,14 @@ class DebugView {
             // Do after .show()
             dialog.window?.setLayout(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
             )
         }
 
         private fun getConfiguredWebView(
             context: Context,
             client: DebugWebViewClient,
-            chromeClient: DebugWebChromeClient,
+            chromeClient: DebugWebChromeClient
         ): WebView {
             val webView = WebView(context)
             webView.webViewClient = client
@@ -68,7 +79,7 @@ class DebugView {
             }
             webView.layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
             )
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -89,7 +100,10 @@ class DebugView {
         }
     }
 
-    private class DebugWebChromeClient(private val dialog: Dialog, private val callback: DebugViewCallback?) : WebChromeClient() {
+    private class DebugWebChromeClient(
+        private val dialog: Dialog,
+        private val callback: DebugViewCallback?
+    ) : WebChromeClient() {
         private val closeAction = "STATSIG_ANDROID_DEBUG_CLOSE_DIALOG"
         private val reloadRequired = "STATSIG_ANDROID_DEBUG_RELOAD_REQUIRED"
 

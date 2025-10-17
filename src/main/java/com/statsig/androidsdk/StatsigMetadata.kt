@@ -16,7 +16,7 @@ internal data class StatsigMetadata(
     @SerializedName("locale") var locale: String? = null,
     @SerializedName("language") var language: String? = null,
     @SerializedName("systemVersion") var systemVersion: String? = null,
-    @SerializedName("systemName") var systemName: String? = null,
+    @SerializedName("systemName") var systemName: String? = null
 ) {
     internal fun overrideStableID(overrideStableID: String?) {
         if (overrideStableID != null && overrideStableID != stableID) {
@@ -25,43 +25,39 @@ internal data class StatsigMetadata(
     }
 }
 
-internal fun createStatsigMetadata(): StatsigMetadata {
-    return StatsigMetadata(
-        stableID = null,
-        sdkType = "android-client",
-        sdkVersion = BuildConfig.VERSION_NAME,
-        sessionID = UUID.randomUUID().toString(),
-        appIdentifier = null,
-        appVersion = null,
-        deviceModel = Build.MODEL,
-        deviceOS = "Android",
-        locale = Locale.getDefault().toString(),
-        language = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            // API 21+
-            Locale.getDefault().toLanguageTag()
-        } else {
-            Locale.getDefault().let { locale ->
-                "${locale.language}-${locale.country}"
-            }
-        },
-        systemVersion = Build.VERSION.SDK_INT.toString(),
-        systemName = "Android",
-    )
-}
+internal fun createStatsigMetadata(): StatsigMetadata = StatsigMetadata(
+    stableID = null,
+    sdkType = "android-client",
+    sdkVersion = BuildConfig.VERSION_NAME,
+    sessionID = UUID.randomUUID().toString(),
+    appIdentifier = null,
+    appVersion = null,
+    deviceModel = Build.MODEL,
+    deviceOS = "Android",
+    locale = Locale.getDefault().toString(),
+    language = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+        // API 21+
+        Locale.getDefault().toLanguageTag()
+    } else {
+        Locale.getDefault().let { locale ->
+            "${locale.language}-${locale.country}"
+        }
+    },
+    systemVersion = Build.VERSION.SDK_INT.toString(),
+    systemName = "Android"
+)
 
-internal fun createCoreStatsigMetadata(): StatsigMetadata {
-    return StatsigMetadata(
-        stableID = null,
-        sdkType = "android-client",
-        sdkVersion = BuildConfig.VERSION_NAME,
-        sessionID = UUID.randomUUID().toString(),
-        appIdentifier = null,
-        appVersion = null,
-        deviceModel = null,
-        deviceOS = null,
-        locale = null,
-        language = null,
-        systemVersion = null,
-        systemName = null,
-    )
-}
+internal fun createCoreStatsigMetadata(): StatsigMetadata = StatsigMetadata(
+    stableID = null,
+    sdkType = "android-client",
+    sdkVersion = BuildConfig.VERSION_NAME,
+    sessionID = UUID.randomUUID().toString(),
+    appIdentifier = null,
+    appVersion = null,
+    deviceModel = null,
+    deviceOS = null,
+    locale = null,
+    language = null,
+    systemVersion = null,
+    systemName = null
+)

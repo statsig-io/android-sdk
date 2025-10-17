@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.spyk
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -19,11 +21,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
-internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse {
-    return withContext(Dispatchers.IO) {
+internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse =
+    withContext(Dispatchers.IO) {
         val isUserA = user.userID == "user-a"
         delay(if (isUserA) 500 else 2000)
         TestUtil.makeInitializeResponse(
@@ -32,17 +32,16 @@ internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse {
                 "a_config!" to APIDynamicConfig(
                     "a_config!",
                     mutableMapOf(
-                        "key" to if (isUserA) "user_a_value" else "user_b_value",
+                        "key" to if (isUserA) "user_a_value" else "user_b_value"
                     ),
-                    "default",
-                ),
+                    "default"
+                )
             ),
             mapOf(),
             if (isUserA) 1748624742068 else 1748624742069,
-            true,
+            true
         )
     }
-}
 
 @RunWith(RobolectricTestRunner::class)
 class AsyncInitVsUpdateTest {
@@ -148,12 +147,12 @@ class AsyncInitVsUpdateTest {
                 "a_config!" to APIDynamicConfig(
                     "a_config!",
                     mutableMapOf(
-                        "key" to "user_b_value_cache",
+                        "key" to "user_b_value_cache"
                     ),
-                    "default",
-                ),
+                    "default"
+                )
             ),
-            mapOf(),
+            mapOf()
         )
         values["values"] = userBCacheValues
         values["stickyUserExperiments"] = sticky

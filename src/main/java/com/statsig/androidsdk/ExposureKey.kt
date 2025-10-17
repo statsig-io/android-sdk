@@ -5,14 +5,11 @@ sealed class ExposureKey {
         val name: String,
         val ruleID: String,
         val reason: EvaluationReason,
-        val value: Boolean,
+        val value: Boolean
     ) : ExposureKey()
 
-    data class Config(
-        val name: String,
-        val ruleID: String,
-        val reason: EvaluationReason,
-    ) : ExposureKey()
+    data class Config(val name: String, val ruleID: String, val reason: EvaluationReason) :
+        ExposureKey()
 
     data class Layer(
         val configName: String,
@@ -20,6 +17,6 @@ sealed class ExposureKey {
         val allocatedExperiment: String,
         val parameterName: String,
         val isExplicitParameter: Boolean,
-        val reason: EvaluationReason,
+        val reason: EvaluationReason
     ) : ExposureKey()
 }

@@ -2,15 +2,17 @@ package com.statsig.androidsdk
 
 import android.util.Log
 import com.google.gson.Gson
-import kotlinx.coroutines.*
 import java.io.DataOutputStream
 import java.lang.RuntimeException
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.*
 
 internal class ExternalException(message: String? = null) : Exception(message)
 
-internal class ErrorBoundary(private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)) {
+internal class ErrorBoundary(
+    private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+) {
     companion object {
         private const val TAG: String = "statsig::ErrorBoundary"
     }
@@ -27,9 +29,7 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
         this.urlConnectionProvider = urlConnectionProvider
     }
 
-    fun getUrl(): String {
-        return urlString
-    }
+    fun getUrl(): String = urlString
 
     fun setMetadata(statsigMetadata: StatsigMetadata) {
         this.statsigMetadata = statsigMetadata
@@ -42,19 +42,23 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
         }
     }
 
-    fun getExceptionHandler(): CoroutineExceptionHandler {
-        return CoroutineExceptionHandler { _, exception ->
-            this.handleException(exception)
-        }
+    fun getExceptionHandler(): CoroutineExceptionHandler = CoroutineExceptionHandler {
+            _,
+            exception
+        ->
+        this.handleException(exception)
     }
 
-    fun getNoopExceptionHandler(): CoroutineExceptionHandler {
-        return CoroutineExceptionHandler { _, _ ->
-            // No-op
-        }
+    fun getNoopExceptionHandler(): CoroutineExceptionHandler = CoroutineExceptionHandler { _, _ ->
+        // No-op
     }
 
-    fun capture(task: () -> Unit, tag: String? = null, recover: ((exception: Exception?) -> Unit)? = null, configName: String? = null) {
+    fun capture(
+        task: () -> Unit,
+        tag: String? = null,
+        recover: ((exception: Exception?) -> Unit)? = null,
+        configName: String? = null
+    ) {
         try {
             task()
         } catch (e: Exception) {
@@ -63,23 +67,20 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
         }
     }
 
-    suspend fun <T> captureAsync(task: suspend () -> T): T? {
-        return try {
-            task()
-        } catch (e: Exception) {
-            handleException(e)
-            null
-        }
+    suspend fun <T> captureAsync(task: suspend () -> T): T? = try {
+        task()
+    } catch (e: Exception) {
+        handleException(e)
+        null
     }
 
-    suspend fun <T> captureAsync(task: suspend () -> T, recover: (suspend (e: Exception) -> T)): T {
-        return try {
+    suspend fun <T> captureAsync(task: suspend () -> T, recover: (suspend (e: Exception) -> T)): T =
+        try {
             task()
         } catch (e: Exception) {
             handleException(e)
             recover(e)
         }
-    }
 
     internal fun logException(exception: Throwable, tag: String? = null) {
         try {
@@ -101,7 +102,7 @@ internal class ErrorBoundary(private val coroutineScope: CoroutineScope = Corout
                     "exception" to name,
                     "info" to RuntimeException(exception).stackTraceToString(),
                     "statsigMetadata" to metadata,
-                    "tag" to (tag ?: "unknown"),
+                    "tag" to (tag ?: "unknown")
                 )
                 val postData = Gson().toJson(body)
 

@@ -7,13 +7,9 @@ internal class SpecStore {
     private var layers: Map<String, Spec> = mapOf()
     private var paramStores: Map<String, SpecParamStore> = mapOf()
 
-    fun getRawSpecs(): SpecsResponse? {
-        return rawSpecs
-    }
+    fun getRawSpecs(): SpecsResponse? = rawSpecs
 
-    fun getLcut(): Long? {
-        return rawSpecs?.time
-    }
+    fun getLcut(): Long? = rawSpecs?.time
 
     fun setSpecs(specs: SpecsResponse) {
         rawSpecs = specs
@@ -24,19 +20,11 @@ internal class SpecStore {
         paramStores = specs.paramStores ?: mapOf()
     }
 
-    fun getGate(name: String): Spec? {
-        return gates[name]
-    }
+    fun getGate(name: String): Spec? = gates[name]
 
-    fun getConfig(name: String): Spec? {
-        return configs[name]
-    }
+    fun getConfig(name: String): Spec? = configs[name]
 
-    fun getLayer(name: String): Spec? {
-        return layers[name]
-    }
+    fun getLayer(name: String): Spec? = layers[name]
 
-    fun getParamStore(name: String): SpecParamStore? {
-        return paramStores[name]
-    }
+    fun getParamStore(name: String): SpecParamStore? = paramStores[name]
 }

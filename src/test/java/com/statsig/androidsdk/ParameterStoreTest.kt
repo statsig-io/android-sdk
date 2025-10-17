@@ -29,63 +29,68 @@ class ParameterStoreTest {
 
         client.initialize(app, "test-key")
 
-        TestUtil.startStatsigAndWait(app, user, StatsigOptions(overrideStableID = "custom_stable_id"), network = TestUtil.mockNetwork())
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(overrideStableID = "custom_stable_id"),
+            network = TestUtil.mockNetwork()
+        )
         paramStore = ParameterStore(
             statsigClient = client,
             paramStore = mapOf(
                 "static_value" to mapOf(
                     "value" to "test",
                     "ref_type" to "static",
-                    "param_type" to "string",
+                    "param_type" to "string"
                 ),
                 "static_bool" to mapOf(
                     "value" to true,
                     "ref_type" to "static",
-                    "param_type" to "boolean",
+                    "param_type" to "boolean"
                 ),
                 "gate_value" to mapOf(
                     "ref_type" to "gate",
                     "param_type" to "string",
                     "gate_name" to "always_on",
                     "pass_value" to "pass",
-                    "fail_value" to "fail",
+                    "fail_value" to "fail"
                 ),
                 "gate_bool" to mapOf(
                     "ref_type" to "gate",
                     "param_type" to "string",
                     "gate_name" to "always_on",
                     "pass_value" to true,
-                    "fail_value" to false,
+                    "fail_value" to false
                 ),
                 "gate_number" to mapOf(
                     "ref_type" to "gate",
                     "param_type" to "number",
                     "gate_name" to "always_on",
                     "pass_value" to 1,
-                    "fail_value" to -1,
+                    "fail_value" to -1
                 ),
                 "layer_value" to mapOf(
                     "ref_type" to "layer",
                     "param_type" to "string",
                     "layer_name" to "allocated_layer",
-                    "param_name" to "string",
+                    "param_name" to "string"
                 ),
                 "experiment_value" to mapOf(
                     "ref_type" to "experiment",
                     "param_type" to "string",
                     "experiment_name" to "exp",
-                    "param_name" to "string",
+                    "param_name" to "string"
                 ),
                 "dynamic_config_value" to mapOf(
                     "ref_type" to "dynamic_config",
                     "param_type" to "string",
                     "config_name" to "test_config",
-                    "param_name" to "string",
-                ),
+                    "param_name" to "string"
+                )
             ),
             name = "test_parameter_store",
             evaluationDetails = EvaluationDetails(EvaluationReason.Network, lcut = 0),
-            options = ParameterStoreEvaluationOptions(disableExposureLog = true),
+            options = ParameterStoreEvaluationOptions(disableExposureLog = true)
         )
 
         return@runBlocking

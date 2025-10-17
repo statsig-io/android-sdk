@@ -3,6 +3,8 @@ package com.statsig.androidsdk
 import android.app.Application
 import io.mockk.every
 import io.mockk.spyk
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -17,8 +19,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 class StatsigLongInitializationTimeoutTest {
@@ -34,8 +34,8 @@ class StatsigLongInitializationTimeoutTest {
     fun setup() {
         mockWebServer = MockWebServer()
         val dispatcher = object : Dispatcher() {
-            override fun dispatch(request: RecordedRequest): MockResponse {
-                return if (request.path!!.contains("initialize")) {
+            override fun dispatch(request: RecordedRequest): MockResponse =
+                if (request.path!!.contains("initialize")) {
                     initializeHits++
                     runBlocking {
                         delay(500)
@@ -46,7 +46,6 @@ class StatsigLongInitializationTimeoutTest {
                 } else {
                     MockResponse().setResponseCode(404)
                 }
-            }
         }
         mockWebServer.dispatcher = dispatcher
         mockWebServer.start()
@@ -83,7 +82,7 @@ class StatsigLongInitializationTimeoutTest {
                 }
                 override fun onStatsigUpdateUser() {}
             },
-            StatsigOptions(initTimeoutMs = initTimeout, api = mockWebServer.url("/").toString()),
+            StatsigOptions(initTimeoutMs = initTimeout, api = mockWebServer.url("/").toString())
         )
         latch.await(10, TimeUnit.SECONDS)
 

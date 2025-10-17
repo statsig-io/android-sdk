@@ -52,7 +52,12 @@ class LogEventRetryTest {
     @Test
     fun testRetryOnRetryCode() = runBlocking {
         val url = mockWebServer.url("/v1").toString()
-        Statsig.initialize(app, "client-key", StatsigUser("test"), StatsigOptions(api = url, eventLoggingAPI = url))
+        Statsig.initialize(
+            app,
+            "client-key",
+            StatsigUser("test"),
+            StatsigOptions(api = url, eventLoggingAPI = url)
+        )
         Statsig.logEvent("test-event1")
         Statsig.shutdown()
         assert(logEventHits == 2)
@@ -61,7 +66,12 @@ class LogEventRetryTest {
     @Test
     fun testNoRetryOnException() = runBlocking {
         val url = mockWebServer.url("/v1").toString()
-        Statsig.initialize(app, "client-key", StatsigUser("test"), StatsigOptions(api = url, eventLoggingAPI = url))
+        Statsig.initialize(
+            app,
+            "client-key",
+            StatsigUser("test"),
+            StatsigOptions(api = url, eventLoggingAPI = url)
+        )
         enforceLogEventException = true
         Statsig.logEvent("test")
         Statsig.shutdown()

@@ -12,19 +12,17 @@ enum class EvaluationReason {
     OnDeviceEvalAdapterBootstrapUnrecognized,
     InvalidBootstrap,
     NetworkNotModified,
-    Error, ;
+    Error ;
 
-    override fun toString(): String {
-        return when (this) {
-            OnDeviceEvalAdapterBootstrapRecognized -> "[OnDevice]Bootstrap:Recognized"
-            OnDeviceEvalAdapterBootstrapUnrecognized -> "[OnDevice]Bootstrap:Unrecognized"
-            else -> this.name
-        }
+    override fun toString(): String = when (this) {
+        OnDeviceEvalAdapterBootstrapRecognized -> "[OnDevice]Bootstrap:Recognized"
+        OnDeviceEvalAdapterBootstrapUnrecognized -> "[OnDevice]Bootstrap:Unrecognized"
+        else -> this.name
     }
 }
 
 data class EvaluationDetails(
     var reason: EvaluationReason,
     val time: Long = System.currentTimeMillis(),
-    @Transient val lcut: Long,
+    @Transient val lcut: Long
 )

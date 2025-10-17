@@ -32,9 +32,9 @@ class LayerExposureTest {
                     "default",
                     undelegatedSecondaryExposures = TestUtil.dummyUndelegatedSecondaryExposures,
                     allocatedExperimentName = "",
-                    explicitParameters = arrayOf(),
-                ),
-            ),
+                    explicitParameters = arrayOf()
+                )
+            )
         )
 
         val layer = Statsig.getLayer("layer")
@@ -54,9 +54,9 @@ class LayerExposureTest {
                     "default",
                     undelegatedSecondaryExposures = TestUtil.dummyUndelegatedSecondaryExposures,
                     allocatedExperimentName = "",
-                    explicitParameters = arrayOf(),
-                ),
-            ),
+                    explicitParameters = arrayOf()
+                )
+            )
         )
 
         val layer = Statsig.getLayer("layer")
@@ -76,9 +76,9 @@ class LayerExposureTest {
                     "default",
                     undelegatedSecondaryExposures = TestUtil.dummyUndelegatedSecondaryExposures,
                     allocatedExperimentName = "",
-                    explicitParameters = arrayOf(),
-                ),
-            ),
+                    explicitParameters = arrayOf()
+                )
+            )
         )
 
         val layer = Statsig.getLayer("layer")
@@ -91,7 +91,7 @@ class LayerExposureTest {
         assertEquals(
             "Should use undelegated_secondary_exposures for unallocated layers",
             Gson().toJson(TestUtil.dummyUndelegatedSecondaryExposures),
-            Gson().toJson(logs.events[0].secondaryExposures),
+            Gson().toJson(logs.events[0].secondaryExposures)
         )
         val time = logs.events[0].metadata?.get("time")!!.toLong()
         assertTrue(time >= initTime && time < initTime + 2000)
@@ -104,10 +104,10 @@ class LayerExposureTest {
                     "parameterName" to "an_int",
                     "isExplicitParameter" to "false",
                     "reason" to "Network",
-                    "time" to time.toString(),
-                ),
+                    "time" to time.toString()
+                )
             ),
-            Gson().toJson(logs.events[0].metadata),
+            Gson().toJson(logs.events[0].metadata)
         )
     }
 
@@ -122,9 +122,9 @@ class LayerExposureTest {
                     secondaryExposures = TestUtil.dummySecondaryExposures,
                     undelegatedSecondaryExposures = TestUtil.dummyUndelegatedSecondaryExposures,
                     allocatedExperimentName = "the_allocated_exp!",
-                    explicitParameters = arrayOf("an_int"),
-                ),
-            ),
+                    explicitParameters = arrayOf("an_int")
+                )
+            )
         )
 
         val layer = Statsig.getLayer("layer")
@@ -138,7 +138,7 @@ class LayerExposureTest {
         assertEquals(
             "Should use secondary_exposures for explicit params",
             Gson().toJson(TestUtil.dummySecondaryExposures),
-            Gson().toJson(logs.events[0].secondaryExposures),
+            Gson().toJson(logs.events[0].secondaryExposures)
         )
         var time = logs.events[0].metadata?.get("time")!!.toLong()
         assertTrue(time >= initTime && time < initTime + 2000)
@@ -151,16 +151,16 @@ class LayerExposureTest {
                     "parameterName" to "an_int",
                     "isExplicitParameter" to "true",
                     "reason" to "Network",
-                    "time" to time.toString(),
-                ),
+                    "time" to time.toString()
+                )
             ),
-            Gson().toJson(logs.events[0].metadata),
+            Gson().toJson(logs.events[0].metadata)
         )
 
         assertEquals(
             "Should use undelegated_secondary_exposures for implicit params",
             Gson().toJson(TestUtil.dummyUndelegatedSecondaryExposures),
-            Gson().toJson(logs.events[1].secondaryExposures),
+            Gson().toJson(logs.events[1].secondaryExposures)
         )
         time = logs.events[1].metadata?.get("time")!!.toLong()
         assertTrue(time >= initTime && time < initTime + 2000)
@@ -173,10 +173,10 @@ class LayerExposureTest {
                     "parameterName" to "a_string",
                     "isExplicitParameter" to "false",
                     "reason" to "Network",
-                    "time" to time.toString(),
-                ),
+                    "time" to time.toString()
+                )
             ),
-            Gson().toJson(logs.events[1].metadata),
+            Gson().toJson(logs.events[1].metadata)
         )
     }
 
@@ -194,11 +194,11 @@ class LayerExposureTest {
                         "a_string" to "value",
                         "an_array" to arrayOf("a", "b"),
                         "an_object" to mapOf("key" to "value"),
-                        "another_object" to mapOf("another_key" to "another_value"),
+                        "another_object" to mapOf("another_key" to "another_value")
                     ),
-                    "default",
-                ),
-            ),
+                    "default"
+                )
+            )
         )
 
         val layer = Statsig.getLayer("layer")
@@ -235,10 +235,10 @@ class LayerExposureTest {
                 "layer!" to APIDynamicConfig(
                     "layer!",
                     mapOf("an_int" to 99),
-                    "default",
-                ),
+                    "default"
+                )
             ),
-            user,
+            user
         )
 
         val layer = Statsig.getLayer("layer")
@@ -250,7 +250,7 @@ class LayerExposureTest {
 
         assertEquals(
             Gson().toJson(mapOf("userID" to "dloomb", "email" to "daniel@loomb.net")),
-            Gson().toJson(logs.events[0].user),
+            Gson().toJson(logs.events[0].user)
         )
         assertEquals("statsig::layer_exposure", logs.events[0].eventName)
         assertEquals(null, logs.events[0].metadata!!["isManualExposure"])
@@ -266,10 +266,10 @@ class LayerExposureTest {
                 "layer!" to APIDynamicConfig(
                     "layer!",
                     mapOf("an_int" to 99),
-                    "default",
-                ),
+                    "default"
+                )
             ),
-            user,
+            user
         )
 
         val layer = Statsig.getLayerWithExposureLoggingDisabled("layer")
@@ -292,10 +292,10 @@ class LayerExposureTest {
                 "layer!" to APIDynamicConfig(
                     "layer!",
                     mapOf("an_int" to 99),
-                    "default",
-                ),
+                    "default"
+                )
             ),
-            user,
+            user
         )
 
         val layer = Statsig.getLayerWithExposureLoggingDisabled("layer")
@@ -308,22 +308,33 @@ class LayerExposureTest {
 
         assertEquals(
             Gson().toJson(mapOf("userID" to "dloomb", "email" to "daniel@loomb.net")),
-            Gson().toJson(logs.events[0].user),
+            Gson().toJson(logs.events[0].user)
         )
         assertEquals("statsig::layer_exposure", logs.events[0].eventName)
         assertEquals("true", logs.events[0].metadata!!["isManualExposure"])
         assertEquals("statsig::non_exposed_checks", logs.events[1].eventName)
     }
 
-    private fun start(layers: Map<String, APIDynamicConfig>, user: StatsigUser = StatsigUser(userID = "jkw")) {
+    private fun start(
+        layers: Map<String, APIDynamicConfig>,
+        user: StatsigUser = StatsigUser(userID = "jkw")
+    ) {
         val network = TestUtil.mockNetwork(
-            layerConfigs = layers,
+            layerConfigs = layers
         )
 
         TestUtil.captureLogs(network) { result ->
             // filter out diagnostics data
             val events = result.events.filter { event -> event.eventName != "statsig::diagnostics" }
-            logs = if (events.isEmpty())null else LogEventData(events as ArrayList<LogEvent>, result.statsigMetadata)
+            logs =
+                if (events.isEmpty()) {
+                    null
+                } else {
+                    LogEventData(
+                        events as ArrayList<LogEvent>,
+                        result.statsigMetadata
+                    )
+                }
         }
         initTime = System.currentTimeMillis()
         TestUtil.startStatsigAndWait(app, user = user, network = network)

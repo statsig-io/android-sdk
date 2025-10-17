@@ -2,15 +2,15 @@ package com.statsig.androidsdk
 
 import android.content.SharedPreferences
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import java.net.URL
 import java.util.Date
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 data class FallbackInfoEntry(
     var url: String? = null,
     var previous: MutableList<String> = mutableListOf(),
-    var expiryTime: Long,
+    var expiryTime: Long
 )
 
 const val DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000L // 7 days
@@ -20,7 +20,7 @@ internal class NetworkFallbackResolver(
     private val errorBoundary: ErrorBoundary,
     private val sharedPreferences: SharedPreferences,
     private val statsigScope: CoroutineScope,
-    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider,
+    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider
 ) {
     private var fallbackInfo: MutableMap<Endpoint, FallbackInfoEntry>? = null
     private val dnsQueryCooldowns: MutableMap<Endpoint, Long> = mutableMapOf()
@@ -59,12 +59,13 @@ internal class NetworkFallbackResolver(
         urlConfig: UrlConfig,
         errorMessage: String?,
         timedOut: Boolean,
-        hasNetwork: Boolean,
+        hasNetwork: Boolean
     ): Boolean {
         return try {
             if (!isDomainFailure(errorMessage, timedOut, hasNetwork)) return false
 
-            val canUseNetworkFallbacks = urlConfig.customUrl == null && urlConfig.userFallbackUrls == null
+            val canUseNetworkFallbacks =
+                urlConfig.customUrl == null && urlConfig.userFallbackUrls == null
 
             val urls = if (canUseNetworkFallbacks) {
                 tryFetchFallbackUrlsFromNetwork(urlConfig)
@@ -72,7 +73,8 @@ internal class NetworkFallbackResolver(
                 urlConfig.userFallbackUrls
             }
 
-            val newUrl = pickNewFallbackUrl(fallbackInfo?.get(urlConfig.endpoint), urls) ?: return false
+            val newUrl =
+                pickNewFallbackUrl(fallbackInfo?.get(urlConfig.endpoint), urls) ?: return false
 
             updateFallbackInfoWithNewUrl(sdkKey, urlConfig.endpoint, newUrl)
             true
@@ -81,8 +83,16 @@ internal class NetworkFallbackResolver(
         }
     }
 
-    private suspend fun updateFallbackInfoWithNewUrl(sdkKey: String, endpoint: Endpoint, newUrl: String) {
-        val newFallbackInfo = FallbackInfoEntry(url = newUrl, expiryTime = Date().time + DEFAULT_TTL_MS)
+    private suspend fun updateFallbackInfoWithNewUrl(
+        sdkKey: String,
+        endpoint: Endpoint,
+        newUrl: String
+    ) {
+        val newFallbackInfo = FallbackInfoEntry(
+            url = newUrl,
+            expiryTime =
+            Date().time + DEFAULT_TTL_MS
+        )
 
         val previousInfo = fallbackInfo?.get(endpoint)
         previousInfo?.let { newFallbackInfo.previous.addAll(it.previous) }
@@ -140,7 +150,7 @@ internal class NetworkFallbackResolver(
 
     private fun pickNewFallbackUrl(
         currentFallbackInfo: FallbackInfoEntry?,
-        urls: List<String>?,
+        urls: List<String>?
     ): String? {
         if (urls == null) return null
 
@@ -156,19 +166,15 @@ internal class NetworkFallbackResolver(
         return null
     }
 }
-fun getFallbackInfoStorageKey(): String {
-    return "statsig.network_fallback"
-}
+fun getFallbackInfoStorageKey(): String = "statsig.network_fallback"
 
 fun isDomainFailure(errorMsg: String?, timedOut: Boolean, hasNetwork: Boolean): Boolean {
     if (!hasNetwork) return false
     return timedOut || errorMsg != null
 }
 
-fun extractPathFromUrl(urlString: String): String? {
-    return try {
-        URL(urlString).path
-    } catch (e: Exception) {
-        null
-    }
+fun extractPathFromUrl(urlString: String): String? = try {
+    URL(urlString).path
+} catch (e: Exception) {
+    null
 }

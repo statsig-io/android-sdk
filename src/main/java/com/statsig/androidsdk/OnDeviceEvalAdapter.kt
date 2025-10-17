@@ -85,13 +85,13 @@ class OnDeviceEvalAdapter(private val data: String?) {
         if (isUnrecognized) {
             return EvaluationDetails(
                 EvaluationReason.OnDeviceEvalAdapterBootstrapUnrecognized,
-                lcut = lcut,
+                lcut = lcut
             )
         }
 
         return EvaluationDetails(
             EvaluationReason.OnDeviceEvalAdapterBootstrapRecognized,
-            lcut = lcut,
+            lcut = lcut
         )
     }
 }

@@ -52,7 +52,10 @@ class StatsigCacheTest {
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
         assertTrue(client.isInitialized())
-        assertEquals(EvaluationReason.Cache, client.getStore().checkGate("always_on").getEvaluationDetails().reason)
+        assertEquals(
+            EvaluationReason.Cache,
+            client.getStore().checkGate("always_on").getEvaluationDetails().reason
+        )
 
         assertTrue(client.checkGate("always_on"))
         runBlocking {
@@ -84,7 +87,7 @@ class StatsigCacheTest {
         runBlocking {
             client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1")
             client.statsigNetwork.addFailedLogRequest(
-                StatsigOfflineRequest(System.currentTimeMillis(), "{}", 0),
+                StatsigOfflineRequest(System.currentTimeMillis(), "{}", 0)
             )
         }
         val config = client.getConfig("test_config")
@@ -92,7 +95,12 @@ class StatsigCacheTest {
         assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
         runBlocking {
             Statsig.client.shutdown()
-            Statsig.client.initialize(app, "client-test", user, StatsigOptions(loadCacheAsync = true))
+            Statsig.client.initialize(
+                app,
+                "client-test",
+                user,
+                StatsigOptions(loadCacheAsync = true)
+            )
         }
         assertTrue(client.checkGate("always_on"))
 

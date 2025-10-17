@@ -35,7 +35,7 @@ class LayerConfigTest {
             "a_layer",
             EvaluationDetails(EvaluationReason.Network, lcut = 0),
             TestUtil.getConfigValueMap(),
-            "default",
+            "default"
         )
 
         TestUtil.startStatsigAndWait(app)
@@ -73,7 +73,7 @@ class LayerConfigTest {
             "test_config",
             EvaluationDetails(EvaluationReason.Uninitialized, lcut = 0),
             mapOf(),
-            "default",
+            "default"
         )
 
         assertEquals("provided default", emptyConfig.getString("test", "provided default"))
@@ -107,7 +107,10 @@ class LayerConfigTest {
         assertArrayEquals(arrayOf("one", "two"), layer.getArray("testArray", arrayOf(1, "one")))
         assertArrayEquals(arrayOf(3L, 2L), layer.getArray("testIntArray", arrayOf(1, 2)))
         assertArrayEquals(arrayOf(3.1, 2.1), layer.getArray("testDoubleArray", arrayOf(1, "one")))
-        assertArrayEquals(arrayOf(true, false), layer.getArray("testBooleanArray", arrayOf(1, "one")))
+        assertArrayEquals(
+            arrayOf(true, false),
+            layer.getArray("testBooleanArray", arrayOf(1, "one"))
+        )
     }
 
     @Test
@@ -123,9 +126,9 @@ class LayerConfigTest {
                 "nestedString" to "nested",
                 "nestedBoolean" to true,
                 "nestedDouble" to 13.74,
-                "nestedLong" to 13L,
+                "nestedLong" to 13L
             ),
-            layer.getDictionary("testNested", mapOf()),
+            layer.getDictionary("testNested", mapOf())
         )
     }
 
@@ -148,15 +151,15 @@ class LayerConfigTest {
                     "allocated_layer!" to APIDynamicConfig(
                         "allocated_layer!",
                         mapOf(
-                            "string" to "default_string",
+                            "string" to "default_string"
                         ),
                         "default",
                         isExperimentActive = true,
-                        isUserInExperiment = true,
-                    ),
-                ),
+                        isUserInExperiment = true
+                    )
+                )
             ),
-            nullUser,
+            nullUser
         )
         client.getStore().persistStickyValues()
 
@@ -176,15 +179,15 @@ class LayerConfigTest {
                     "allocated_layer!" to APIDynamicConfig(
                         "allocated_layer!",
                         mapOf(
-                            "string" to "default_string",
+                            "string" to "default_string"
                         ),
                         "default",
                         isExperimentActive = true,
-                        isUserInExperiment = true,
-                    ),
-                ),
+                        isUserInExperiment = true
+                    )
+                )
             ),
-            nullUser,
+            nullUser
         )
         client.shutdown()
         initClient()
@@ -202,14 +205,14 @@ class LayerConfigTest {
                 "allocated_layer!" to APIDynamicConfig(
                     "allocated_layer!",
                     mapOf(
-                        "string" to "default_string",
+                        "string" to "default_string"
                     ),
                     "default",
                     isExperimentActive = true,
                     isUserInExperiment = false,
-                    allocatedExperimentName = "different_exp!",
-                ),
-            ),
+                    allocatedExperimentName = "different_exp!"
+                )
+            )
         )
 
         client.getStore().save(updatedLayerResponse, nullUser)
@@ -219,7 +222,7 @@ class LayerConfigTest {
         assertEquals(
             "Layer allocation changed, but should still get original sticky value",
             "test",
-            config.getString("string", "ERR"),
+            config.getString("string", "ERR")
         )
 
         client.getStore().save(
@@ -232,12 +235,12 @@ class LayerConfigTest {
                         "exp_group",
                         arrayOf(),
                         isExperimentActive = false,
-                        isUserInExperiment = true,
-                    ),
+                        isUserInExperiment = true
+                    )
                 ),
-                layerConfigs = updatedLayerResponse.layerConfigs!!,
+                layerConfigs = updatedLayerResponse.layerConfigs!!
             ),
-            nullUser,
+            nullUser
         )
         client.getStore().persistStickyValues()
 
@@ -245,7 +248,7 @@ class LayerConfigTest {
         assertEquals(
             "The original sticky Experiment is no longer active, should return updated Layer value",
             "default_string",
-            config.getString("string", "ERR"),
+            config.getString("string", "ERR")
         )
     }
 
@@ -259,14 +262,14 @@ class LayerConfigTest {
                 "allocated_layer!" to APIDynamicConfig(
                     "allocated_layer!",
                     mapOf(
-                        "string" to "default_string",
+                        "string" to "default_string"
                     ),
                     "default",
                     isExperimentActive = true,
                     isUserInExperiment = true,
-                    allocatedExperimentName = "completely_different_exp",
-                ),
-            ),
+                    allocatedExperimentName = "completely_different_exp"
+                )
+            )
         )
 
         client.getStore().save(response, nullUser)
@@ -276,7 +279,7 @@ class LayerConfigTest {
         assertEquals(
             "Should still return the original sticky value because the original experiment is still active",
             "test",
-            config.getString("string", "ERR"),
+            config.getString("string", "ERR")
         )
 
         (response.configs as MutableMap)["layer_exp!"] = APIDynamicConfig(
@@ -286,7 +289,7 @@ class LayerConfigTest {
             "exp_group",
             arrayOf(),
             isExperimentActive = false,
-            isUserInExperiment = true,
+            isUserInExperiment = true
         )
         client.getStore().save(response, nullUser)
         client.getStore().persistStickyValues()
@@ -295,7 +298,7 @@ class LayerConfigTest {
         assertEquals(
             "Should get updated value because the original experiment is no longer active",
             "default_string",
-            config.getString("string", "ERR"),
+            config.getString("string", "ERR")
         )
     }
 
@@ -310,15 +313,15 @@ class LayerConfigTest {
                     "allocated_layer!" to APIDynamicConfig(
                         "allocated_layer!",
                         mapOf(
-                            "string" to "default_string",
+                            "string" to "default_string"
                         ),
                         "default",
                         isExperimentActive = true,
-                        isUserInExperiment = true,
-                    ),
-                ),
+                        isUserInExperiment = true
+                    )
+                )
             ),
-            nullUser,
+            nullUser
         )
         client.getStore().persistStickyValues()
 

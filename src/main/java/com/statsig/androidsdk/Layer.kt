@@ -19,13 +19,13 @@ class Layer internal constructor(
     private val isDeviceBased: Boolean = false,
     private val allocatedExperimentName: String? = null,
     private val explicitParameters: Set<String>? = null,
-    private val parameterRuleIDs: Map<String, String>? = null,
+    private val parameterRuleIDs: Map<String, String>? = null
 ) : BaseConfig(name, details) {
     internal constructor(
         client: StatsigClient?,
         layerName: String,
         apiDynamicConfig: APIDynamicConfig,
-        evalDetails: EvaluationDetails,
+        evalDetails: EvaluationDetails
     ) : this(
         client,
         layerName,
@@ -40,14 +40,14 @@ class Layer internal constructor(
         apiDynamicConfig.isDeviceBased,
         apiDynamicConfig.allocatedExperimentName,
         apiDynamicConfig.explicitParameters?.toSet(),
-        apiDynamicConfig.parameterRuleIDs,
+        apiDynamicConfig.parameterRuleIDs
     )
 
     internal constructor(
         client: StatsigClient?,
         layerName: String,
         evaluation: ConfigEvaluation,
-        details: EvaluationDetails,
+        details: EvaluationDetails
     ) : this(
         client = client,
         name = layerName,
@@ -61,13 +61,12 @@ class Layer internal constructor(
         isUserInExperiment = evaluation.isExperimentGroup,
         isDeviceBased = false,
         allocatedExperimentName = evaluation.configDelegate,
-        explicitParameters = evaluation.explicitParameters?.toSet(),
+        explicitParameters = evaluation.explicitParameters?.toSet()
     )
 
     companion object {
-        fun getError(name: String): Layer {
-            return Layer(null, name, EvaluationDetails(EvaluationReason.Error, lcut = 0))
-        }
+        fun getError(name: String): Layer =
+            Layer(null, name, EvaluationDetails(EvaluationReason.Error, lcut = 0))
     }
 
     /**
@@ -76,9 +75,7 @@ class Layer internal constructor(
      * @param default the default value to return if the expected key does not exist in the Layer
      * @return the value at the given key, or the default value if not found
      */
-    fun getString(key: String, default: String?): String? {
-        return get(key, default, jsonValue)
-    }
+    fun getString(key: String, default: String?): String? = get(key, default, jsonValue)
 
     /**
      * Gets a value from the Layer, falling back to the provided default value
@@ -86,9 +83,7 @@ class Layer internal constructor(
      * @param default the default value to return if the expected key does not exist in the Layer
      * @return the value at the given key, or the default value if not found
      */
-    fun getBoolean(key: String, default: Boolean): Boolean {
-        return get(key, default, jsonValue)
-    }
+    fun getBoolean(key: String, default: Boolean): Boolean = get(key, default, jsonValue)
 
     /**
      * Gets a value from the Layer, falling back to the provided default value
@@ -96,9 +91,8 @@ class Layer internal constructor(
      * @param default the default value to return if the expected key does not exist in the Layer
      * @return the value at the given key, or the default value if not found
      */
-    fun getDouble(key: String, default: Double): Double {
-        return get<Number>(key, default, jsonValue).toDouble()
-    }
+    fun getDouble(key: String, default: Double): Double =
+        get<Number>(key, default, jsonValue).toDouble()
 
     /**
      * Gets a value from the Layer, falling back to the provided default value
@@ -106,9 +100,7 @@ class Layer internal constructor(
      * @param default the default value to return if the expected key does not exist in the Layer
      * @return the value at the given key, or the default value if not found
      */
-    fun getInt(key: String, default: Int): Int {
-        return get<Number>(key, default, jsonValue).toInt()
-    }
+    fun getInt(key: String, default: Int): Int = get<Number>(key, default, jsonValue).toInt()
 
     /**
      * Gets a value from the Layer, falling back to the provided default value
@@ -116,9 +108,7 @@ class Layer internal constructor(
      * @param default the default value to return if the expected key does not exist in the Layer
      * @return the value at the given key, or the default value if not found
      */
-    fun getLong(key: String, default: Long): Long {
-        return get<Number>(key, default, jsonValue).toLong()
-    }
+    fun getLong(key: String, default: Long): Long = get<Number>(key, default, jsonValue).toLong()
 
     /**
      * Gets a value from the Layer, falling back to the provided default value
@@ -145,65 +135,48 @@ class Layer internal constructor(
      * @param default the default value to return if the expected key does not exist in the Layer
      * @return the value at the given key, or the default value if not found
      */
-    fun getDictionary(key: String, default: Map<String, Any>?): Map<String, Any>? {
-        return get(key, default, jsonValue)
-    }
+    fun getDictionary(key: String, default: Map<String, Any>?): Map<String, Any>? =
+        get(key, default, jsonValue)
 
     /**
      * Gets a value from the Layer as a DynamicConfig, or null if not found
      * @param key the index within the Layer to fetch a value from
      * @return the value at the given key as a DynamicConfig, or null
      */
-    fun getConfig(key: String): DynamicConfig? {
-        return when (val value = get(key, null as Map<String, Any>?, jsonValue)) {
+    fun getConfig(key: String): DynamicConfig? =
+        when (val value = get(key, null as Map<String, Any>?, jsonValue)) {
             is Map<String, Any> -> DynamicConfig(
                 key,
                 this.details,
                 value,
                 this.rule,
-                this.groupName,
+                this.groupName
             )
 
             else -> null
         }
-    }
 
-    fun getIsUserInExperiment(): Boolean {
-        return this.isUserInExperiment
-    }
+    fun getIsUserInExperiment(): Boolean = this.isUserInExperiment
 
-    fun getIsExperimentActive(): Boolean {
-        return this.isExperimentActive
-    }
+    fun getIsExperimentActive(): Boolean = this.isExperimentActive
 
-    fun getRuleID(): String {
-        return this.rule
-    }
+    fun getRuleID(): String = this.rule
 
     fun getRuleIDForParameter(key: String): String {
         val paramRuleID = this.parameterRuleIDs?.get(key)
         return paramRuleID ?: this.rule
     }
 
-    fun getGroupName(): String? {
-        return this.groupName
-    }
+    fun getGroupName(): String? = this.groupName
 
-    fun getAllocatedExperimentName(): String? {
-        return this.allocatedExperimentName
-    }
+    fun getAllocatedExperimentName(): String? = this.allocatedExperimentName
 
-    internal fun getSecondaryExposures(): Array<Map<String, String>> {
-        return this.secondaryExposures
-    }
+    internal fun getSecondaryExposures(): Array<Map<String, String>> = this.secondaryExposures
 
-    internal fun getUndelegatedSecondaryExposures(): Array<Map<String, String>> {
-        return this.undelegatedSecondaryExposures
-    }
+    internal fun getUndelegatedSecondaryExposures(): Array<Map<String, String>> =
+        this.undelegatedSecondaryExposures
 
-    internal fun getExplicitParameters(): Set<String>? {
-        return this.explicitParameters
-    }
+    internal fun getExplicitParameters(): Set<String>? = this.explicitParameters
 
     private fun logParameterExposure(key: String) {
         this.client?.logLayerParameterExposure(this, key)

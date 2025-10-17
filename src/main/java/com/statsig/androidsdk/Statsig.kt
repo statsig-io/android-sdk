@@ -14,9 +14,7 @@ import kotlinx.coroutines.withContext
 interface IStatsigCallback {
     fun onStatsigInitialize() {}
 
-    fun onStatsigInitialize(initDetails: InitializationDetails) {
-        return this.onStatsigInitialize()
-    }
+    fun onStatsigInitialize(initDetails: InitializationDetails) = this.onStatsigInitialize()
 
     fun onStatsigUpdateUser()
 }
@@ -48,7 +46,7 @@ object Statsig {
         sdkKey: String,
         user: StatsigUser? = null,
         callback: IStatsigCallback? = null,
-        options: StatsigOptions = StatsigOptions(),
+        options: StatsigOptions = StatsigOptions()
     ) {
         client.initializeAsync(application, sdkKey, user, callback, options)
     }
@@ -71,10 +69,8 @@ object Statsig {
         application: Application,
         sdkKey: String,
         user: StatsigUser? = null,
-        options: StatsigOptions = StatsigOptions(),
-    ): InitializationDetails? {
-        return client.initialize(application, sdkKey, user, options)
-    }
+        options: StatsigOptions = StatsigOptions()
+    ): InitializationDetails? = client.initialize(application, sdkKey, user, options)
 
     /**
      * Check the value of a Feature Gate configured in the Statsig console for the initialized
@@ -84,9 +80,7 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun checkGate(gateName: String): Boolean {
-        return client.checkGate(gateName)
-    }
+    fun checkGate(gateName: String): Boolean = client.checkGate(gateName)
 
     /**
      * Check the value of a Feature Gate configured in the Statsig console for the initialized
@@ -96,9 +90,8 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun checkGateWithExposureLoggingDisabled(gateName: String): Boolean {
-        return client.checkGateWithExposureLoggingDisabled(gateName)
-    }
+    fun checkGateWithExposureLoggingDisabled(gateName: String): Boolean =
+        client.checkGateWithExposureLoggingDisabled(gateName)
 
     /**
      * Check the value of a Feature Gate configured in the Statsig console for the initialized
@@ -108,9 +101,7 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun getFeatureGate(gateName: String): FeatureGate {
-        return client.getFeatureGate(gateName)
-    }
+    fun getFeatureGate(gateName: String): FeatureGate = client.getFeatureGate(gateName)
 
     /**
      * Check the value of a Feature Gate configured in the Statsig console for the initialized
@@ -120,9 +111,8 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun getFeatureGateWithExposureLoggingDisabled(gateName: String): FeatureGate {
-        return client.getFeatureGateWithExposureLoggingDisabled(gateName)
-    }
+    fun getFeatureGateWithExposureLoggingDisabled(gateName: String): FeatureGate =
+        client.getFeatureGateWithExposureLoggingDisabled(gateName)
 
     /**
      * Check the value of a Dynamic Config configured in the Statsig console for the initialized
@@ -132,9 +122,7 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun getConfig(configName: String): DynamicConfig {
-        return client.getConfig(configName)
-    }
+    fun getConfig(configName: String): DynamicConfig = client.getConfig(configName)
 
     /**
      * Check the value of a Dynamic Config configured in the Statsig console for the initialized
@@ -144,9 +132,8 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig {
-        return client.getConfigWithExposureLoggingDisabled(configName)
-    }
+    fun getConfigWithExposureLoggingDisabled(configName: String): DynamicConfig =
+        client.getConfigWithExposureLoggingDisabled(configName)
 
     /**
      * Check the value of an Experiment configured in the Statsig console for the initialized
@@ -158,9 +145,8 @@ object Statsig {
      */
     @JvmOverloads
     @JvmStatic
-    fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
-        return client.getExperiment(experimentName, keepDeviceValue)
-    }
+    fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig =
+        client.getExperiment(experimentName, keepDeviceValue)
 
     /**
      * Check the value of an Experiment configured in the Statsig console for the initialized
@@ -174,10 +160,9 @@ object Statsig {
     @JvmStatic
     fun getExperimentWithExposureLoggingDisabled(
         experimentName: String,
-        keepDeviceValue: Boolean = false,
-    ): DynamicConfig {
-        return client.getExperimentWithExposureLoggingDisabled(experimentName, keepDeviceValue)
-    }
+        keepDeviceValue: Boolean = false
+    ): DynamicConfig =
+        client.getExperimentWithExposureLoggingDisabled(experimentName, keepDeviceValue)
 
     /**
      * Check the value of a Layer configured in the Statsig console for the initialized
@@ -189,9 +174,8 @@ object Statsig {
      */
     @JvmOverloads
     @JvmStatic
-    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
-        return client.getLayer(layerName, keepDeviceValue)
-    }
+    fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer =
+        client.getLayer(layerName, keepDeviceValue)
 
     /**
      * Get the values of all parameters configured in the Statsig console for the initialized
@@ -204,10 +188,8 @@ object Statsig {
     @JvmStatic
     fun getParameterStore(
         parameterStoreName: String,
-        options: ParameterStoreEvaluationOptions? = null,
-    ): ParameterStore {
-        return client.getParameterStore(parameterStoreName, options)
-    }
+        options: ParameterStoreEvaluationOptions? = null
+    ): ParameterStore = client.getParameterStore(parameterStoreName, options)
 
     /**
      * Check the value of a Layer configured in the Statsig console for the initialized
@@ -221,10 +203,8 @@ object Statsig {
     @JvmStatic
     fun getLayerWithExposureLoggingDisabled(
         layerName: String,
-        keepDeviceValue: Boolean = false,
-    ): Layer {
-        return client.getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue)
-    }
+        keepDeviceValue: Boolean = false
+    ): Layer = client.getLayerWithExposureLoggingDisabled(layerName, keepDeviceValue)
 
     /**
      * Log an exposure for a given gate
@@ -272,10 +252,7 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun manuallyLogExperimentExposure(
-        experimentName: String,
-        keepDeviceValue: Boolean = false,
-    ) {
+    fun manuallyLogExperimentExposure(experimentName: String, keepDeviceValue: Boolean = false) {
         client.manuallyLogExperimentExposure(experimentName, keepDeviceValue)
     }
 
@@ -285,9 +262,7 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun manuallyLogExperimentExposure(
-        experiment: DynamicConfig,
-    ) {
+    fun manuallyLogExperimentExposure(experiment: DynamicConfig) {
         client.manuallyLogExperimentExposure(experiment)
     }
 
@@ -301,7 +276,7 @@ object Statsig {
     fun manuallyLogLayerParameterExposure(
         layerName: String,
         parameterName: String,
-        keepDeviceValue: Boolean = false,
+        keepDeviceValue: Boolean = false
     ) {
         client.manuallyLogLayerParameterExposure(layerName, parameterName, keepDeviceValue)
     }
@@ -313,10 +288,7 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun manuallyLogLayerParameterExposure(
-        layer: Layer,
-        parameterName: String,
-    ) {
+    fun manuallyLogLayerParameterExposure(layer: Layer, parameterName: String) {
         client.manuallyLogLayerParameterExposure(layer, parameterName)
     }
 
@@ -378,7 +350,7 @@ object Statsig {
     fun updateUserAsync(
         user: StatsigUser?,
         callback: IStatsigCallback? = null,
-        values: Map<String, Any>? = null,
+        values: Map<String, Any>? = null
     ) {
         client.updateUserAsync(user, callback, values)
     }
@@ -422,9 +394,7 @@ object Statsig {
      * @return Initialize response currently being used in JSON and evaluation details
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun getInitializeResponseJson(): ExternalInitializeResponse {
-        return client.getInitializeResponseJson()
-    }
+    fun getInitializeResponseJson(): ExternalInitializeResponse = client.getInitializeResponseJson()
 
     @JvmSynthetic
     suspend fun shutdownSuspend() {
@@ -462,25 +432,19 @@ object Statsig {
      * isInitialized is different from have a response from network
      */
     @JvmStatic
-    fun isInitialized(): Boolean {
-        return client.isInitialized()
-    }
+    fun isInitialized(): Boolean = client.isInitialized()
 
     /**
      * @return the current Statsig stableID, or an empty [String] if Statsig is not initialized.
      */
     @JvmStatic
-    fun getStableID(): String {
-        return client.getStableID()
-    }
+    fun getStableID(): String = client.getStableID()
 
     /**
      * @return the current Statsig sessionId
      */
     @JvmStatic
-    fun getSessionID(): String {
-        return client.getSessionID()
-    }
+    fun getSessionID(): String = client.getSessionID()
 
     /**
      * @param gateName the name of the gate you want to override
@@ -529,9 +493,7 @@ object Statsig {
      * @return the overrides that are currently applied
      */
     @JvmStatic
-    fun getAllOverrides(): StatsigOverrides {
-        return client.getAllOverrides()
-    }
+    fun getAllOverrides(): StatsigOverrides = client.getAllOverrides()
 
     fun openDebugView(context: Context, callback: DebugViewCallback) {
         client.openDebugView(context, callback)

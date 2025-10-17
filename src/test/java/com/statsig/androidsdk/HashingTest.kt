@@ -5,12 +5,12 @@ import io.mockk.every
 import io.mockk.mockkStatic
 import io.mockk.unmockkObject
 import io.mockk.unmockkStatic
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Executors
 
 class HashingTest {
 
@@ -51,8 +51,16 @@ class HashingTest {
         val djb2Result = Hashing.getHashedString(input, HashAlgorithm.DJB2)
         val noneResult = Hashing.getHashedString(input, HashAlgorithm.NONE)
 
-        assertNotEquals("SHA256 and DJB2 should produce different results", sha256Result, djb2Result)
-        assertNotEquals("SHA256 and NONE should produce different results", sha256Result, noneResult)
+        assertNotEquals(
+            "SHA256 and DJB2 should produce different results",
+            sha256Result,
+            djb2Result
+        )
+        assertNotEquals(
+            "SHA256 and NONE should produce different results",
+            sha256Result,
+            noneResult
+        )
         assertEquals("NONE should return input unchanged", input, noneResult)
     }
 
@@ -77,17 +85,25 @@ class HashingTest {
         val sha256TestInput = "${baseInput}_sha256_verification"
         val sha256Result1 = Hashing.getHashedString(sha256TestInput, HashAlgorithm.SHA256)
         val sha256Result2 = Hashing.getHashedString(sha256TestInput, HashAlgorithm.SHA256)
-        assertEquals("SHA256 memoization should still work after cache clearing", sha256Result1, sha256Result2)
+        assertEquals(
+            "SHA256 memoization should still work after cache clearing",
+            sha256Result1,
+            sha256Result2
+        )
 
         val djb2TestInput = "${baseInput}_djb2_verification"
         val djb2Result1 = Hashing.getHashedString(djb2TestInput, HashAlgorithm.DJB2)
         val djb2Result2 = Hashing.getHashedString(djb2TestInput, HashAlgorithm.DJB2)
-        assertEquals("DJB2 memoization should still work after cache clearing", djb2Result1, djb2Result2)
+        assertEquals(
+            "DJB2 memoization should still work after cache clearing",
+            djb2Result1,
+            djb2Result2
+        )
         // Additional verification: ensure that different algorithms still produce different results
         assertNotEquals(
             "SHA256 and DJB2 should still produce different results after cache operations",
             sha256Result1,
-            djb2Result1,
+            djb2Result1
         )
     }
 
@@ -121,7 +137,11 @@ class HashingTest {
 
         val firstResult = results.first()
         assertTrue("All results should be identical", results.all { it == firstResult })
-        assertEquals("Should have expected number of results", numThreads * numCallsPerThread, results.size)
+        assertEquals(
+            "Should have expected number of results",
+            numThreads * numCallsPerThread,
+            results.size
+        )
     }
 
     @Test
@@ -152,7 +172,11 @@ class HashingTest {
         val emptyResult2 = Hashing.getHashedString("", HashAlgorithm.SHA256)
 
         assertEquals("Empty string should be cached correctly", emptyResult1, emptyResult2)
-        assertNotEquals("Empty string should not equal non-empty string", emptyResult1, Hashing.getHashedString("test", HashAlgorithm.SHA256))
+        assertNotEquals(
+            "Empty string should not equal non-empty string",
+            emptyResult1,
+            Hashing.getHashedString("test", HashAlgorithm.SHA256)
+        )
     }
 
     @Test
@@ -177,11 +201,19 @@ class HashingTest {
 
         // Verify that early entries were cleared (cache was cleared when limit was reached)
         val earlyResult = memo.computeIfAbsent("key_5") { "new_value_for_key_5" }
-        assertEquals("Early entry should be recomputed after cache clearing", "new_value_for_key_5", earlyResult)
+        assertEquals(
+            "Early entry should be recomputed after cache clearing",
+            "new_value_for_key_5",
+            earlyResult
+        )
 
         // Verify that a later entry (close to limit) was also cleared
         val laterResult = memo.computeIfAbsent("key_998") { "new_value_for_key_998" }
-        assertEquals("Later entry should be recomputed after cache clearing", "new_value_for_key_998", laterResult)
+        assertEquals(
+            "Later entry should be recomputed after cache clearing",
+            "new_value_for_key_998",
+            laterResult
+        )
 
         // Verify that cache clearing works and memoization still functions
         val result1 = memo.computeIfAbsent("test_key") { "test_value" }
@@ -221,7 +253,11 @@ class HashingTest {
 
         val firstResult = results.first()
         assertTrue("All results should be identical", results.all { it == firstResult })
-        assertEquals("Should have expected number of results", numThreads * numCallsPerThread, results.size)
+        assertEquals(
+            "Should have expected number of results",
+            numThreads * numCallsPerThread,
+            results.size
+        )
         assertEquals("All results should be the computed value", "computed_value", firstResult)
     }
 }

@@ -6,7 +6,7 @@ import com.google.gson.annotations.SerializedName
 enum class Tier {
     PRODUCTION,
     STAGING,
-    DEVELOPMENT,
+    DEVELOPMENT
 }
 
 private const val TIER_KEY: String = "tier"
@@ -48,14 +48,15 @@ class StatsigOptions(
      * root View Controller. This is so we can generate user journey funnels for your users. You can
      * set this parameter to true to disable this behavior.
      */
-    @SerializedName("disableCurrentActivityLogging") var disableCurrentActivityLogging: Boolean = false,
+    @SerializedName(
+        "disableCurrentActivityLogging"
+    ) var disableCurrentActivityLogging: Boolean = false,
     /**
      * Prevent the SDK from sending useful debug information to Statsig
      */
-    @SerializedName("disableDiagnosticsLogging")
-    @Deprecated(
+    @SerializedName("disableDiagnosticsLogging") @Deprecated(
         "WARNING: This property is no longer supported and currently has no effects.",
-        level = DeprecationLevel.WARNING,
+        level = DeprecationLevel.WARNING
     ) var disableDiagnosticsLogging: Boolean = false,
     /**
      * Default off, SDK compress outgoing log_event payload, if there is no proxying.
@@ -119,7 +120,11 @@ class StatsigOptions(
      * Callback function when user is being set (with updateUser/initialize)  to validate user object
      * If user object is modified, modified version will be used for evaluation and logging
      */
-    @SerializedName("userObjectValidator") var userObjectValidator: ((user: StatsigUser) -> Unit)? = null,
+    @SerializedName("userObjectValidator") var userObjectValidator: (
+        (
+            user: StatsigUser
+        ) -> Unit
+    )? = null,
     /**
      * A list of URLs to try if the primary initializeUrl fails.
      */
@@ -131,7 +136,9 @@ class StatsigOptions(
 
     var evaluationCallback: ((BaseConfig) -> Unit)? = null,
 
-    var customCacheKey: ((String, StatsigUser) -> String) = { sdkKey, user -> "${user.getCacheKey()}:$sdkKey" },
+    var customCacheKey: ((String, StatsigUser) -> String) = { sdkKey, user ->
+        "${user.getCacheKey()}:$sdkKey"
+    },
 
     var disableLogEventRetries: Boolean = false,
 
@@ -139,7 +146,7 @@ class StatsigOptions(
 
     var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null,
 
-    loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
+    loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED
 ) : StatsigRuntimeMutableOptions(loggingEnabled) {
 
     @SerializedName("autoValueUpdateIntervalMinutes")
@@ -162,45 +169,39 @@ class StatsigOptions(
         env[key] = value
     }
 
-    fun getEnvironment(): MutableMap<String, String>? {
-        return environment
-    }
+    fun getEnvironment(): MutableMap<String, String>? = environment
 
-    internal fun toMap(): Map<String, Any?> {
-        return mapOf(
-            "api" to api,
-            "disableCurrentActivityLogging" to disableCurrentActivityLogging,
-            "disableDiagnosticsLogging" to disableDiagnosticsLogging,
-            "initTimeoutMs" to initTimeoutMs,
-            "enableAutoValueUpdate" to enableAutoValueUpdate,
-            "autoValueUpdateIntervalMinutes" to autoValueUpdateIntervalMinutes,
-            "overrideStableID" to overrideStableID,
-            "loadCacheAsync" to loadCacheAsync,
-            "initializeValues" to initializeValues,
-            "disableHashing" to disableHashing,
-            "environment" to environment,
-        )
-    }
+    internal fun toMap(): Map<String, Any?> = mapOf(
+        "api" to api,
+        "disableCurrentActivityLogging" to disableCurrentActivityLogging,
+        "disableDiagnosticsLogging" to disableDiagnosticsLogging,
+        "initTimeoutMs" to initTimeoutMs,
+        "enableAutoValueUpdate" to enableAutoValueUpdate,
+        "autoValueUpdateIntervalMinutes" to autoValueUpdateIntervalMinutes,
+        "overrideStableID" to overrideStableID,
+        "loadCacheAsync" to loadCacheAsync,
+        "initializeValues" to initializeValues,
+        "disableHashing" to disableHashing,
+        "environment" to environment
+    )
 
-    internal fun getLoggingCopy(): Map<String, Any?> {
-        return mapOf(
-            "api" to api,
-            "eventLoggingApi" to eventLoggingAPI,
-            "disableCurrentActivityLogging" to disableCurrentActivityLogging,
-            "disableDiagnosticsLogging" to disableDiagnosticsLogging,
-            "initTimeoutMs" to initTimeoutMs,
-            "enableAutoValueUpdate" to enableAutoValueUpdate,
-            "autoValueUpdateIntervalMinutes" to autoValueUpdateIntervalMinutes,
-            "overrideStableID" to overrideStableID,
-            "loadCacheAsync" to loadCacheAsync,
-            "initializeValues" to "SET",
-            "disableHashing" to disableHashing,
-            "environment" to environment,
-            "initializeFallbackUrls" to initializeFallbackUrls,
-            "logEventFallbackUrls" to logEventFallbackUrls,
-            "disableLogEventRetries" to disableLogEventRetries,
-            "initRetryLimit" to initRetryLimit,
-            "initializeOffline" to initializeOffline,
-        )
-    }
+    internal fun getLoggingCopy(): Map<String, Any?> = mapOf(
+        "api" to api,
+        "eventLoggingApi" to eventLoggingAPI,
+        "disableCurrentActivityLogging" to disableCurrentActivityLogging,
+        "disableDiagnosticsLogging" to disableDiagnosticsLogging,
+        "initTimeoutMs" to initTimeoutMs,
+        "enableAutoValueUpdate" to enableAutoValueUpdate,
+        "autoValueUpdateIntervalMinutes" to autoValueUpdateIntervalMinutes,
+        "overrideStableID" to overrideStableID,
+        "loadCacheAsync" to loadCacheAsync,
+        "initializeValues" to "SET",
+        "disableHashing" to disableHashing,
+        "environment" to environment,
+        "initializeFallbackUrls" to initializeFallbackUrls,
+        "logEventFallbackUrls" to logEventFallbackUrls,
+        "disableLogEventRetries" to disableLogEventRetries,
+        "initRetryLimit" to initRetryLimit,
+        "initializeOffline" to initializeOffline
+    )
 }

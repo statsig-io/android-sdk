@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.SharedPreferences
 import io.mockk.coEvery
 import io.mockk.spyk
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -13,11 +15,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
-internal suspend fun getResponseForUser(user: StatsigUser, configName: String): InitializeResponse {
-    return withContext(Dispatchers.IO) {
+internal suspend fun getResponseForUser(user: StatsigUser, configName: String): InitializeResponse =
+    withContext(Dispatchers.IO) {
         delay(500)
         TestUtil.makeInitializeResponse(
             mapOf(),
@@ -25,15 +25,14 @@ internal suspend fun getResponseForUser(user: StatsigUser, configName: String): 
                 "$configName!" to APIDynamicConfig(
                     "$configName!",
                     mutableMapOf(
-                        "key" to if (user.userID == "") "logged_out_value" else "value",
+                        "key" to if (user.userID == "") "logged_out_value" else "value"
                     ),
-                    "default",
-                ),
+                    "default"
+                )
             ),
-            mapOf(),
+            mapOf()
         )
     }
-}
 
 @RunWith(RobolectricTestRunner::class)
 class ExperimentCacheTest {
@@ -54,7 +53,16 @@ class ExperimentCacheTest {
         coEvery {
             network.initialize(any(), any(), any(), any(), any(), any(), any(), any(), any(), any())
         } coAnswers {
-            val res = getResponseForUser(secondArg(), if (initializeCalls < 2) "a_config" else "b_config")
+            val res = getResponseForUser(
+                secondArg(),
+                if (initializeCalls <
+                    2
+                ) {
+                    "a_config"
+                } else {
+                    "b_config"
+                }
+            )
             initializeCalls++
             res
         }
@@ -77,17 +85,17 @@ class ExperimentCacheTest {
     fun testExperimentCacheAfterRestart() {
         val initializationOptions = StatsigOptions(
             disableHashing = true,
-            customCacheKey = { sdkKey, user -> user.getTestCustomCacheKey(sdkKey) },
+            customCacheKey = { sdkKey, user -> user.getTestCustomCacheKey(sdkKey) }
         )
         val loggedOutUser = StatsigUser("")
         // Test user setup
         val loggedInUser = StatsigUser("test-user-id").apply {
             customIDs = mapOf(
                 "deviceId" to "test-device-id",
-                "companyId" to "test-company-id",
+                "companyId" to "test-company-id"
             )
             custom = mapOf(
-                "test" to "custom_value",
+                "test" to "custom_value"
             )
         }
 
@@ -145,16 +153,22 @@ class ExperimentCacheTest {
         val loggedInUserV2 = StatsigUser("test-user-id").apply {
             customIDs = mapOf(
                 "deviceId" to "test-device-id",
-                "companyId" to "test-company-id",
+                "companyId" to "test-company-id"
             )
             custom = mapOf(
                 "test" to "custom_value",
-                "prop" to "value",
+                "prop" to "value"
             )
         }
 
         // Initialize SDK for second session
-        Statsig.initializeAsync(app, "client-key", loggedInUserV2, callbackAgain, initializationOptions)
+        Statsig.initializeAsync(
+            app,
+            "client-key",
+            loggedInUserV2,
+            callbackAgain,
+            initializationOptions
+        )
 
         // Check experiment immediately after init (before network response) for cached value
         experiment = Statsig.getExperiment("a_config")

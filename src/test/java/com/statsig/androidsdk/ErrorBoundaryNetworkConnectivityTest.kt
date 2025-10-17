@@ -61,10 +61,26 @@ class ErrorBoundaryNetworkConnectivityTest {
 
         stubFor(
             post(urlMatching("/initialize"))
-                .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)),
+                .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER))
         )
-        val store = Store(TestUtil.coroutineScope, TestUtil.getTestSharedPrefs(app), StatsigUser(), "client-apikey", StatsigOptions())
-        network = StatsigNetworkImpl(app, "client-key", TestUtil.getTestSharedPrefs(app), StatsigOptions(), mockk(), TestUtil.coroutineScope, store)
+        val store =
+            Store(
+                TestUtil.coroutineScope,
+                TestUtil.getTestSharedPrefs(app),
+                StatsigUser(),
+                "client-apikey",
+                StatsigOptions()
+            )
+        network =
+            StatsigNetworkImpl(
+                app,
+                "client-key",
+                TestUtil.getTestSharedPrefs(app),
+                StatsigOptions(),
+                mockk(),
+                TestUtil.coroutineScope,
+                store
+            )
     }
 
     @Config(sdk = [Build.VERSION_CODES.M])
@@ -95,7 +111,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 50,
                 HashAlgorithm.NONE,
                 mapOf(),
-                null,
+                null
             )
         } catch (e: Exception) {
             // noop
@@ -109,7 +125,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 ConnectivityManager.TYPE_WIFI,
                 0,
                 true,
-                value,
+                value
             )
         shadowConMan.setActiveNetworkInfo(networkInfo)
     }

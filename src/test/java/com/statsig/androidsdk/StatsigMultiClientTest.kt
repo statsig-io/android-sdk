@@ -38,15 +38,36 @@ class StatsigMultiClientTest {
 
         TestUtil.mockHashing()
 
-        network1 = TestUtil.mockNetwork(featureGates = mockFeatureGatesResponse(1), dynamicConfigs = mockDynamicConfigs(1), onLog = {
-            flushedLogs1.add(it)
-        })
-        network2 = TestUtil.mockNetwork(featureGates = mockFeatureGatesResponse(2), dynamicConfigs = mockDynamicConfigs(2), onLog = {
-            flushedLogs2.add(it)
-        })
-        network3 = TestUtil.mockNetwork(featureGates = mockFeatureGatesResponse(3), dynamicConfigs = mockDynamicConfigs(3), onLog = {
-            flushedLogs3.add(it)
-        })
+        network1 =
+            TestUtil.mockNetwork(
+                featureGates = mockFeatureGatesResponse(
+                    1
+                ),
+                dynamicConfigs = mockDynamicConfigs(1),
+                onLog = {
+                    flushedLogs1.add(it)
+                }
+            )
+        network2 =
+            TestUtil.mockNetwork(
+                featureGates = mockFeatureGatesResponse(
+                    2
+                ),
+                dynamicConfigs = mockDynamicConfigs(2),
+                onLog = {
+                    flushedLogs2.add(it)
+                }
+            )
+        network3 =
+            TestUtil.mockNetwork(
+                featureGates = mockFeatureGatesResponse(
+                    3
+                ),
+                dynamicConfigs = mockDynamicConfigs(3),
+                onLog = {
+                    flushedLogs3.add(it)
+                }
+            )
         brokenNetwork = TestUtil.mockBrokenNetwork()
     }
 
@@ -157,9 +178,27 @@ class StatsigMultiClientTest {
         client1.shutdown()
         client2.shutdown()
         client3.shutdown()
-        TestUtil.startStatsigClientAndWait(app, client1, sdkKey = sdkKey1, user, network = brokenNetwork)
-        TestUtil.startStatsigClientAndWait(app, client2, sdkKey = sdkKey2, user, network = brokenNetwork)
-        TestUtil.startStatsigClientAndWait(app, client3, sdkKey = sdkKey3, user, network = brokenNetwork)
+        TestUtil.startStatsigClientAndWait(
+            app,
+            client1,
+            sdkKey = sdkKey1,
+            user,
+            network = brokenNetwork
+        )
+        TestUtil.startStatsigClientAndWait(
+            app,
+            client2,
+            sdkKey = sdkKey2,
+            user,
+            network = brokenNetwork
+        )
+        TestUtil.startStatsigClientAndWait(
+            app,
+            client3,
+            sdkKey = sdkKey3,
+            user,
+            network = brokenNetwork
+        )
         val config1 = client1.getConfig("test_config")
         assert(config1.getEvaluationDetails().reason == EvaluationReason.Cache)
         assert(config1.getString("string", "DEFAULT") == "test_1")
@@ -209,86 +248,124 @@ class StatsigMultiClientTest {
     fun testInitializeMultipleInstancesWithSameKey() = runBlocking {
         TestUtil.startStatsigClientAndWait(app, client1, sdkKey = sdkKey1, user, network = network1)
         val client11 = StatsigClient()
-        TestUtil.startStatsigClientAndWait(app, client11, sdkKey = sdkKey1, user, network = network2)
+        TestUtil.startStatsigClientAndWait(
+            app,
+            client11,
+            sdkKey = sdkKey1,
+            user,
+            network = network2
+        )
         assert(!client1.checkGate("gate_1"))
         assert(client11.checkGate("gate_1"))
         client1.shutdown()
-        TestUtil.startStatsigClientAndWait(app, client1, sdkKey = sdkKey1, user, network = brokenNetwork)
+        TestUtil.startStatsigClientAndWait(
+            app,
+            client1,
+            sdkKey = sdkKey1,
+            user,
+            network = brokenNetwork
+        )
         assert(client1.checkGate("gate_1"))
     }
 
-    private fun mockFeatureGatesResponse(key: Int): Map<String, APIFeatureGate> {
-        return mapOf(
-            // Common name
-            "gate_1!" to
-                APIFeatureGate(
-                    "gate_1!",
-                    key % 2 === 0,
-                    "gate_1_rule",
-                    "gate_1_group",
-                    arrayOf(
-                        mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"),
-                        mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2"),
+    private fun mockFeatureGatesResponse(key: Int): Map<String, APIFeatureGate> = mapOf(
+        // Common name
+        "gate_1!" to
+            APIFeatureGate(
+                "gate_1!",
+                key % 2 === 0,
+                "gate_1_rule",
+                "gate_1_group",
+                arrayOf(
+                    mapOf(
+                        "gate" to "dependent_gate",
+                        "gateValue" to "true",
+                        "ruleID" to "rule_id_1"
                     ),
-                ),
-            "gate_2!" to
-                APIFeatureGate(
-                    "gate_2!",
-                    key % 2 === 1,
-                    "gate_2_rule",
-                    "gate_2_group",
-                    arrayOf(),
-                ),
-            "always_on_$key!" to
-                APIFeatureGate(
-                    "always_on_$key!",
-                    true,
-                    "always_on_rule_id",
-                    "always_on_group",
-                    arrayOf(
-                        mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1"),
-                        mapOf("gate" to "dependent_gate_2", "gateValue" to "true", "ruleID" to "rule_id_2"),
+                    mapOf(
+                        "gate" to "dependent_gate_2",
+                        "gateValue" to "true",
+                        "ruleID" to "rule_id_2"
+                    )
+                )
+            ),
+        "gate_2!" to
+            APIFeatureGate(
+                "gate_2!",
+                key % 2 === 1,
+                "gate_2_rule",
+                "gate_2_group",
+                arrayOf()
+            ),
+        "always_on_$key!" to
+            APIFeatureGate(
+                "always_on_$key!",
+                true,
+                "always_on_rule_id",
+                "always_on_group",
+                arrayOf(
+                    mapOf(
+                        "gate" to "dependent_gate",
+                        "gateValue" to "true",
+                        "ruleID" to "rule_id_1"
                     ),
-                ),
-        )
-    }
+                    mapOf(
+                        "gate" to "dependent_gate_2",
+                        "gateValue" to "true",
+                        "ruleID" to "rule_id_2"
+                    )
+                )
+            )
+    )
 
-    private fun mockDynamicConfigs(key: Int): Map<String, APIDynamicConfig> {
-        return mapOf(
-            "test_config!" to APIDynamicConfig(
-                "test_config!",
-                mutableMapOf("string" to "test_$key", "number" to 42 * key, "otherNumber" to 17 * key),
-                "default",
-                null,
-                arrayOf(mapOf("gate" to "dependent_gate", "gateValue" to "true", "ruleID" to "rule_id_1")),
+    private fun mockDynamicConfigs(key: Int): Map<String, APIDynamicConfig> = mapOf(
+        "test_config!" to APIDynamicConfig(
+            "test_config!",
+            mutableMapOf(
+                "string" to "test_$key",
+                "number" to 42 * key,
+                "otherNumber" to 17 * key
             ),
-            "layer_exp!" to APIDynamicConfig(
-                "layer_exp!",
-                mutableMapOf("string" to "test", "number" to 42 * key),
-                "exp_rule",
-                "exp_group",
-                arrayOf(),
-                isExperimentActive = true,
-                isUserInExperiment = true,
+            "default",
+            null,
+            arrayOf(
+                mapOf(
+                    "gate" to "dependent_gate",
+                    "gateValue" to "true",
+                    "ruleID" to "rule_id_1"
+                )
+            )
+        ),
+        "layer_exp!" to APIDynamicConfig(
+            "layer_exp!",
+            mutableMapOf("string" to "test", "number" to 42 * key),
+            "exp_rule",
+            "exp_group",
+            arrayOf(),
+            isExperimentActive = true,
+            isUserInExperiment = true
+        ),
+        "experiment_$key!" to APIDynamicConfig(
+            "experiemnt_$key",
+            mutableMapOf(
+                "string" to "other_test",
+                "number" to 7742 / key,
+                "otherNumber" to 8817 / key
             ),
-            "experiment_$key!" to APIDynamicConfig(
-                "experiemnt_$key",
-                mutableMapOf("string" to "other_test", "number" to 7742 / key, "otherNumber" to 8817 / key),
-                "exp_rule",
-                "exp_group",
-                arrayOf(),
-                isExperimentActive = true,
-                isUserInExperiment = true,
-            ),
-            "layer_exp_$key!" to APIDynamicConfig(
-                "layer_exp_$key",
-                mutableMapOf("string" to "test", "number" to 42 * key),
-                "exp_rule",
-                "exp_group",
-                arrayOf(),
-                isExperimentActive = true,
-                isUserInExperiment = true,
-            ),
+            "exp_rule",
+            "exp_group",
+            arrayOf(),
+            isExperimentActive = true,
+            isUserInExperiment = true
+        ),
+        "layer_exp_$key!" to APIDynamicConfig(
+            "layer_exp_$key",
+            mutableMapOf("string" to "test", "number" to 42 * key),
+            "exp_rule",
+            "exp_group",
+            arrayOf(),
+            isExperimentActive = true,
+            isUserInExperiment = true
         )
-    }
+    )
 }

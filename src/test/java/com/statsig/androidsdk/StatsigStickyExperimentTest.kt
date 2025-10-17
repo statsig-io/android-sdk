@@ -41,58 +41,56 @@ class StatsigStickyExperimentTest {
         value: Map<String, Any> = config.value,
         isUserInExperiment: Boolean = config.isUserInExperiment,
         isExperimentActive: Boolean = config.isExperimentActive,
-        allocatedExperimentName: String? = config.allocatedExperimentName,
-    ): APIDynamicConfig {
-        return APIDynamicConfig(
-            config.name,
-            value,
-            config.ruleID,
-            isExperimentActive = isExperimentActive,
-            isUserInExperiment = isUserInExperiment,
-            allocatedExperimentName = allocatedExperimentName,
-        )
-    }
+        allocatedExperimentName: String? = config.allocatedExperimentName
+    ): APIDynamicConfig = APIDynamicConfig(
+        config.name,
+        value,
+        config.ruleID,
+        isExperimentActive = isExperimentActive,
+        isUserInExperiment = isUserInExperiment,
+        allocatedExperimentName = allocatedExperimentName
+    )
 
     @Test
     fun testStickyBucketing() = runBlocking {
         val expConfig = APIDynamicConfig(
             "exp!",
             mapOf(
-                "key" to "exp_v1",
+                "key" to "exp_v1"
             ),
             "default",
             isUserInExperiment = true,
-            isExperimentActive = true,
+            isExperimentActive = true
         )
         val newExpConfig = APIDynamicConfig(
             "new_exp!",
             mapOf(
-                "key" to "new_exp_v1",
+                "key" to "new_exp_v1"
             ),
             "default",
             isUserInExperiment = true,
-            isExperimentActive = true,
+            isExperimentActive = true
         )
         val layerConfig = APIDynamicConfig(
             "layer!",
             mapOf(
-                "key" to "layer_v1",
+                "key" to "layer_v1"
             ),
             "default",
             isUserInExperiment = true,
             isExperimentActive = true,
-            allocatedExperimentName = "exp!",
+            allocatedExperimentName = "exp!"
         )
 
         // 1. Saves sticky value and returns latest
 
         initialize(
             mapOf(
-                "exp!" to expConfig,
+                "exp!" to expConfig
             ),
             mapOf(
-                "layer!" to layerConfig,
-            ),
+                "layer!" to layerConfig
+            )
         )
 
         var exp = Statsig.getExperiment("exp", keepDeviceValue = true)
@@ -109,11 +107,11 @@ class StatsigStickyExperimentTest {
 
         initialize(
             mapOf(
-                "exp!" to copyConfig(expConfig, mapOf("key" to "exp_v2"), false),
+                "exp!" to copyConfig(expConfig, mapOf("key" to "exp_v2"), false)
             ),
             mapOf(
-                "layer!" to copyConfig(layerConfig, mapOf("key" to "layer_v2"), false),
-            ),
+                "layer!" to copyConfig(layerConfig, mapOf("key" to "layer_v2"), false)
+            )
         )
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = true)
@@ -134,9 +132,9 @@ class StatsigStickyExperimentTest {
                     expConfig,
                     mapOf("key" to "exp_v3"),
                     isUserInExperiment = false,
-                    isExperimentActive = false,
+                    isExperimentActive = false
                 ),
-                "new_exp!" to copyConfig(newExpConfig, mapOf("key" to "exp_v3")),
+                "new_exp!" to copyConfig(newExpConfig, mapOf("key" to "exp_v3"))
             ),
             mapOf(
                 "layer!" to copyConfig(
@@ -144,9 +142,9 @@ class StatsigStickyExperimentTest {
                     mapOf("key" to "layer_v3"),
                     isUserInExperiment = true,
                     isExperimentActive = true,
-                    allocatedExperimentName = "new_exp!",
-                ),
-            ),
+                    allocatedExperimentName = "new_exp!"
+                )
+            )
         )
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = true)
@@ -167,14 +165,14 @@ class StatsigStickyExperimentTest {
                     expConfig,
                     mapOf("key" to "exp_v4"),
                     isUserInExperiment = false,
-                    isExperimentActive = true,
+                    isExperimentActive = true
                 ),
                 "new_exp!" to copyConfig(
                     newExpConfig,
                     mapOf("key" to "new_exp_v4"),
                     isUserInExperiment = false,
-                    isExperimentActive = true,
-                ),
+                    isExperimentActive = true
+                )
             ),
             mapOf(
                 "layer!" to copyConfig(
@@ -182,9 +180,9 @@ class StatsigStickyExperimentTest {
                     mapOf("key" to "layer_v4"),
                     isUserInExperiment = false,
                     isExperimentActive = true,
-                    allocatedExperimentName = "new_exp!",
-                ),
-            ),
+                    allocatedExperimentName = "new_exp!"
+                )
+            )
         )
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = true)
@@ -201,11 +199,23 @@ class StatsigStickyExperimentTest {
 
         initialize(
             mapOf(
-                "exp!" to copyConfig(expConfig, mapOf("key" to "exp_v5"), isUserInExperiment = true, isExperimentActive = false),
+                "exp!" to
+                    copyConfig(
+                        expConfig,
+                        mapOf("key" to "exp_v5"),
+                        isUserInExperiment = true,
+                        isExperimentActive = false
+                    )
             ),
             mapOf(
-                "layer!" to copyConfig(layerConfig, mapOf("key" to "layer_v5"), isUserInExperiment = true, isExperimentActive = false),
-            ),
+                "layer!" to
+                    copyConfig(
+                        layerConfig,
+                        mapOf("key" to "layer_v5"),
+                        isUserInExperiment = true,
+                        isExperimentActive = false
+                    )
+            )
         )
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = false)
@@ -224,11 +234,23 @@ class StatsigStickyExperimentTest {
 
         initialize(
             mapOf(
-                "exp!" to copyConfig(expConfig, mapOf("key" to "exp_v6"), isUserInExperiment = true, isExperimentActive = true),
+                "exp!" to
+                    copyConfig(
+                        expConfig,
+                        mapOf("key" to "exp_v6"),
+                        isUserInExperiment = true,
+                        isExperimentActive = true
+                    )
             ),
             mapOf(
-                "layer!" to copyConfig(layerConfig, mapOf("key" to "layer_v6"), isUserInExperiment = true, isExperimentActive = true),
-            ),
+                "layer!" to
+                    copyConfig(
+                        layerConfig,
+                        mapOf("key" to "layer_v6"),
+                        isUserInExperiment = true,
+                        isExperimentActive = true
+                    )
+            )
         )
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = true)
@@ -249,18 +271,18 @@ class StatsigStickyExperimentTest {
             mapOf("key" to "exp_v_no_write"),
             "default",
             isUserInExperiment = true,
-            isExperimentActive = true,
+            isExperimentActive = true
         )
 
         val layerConfig = APIDynamicConfig(
             "layer!",
             mapOf(
-                "key" to "layer_v1",
+                "key" to "layer_v1"
             ),
             "default",
             isUserInExperiment = true,
             isExperimentActive = true,
-            allocatedExperimentName = "exp!",
+            allocatedExperimentName = "exp!"
         )
 
         initialize(
@@ -271,9 +293,9 @@ class StatsigStickyExperimentTest {
                     mapOf("key" to "layer_v4"),
                     isUserInExperiment = false,
                     isExperimentActive = true,
-                    allocatedExperimentName = "new_exp!",
-                ),
-            ),
+                    allocatedExperimentName = "new_exp!"
+                )
+            )
         )
 
         // Empty existing values
@@ -290,15 +312,15 @@ class StatsigStickyExperimentTest {
 
     private fun initialize(
         configs: Map<String, APIDynamicConfig>,
-        layers: Map<String, APIDynamicConfig>,
+        layers: Map<String, APIDynamicConfig>
     ) = runBlocking {
         TestUtil.startStatsigAndWait(
             app,
             network = TestUtil.mockNetwork(
                 featureGates = mapOf(),
                 dynamicConfigs = configs,
-                layerConfigs = layers,
-            ),
+                layerConfigs = layers
+            )
         )
     }
 }

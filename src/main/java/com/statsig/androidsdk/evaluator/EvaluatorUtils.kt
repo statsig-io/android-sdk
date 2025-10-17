@@ -71,17 +71,15 @@ internal object EvaluatorUtils {
         return false
     }
 
-    fun getUserValueForField(user: StatsigUser, field: String): Any? {
-        return when (field) {
-            "userid", "user_id" -> user.userID
-            "email" -> user.email
-            "ip", "ipaddress", "ip_address" -> user.ip
-            "useragent", "user_agent" -> user.userAgent
-            "country" -> user.country
-            "locale" -> user.locale
-            "appversion", "app_version" -> user.appVersion
-            else -> null
-        }
+    fun getUserValueForField(user: StatsigUser, field: String): Any? = when (field) {
+        "userid", "user_id" -> user.userID
+        "email" -> user.email
+        "ip", "ipaddress", "ip_address" -> user.ip
+        "useragent", "user_agent" -> user.userAgent
+        "country" -> user.country
+        "locale" -> user.locale
+        "appversion", "app_version" -> user.appVersion
+        else -> null
     }
 
     fun getFromUser(user: StatsigUser, field: String): Any? {
@@ -100,10 +98,9 @@ internal object EvaluatorUtils {
         return value
     }
 
-    fun getFromEnvironment(user: StatsigUser, field: String): String? {
-        return user.statsigEnvironment?.get(field)
+    fun getFromEnvironment(user: StatsigUser, field: String): String? =
+        user.statsigEnvironment?.get(field)
             ?: user.statsigEnvironment?.get(field.lowercase())
-    }
 
     fun getUnitID(user: StatsigUser, idType: String?): String? {
         val lowerIdType = idType?.lowercase()
@@ -116,7 +113,7 @@ internal object EvaluatorUtils {
     fun matchStringInArray(
         value: Any?,
         target: Any?,
-        compare: (value: String, target: String) -> Boolean,
+        compare: (value: String, target: String) -> Boolean
     ): Boolean {
         val strValue = getValueAsString(value) ?: return false
         val iterable =
@@ -143,11 +140,7 @@ internal object EvaluatorUtils {
         return false
     }
 
-    fun compareDates(
-        compare: ((a: Date, b: Date) -> Boolean),
-        a: Any?,
-        b: Any?,
-    ): ConfigEvaluation {
+    fun compareDates(compare: ((a: Date, b: Date) -> Boolean), a: Any?, b: Any?): ConfigEvaluation {
         if (a == null || b == null) {
             return ConfigEvaluation(booleanValue = false)
         }
@@ -157,11 +150,11 @@ internal object EvaluatorUtils {
 
         if (firstEpoch == null || secondEpoch == null) {
             return ConfigEvaluation(
-                booleanValue = false,
+                booleanValue = false
             )
         }
         return ConfigEvaluation(
-            booleanValue = compare(firstEpoch, secondEpoch),
+            booleanValue = compare(firstEpoch, secondEpoch)
         )
     }
 

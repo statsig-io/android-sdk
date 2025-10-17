@@ -24,12 +24,12 @@ data class Marker(
     @SerializedName("error") var error: ErrorMessage? = null,
     @SerializedName("hasNetwork") var hasNetwork: Boolean? = null,
     @SerializedName("timeoutMS") var timeoutMS: Int? = null,
-    @SerializedName("isBlocking") var isBlocking: Boolean? = null,
+    @SerializedName("isBlocking") var isBlocking: Boolean? = null
 ) {
     data class ErrorMessage(
         @SerializedName("message") val message: String? = null,
         @SerializedName("name") val name: String? = null,
-        @SerializedName("code") val code: String? = null,
+        @SerializedName("code") val code: String? = null
     )
 }
 
@@ -38,7 +38,7 @@ enum class ContextType {
     INITIALIZE,
 
     @SerializedName("update_user")
-    UPDATE_USER,
+    UPDATE_USER
 }
 
 enum class KeyType {
@@ -64,24 +64,22 @@ enum class KeyType {
     GET_LAYER,
 
     @SerializedName("retry_failed_log")
-    RETRY_FAILED_LOG,
+    RETRY_FAILED_LOG
 
     ;
 
     companion object {
-        fun convertFromString(value: String): KeyType? {
-            return when (value) {
-                in "checkGate" ->
-                    KeyType.CHECK_GATE
-                in "getExperiment" ->
-                    KeyType.GET_EXPERIMENT
-                in "getConfig" ->
-                    KeyType.GET_CONFIG
-                in "getLayer" ->
-                    KeyType.GET_LAYER
-                else ->
-                    null
-            }
+        fun convertFromString(value: String): KeyType? = when (value) {
+            in "checkGate" ->
+                KeyType.CHECK_GATE
+            in "getExperiment" ->
+                KeyType.GET_EXPERIMENT
+            in "getConfig" ->
+                KeyType.GET_CONFIG
+            in "getLayer" ->
+                KeyType.GET_LAYER
+            else ->
+                null
         }
     }
 }
@@ -94,7 +92,7 @@ enum class StepType {
     NETWORK_REQUEST,
 
     @SerializedName("load_cache")
-    LOAD_CACHE,
+    LOAD_CACHE
 }
 
 enum class ActionType {
@@ -102,5 +100,5 @@ enum class ActionType {
     START,
 
     @SerializedName("end")
-    END,
+    END
 }

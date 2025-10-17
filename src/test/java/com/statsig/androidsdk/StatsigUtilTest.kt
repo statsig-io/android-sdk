@@ -49,7 +49,7 @@ class StatsigUtilTest {
             "testDouble" to 42.3,
             "testLong" to 7L,
             "testArray" to arrayOf("one", "two"),
-            "testIntArray" to intArrayOf(3, 2),
+            "testIntArray" to intArrayOf(3, 2)
         )
         val resultMap = StatsigUtil.normalizeUser(inputMap)
 
@@ -64,21 +64,39 @@ class StatsigUtilTest {
 
     @Test
     fun testHashing() {
-        assertEquals("n4bQgYhMfWWaL+qgxVrQFaO/TxsrC4Is0V1sFbDwCgg=", Hashing.getHashedString("test", null))
-        assertEquals("7NcYcNGWMxapfjrDQIyYNa2M8PPBvHA1J8MCZVNPda4=", Hashing.getHashedString("test123", null))
+        assertEquals(
+            "n4bQgYhMfWWaL+qgxVrQFaO/TxsrC4Is0V1sFbDwCgg=",
+            Hashing.getHashedString("test", null)
+        )
+        assertEquals(
+            "7NcYcNGWMxapfjrDQIyYNa2M8PPBvHA1J8MCZVNPda4=",
+            Hashing.getHashedString("test123", null)
+        )
     }
 
     @Test
     fun testUserHashing() {
         val gson = StatsigUtil.getGson()
-        val userA = gson.fromJson("{\"userID\":\"userA\",\"email\":\"userA@gmail.com\",\"country\":\"US\"}", StatsigUser::class.java)
+        val userA = gson.fromJson(
+            "{\"userID\":\"userA\",\"email\":\"userA@gmail.com\",\"country\":\"US\"}",
+            StatsigUser::class.java
+        )
         userA.statsigEnvironment = mapOf("tier" to "production")
-        val userB = gson.fromJson("{\"userID\":\"userB\",\"email\":\"userB@gmail.com\",\"country\":\"US\"}", StatsigUser::class.java)
+        val userB = gson.fromJson(
+            "{\"userID\":\"userB\",\"email\":\"userB@gmail.com\",\"country\":\"US\"}",
+            StatsigUser::class.java
+        )
         val userADifferentEnvironment = userA.getCopyForEvaluation()
         userADifferentEnvironment.statsigEnvironment = mapOf("tier" to "staging")
-        val userADifferentOrder = gson.fromJson("{\"userID\":\"userA\",\"country\":\"US\", \"email\":\"userA@gmail.com\"}", StatsigUser::class.java)
+        val userADifferentOrder = gson.fromJson(
+            "{\"userID\":\"userA\",\"country\":\"US\", \"email\":\"userA@gmail.com\"}",
+            StatsigUser::class.java
+        )
         userADifferentOrder.statsigEnvironment = mapOf("tier" to "production")
-        val userAMoreDetails = gson.fromJson("{\"userID\":\"userA\",\"email\":\"userA@gmail.com\",\"country\":\"US\",\"userAgent\":\"userAgent\"}", StatsigUser::class.java)
+        val userAMoreDetails = gson.fromJson(
+            "{\"userID\":\"userA\",\"email\":\"userA@gmail.com\",\"country\":\"US\",\"userAgent\":\"userAgent\"}",
+            StatsigUser::class.java
+        )
         userAMoreDetails.statsigEnvironment = mapOf("tier" to "production")
 
         assertTrue(userA.toHashString() == userADifferentOrder.toHashString())
