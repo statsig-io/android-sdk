@@ -984,7 +984,6 @@ class StatsigClient() : LifecycleEventListener {
                                 this@StatsigClient.store.getFullChecksum(
                                     this@StatsigClient.user,
                                 ),
-                                this@StatsigClient.urlConnectionProvider,
                             )
                         }
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse && !options.initializeOffline) {
@@ -1158,7 +1157,6 @@ class StatsigClient() : LifecycleEventListener {
                             hashUsed = if (this@StatsigClient.options.disableHashing == true) { HashAlgorithm.NONE } else { HashAlgorithm.DJB2 },
                             previousDerivedFields = previousDerivedFields,
                             fullChecksum = fullChecksum,
-                            urlConnectionProvider = urlConnectionProvider,
                         )
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse) {
                         diagnostics.markStart(

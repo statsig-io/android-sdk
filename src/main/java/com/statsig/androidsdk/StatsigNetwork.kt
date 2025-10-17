@@ -79,7 +79,6 @@ internal interface StatsigNetwork {
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
         fullChecksum: String?,
-        urlConnectionProvider: UrlConnectionProvider = defaultProvider,
     ): InitializeResponse?
 
     fun pollForChanges(
@@ -139,7 +138,6 @@ internal class StatsigNetworkImpl(
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
         fullChecksum: String?,
-        urlConnectionProvider: UrlConnectionProvider,
     ): InitializeResponse {
         val retry = options.initRetryLimit
         networkResolver.initializeFallbackInfo()

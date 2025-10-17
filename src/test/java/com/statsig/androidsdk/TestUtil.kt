@@ -390,16 +390,6 @@ class TestUtil {
             return statsigNetwork
         }
 
-        private fun mockAppLifecycleCallbacks(application: Application) {
-            every {
-                application.registerActivityLifecycleCallbacks(any())
-            } returns Unit
-
-            every {
-                application.unregisterActivityLifecycleCallbacks(any())
-            } returns Unit
-        }
-
         fun clearMockDispatchers() {
             Dispatchers.resetMain()
         }
