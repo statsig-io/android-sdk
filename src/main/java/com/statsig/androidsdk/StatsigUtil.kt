@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.ToNumberPolicy
@@ -44,9 +45,9 @@ internal object StatsigUtil {
             return
         }
         withContext(dispatcherProvider.io) {
-            val editor = sharedPrefs.edit()
-            editor.putString(key, value)
-            editor.apply()
+            sharedPrefs.edit {
+                putString(key, value)
+            }
         }
     }
 
@@ -55,9 +56,9 @@ internal object StatsigUtil {
             return
         }
         withContext(dispatcherProvider.io) {
-            val editor = sharedPrefs.edit()
-            editor.remove(key)
-            editor.apply()
+            sharedPrefs.edit {
+                remove(key)
+            }
         }
     }
 
