@@ -11,6 +11,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import java.util.Collections
 
 @RunWith(RobolectricTestRunner::class)
 class LayerConfigTest {
@@ -126,7 +127,8 @@ class LayerConfigTest {
                 "nestedString" to "nested",
                 "nestedBoolean" to true,
                 "nestedDouble" to 13.74,
-                "nestedLong" to 13L
+                "nestedLong" to 13L,
+                "nestedEmptyDict" to Collections.EMPTY_MAP
             ),
             layer.getDictionary("testNested", mapOf())
         )

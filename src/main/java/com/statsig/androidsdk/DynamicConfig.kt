@@ -138,6 +138,7 @@ class DynamicConfig(
     private inline fun <reified K, reified V> Map<*, *>.asMapOf(
         default: Map<K, V>? = null
     ): Map<K, V>? {
+        if (keys.isEmpty() || values.isEmpty()) return mapOf()
         if (keys.first() !is K || values.first() !is V) return default
         return toList().asListOfPairs<K, V>()?.associate { Pair(it.first, it.second) }
     }
