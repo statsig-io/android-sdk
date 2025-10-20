@@ -107,7 +107,7 @@ class StatsigClient : LifecycleEventListener {
                     withContext(dispatcherProvider.main) {
                         try {
                             callback?.onStatsigInitialize(initDetails)
-                            Log.v(TAG, "initializeAsync completed successfully")
+                            Log.v(TAG, "initializeAsync completed. Success: ${initDetails.success}")
                         } catch (e: Exception) {
                             throw ExternalException(e.message)
                         }
@@ -168,7 +168,7 @@ class StatsigClient : LifecycleEventListener {
                 val normalizedUser = setup(application, sdkKey, user, options)
                 val response = setupAsync(normalizedUser)
                 response.duration = System.currentTimeMillis() - initTime
-                Log.v(TAG, "initialize completed successfully")
+                Log.v(TAG, "initialize completed. Success: ${response.success}")
                 return@captureAsync response
             },
             {
