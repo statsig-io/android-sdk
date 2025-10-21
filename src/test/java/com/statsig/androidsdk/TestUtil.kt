@@ -72,8 +72,10 @@ class TestUtil {
                   "nestedString": "nested",
                   "nestedBoolean": true,
                   "nestedDouble": 13.74,
-                  "nestedLong": 13
-                }
+                  "nestedLong": 13,
+                  "nestedEmptyDict" : {}
+                },
+                "testEmptyDict" : {}
             }
             """.trimIndent()
             val gson = StatsigUtil.getGson()

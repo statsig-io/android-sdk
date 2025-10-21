@@ -1,8 +1,10 @@
 package com.statsig.androidsdk
 
+import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import java.util.Collections
 
 class DynamicConfigTest {
 
@@ -95,9 +97,16 @@ class DynamicConfigTest {
                 "nestedString" to "nested",
                 "nestedBoolean" to true,
                 "nestedDouble" to 13.74,
-                "nestedLong" to 13L
+                "nestedLong" to 13L,
+                "nestedEmptyDict" to Collections.EMPTY_MAP
             ),
             dc.getDictionary("testNested", mapOf())
         )
+    }
+
+    @Test
+    fun testEmptyDict() {
+        assertThat(dc.getConfig("testEmptyDict")).isNotNull()
+        assertThat(dc.getDictionary("testEmptyDict", null)).isEqualTo(Collections.EMPTY_MAP)
     }
 }
