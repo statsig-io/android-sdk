@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import android.content.SharedPreferences
 import io.mockk.unmockkAll
+import java.util.Collections
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -11,7 +12,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import java.util.Collections
 
 @RunWith(RobolectricTestRunner::class)
 class LayerConfigTest {

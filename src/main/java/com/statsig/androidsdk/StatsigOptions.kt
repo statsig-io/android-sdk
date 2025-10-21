@@ -202,6 +202,7 @@ class StatsigOptions(
         "logEventFallbackUrls" to logEventFallbackUrls,
         "disableLogEventRetries" to disableLogEventRetries,
         "initRetryLimit" to initRetryLimit,
-        "initializeOffline" to initializeOffline
+        "initializeOffline" to initializeOffline,
+        "loggingEnabled" to loggingEnabled
     )
 }

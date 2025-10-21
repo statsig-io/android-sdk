@@ -1,10 +1,10 @@
 package com.statsig.androidsdk
 
 import com.google.common.truth.Truth.assertThat
+import java.util.Collections
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
-import java.util.Collections
 
 class DynamicConfigTest {
 
