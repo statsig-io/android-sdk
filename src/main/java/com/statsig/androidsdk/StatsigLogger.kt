@@ -46,7 +46,8 @@ internal class StatsigLogger(
 
     private val executor = Executors.newSingleThreadExecutor()
     private val singleThreadDispatcher = executor.asCoroutineDispatcher()
-    private val timer = coroutineScope.launch(Dispatchers.IO) {
+    private val coroutineDispatcherProvider = CoroutineDispatcherProvider()
+    private val timer = coroutineScope.launch(coroutineDispatcherProvider.io) {
         while (coroutineScope.isActive) {
             delay(FLUSH_TIMER_MS)
             flush()
