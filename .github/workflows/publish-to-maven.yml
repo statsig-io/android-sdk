@@ -24,7 +24,7 @@ jobs:
           java-version: '17'
 
       - name: Validate Gradle Wrapper
-        uses: gradle/wrapper-validation-action@v3
+        uses: gradle/actions/wrapper-validation@v5
 
       - name: Grant Execute Permission for Gradlew
         run: chmod +x gradlew
