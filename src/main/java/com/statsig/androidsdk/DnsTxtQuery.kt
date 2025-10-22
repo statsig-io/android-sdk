@@ -18,9 +18,13 @@ const val DNS_QUERY_ENDPOINT = "https://cloudflare-dns.com/dns-query"
 val DOMAIN_CHARS = listOf('i', 'e', 'd') // valid domain characters: 'i', 'e', 'd'
 const val MAX_START_LOOKUP = 200
 
+private val coroutineDispatcherProvider by lazy {
+    CoroutineDispatcherProvider()
+}
+
 suspend fun fetchTxtRecords(
     urlConnectionProvider: UrlConnectionProvider = defaultProvider
-): List<String> = withContext(Dispatchers.IO) {
+): List<String> = withContext(coroutineDispatcherProvider.io) {
     val connection = createHttpConnection(DNS_QUERY_ENDPOINT, urlConnectionProvider)
 
     try {
