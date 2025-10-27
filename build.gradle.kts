@@ -17,7 +17,7 @@ android {
     namespace = "com.statsig.androidsdk"
     android.buildFeatures.buildConfig = true
 
-    compileSdk = 36
+    compileSdk = 34
 
     defaultConfig {
         minSdk = 21
