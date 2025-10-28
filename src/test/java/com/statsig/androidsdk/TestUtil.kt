@@ -23,8 +23,9 @@ import org.junit.Assert
 class TestUtil {
     companion object {
 
-        fun mockDispatchers(): TestDispatcher {
-            val dispatcher = UnconfinedTestDispatcher()
+        fun mockDispatchers(): TestDispatcher = mockDispatchers(UnconfinedTestDispatcher())
+
+        fun mockDispatchers(dispatcher: TestDispatcher): TestDispatcher {
             Dispatchers.setMain(dispatcher)
             mockkConstructor(CoroutineDispatcherProvider::class)
             mockkConstructor(MainCoroutineDispatcher::class)
@@ -381,6 +382,11 @@ class TestUtil {
             }
 
             return statsigNetwork
+        }
+
+        fun reset() {
+            clearMockDispatchers()
+            clearAllMocks()
         }
 
         fun clearMockDispatchers() {

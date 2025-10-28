@@ -17,7 +17,6 @@ const val DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000L // 7 days
 const val COOLDOWN_TIME_MS = 4 * 60 * 60 * 1000L // 4 hours
 
 internal class NetworkFallbackResolver(
-    private val errorBoundary: ErrorBoundary,
     private val sharedPreferences: SharedPreferences,
     private val statsigScope: CoroutineScope,
     private val urlConnectionProvider: UrlConnectionProvider = defaultProvider

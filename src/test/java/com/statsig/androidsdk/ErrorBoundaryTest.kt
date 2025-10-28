@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration
 import com.github.tomakehurst.wiremock.junit.WireMockRule
 import io.mockk.unmockkAll
 import java.io.IOException
@@ -19,7 +20,6 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.ConscryptMode
 
 @RunWith(RobolectricTestRunner::class)
-@ConscryptMode(ConscryptMode.Mode.OFF)
 class ErrorBoundaryTest {
     private lateinit var boundary: ErrorBoundary
     private var app: Application = RuntimeEnvironment.getApplication()
@@ -46,9 +46,10 @@ class ErrorBoundaryTest {
         unmockkAll()
     }
 
+    // Dynamic port so this test can run in parallel with other wiremock tests
     @Rule
     @JvmField
-    val wireMockRule = WireMockRule()
+    val wireMockRule = WireMockRule(WireMockConfiguration.options().dynamicPort())
 
     @Test
     fun testLoggingToEndpoint() {

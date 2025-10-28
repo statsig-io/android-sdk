@@ -1078,7 +1078,6 @@ class StatsigClient : LifecycleEventListener {
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         val networkFallbackResolver =
             NetworkFallbackResolver(
-                errorBoundary,
                 getSharedPrefs(),
                 statsigScope,
                 urlConnectionProvider

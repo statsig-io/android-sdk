@@ -6,7 +6,11 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.NetworkInfo
 import android.os.Build
-import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.client.WireMock.aResponse
+import com.github.tomakehurst.wiremock.client.WireMock.post
+import com.github.tomakehurst.wiremock.client.WireMock.stubFor
+import com.github.tomakehurst.wiremock.client.WireMock.urlMatching
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import com.github.tomakehurst.wiremock.http.Fault
 import com.github.tomakehurst.wiremock.junit.WireMockRule
 import io.mockk.clearAllMocks
@@ -19,19 +23,18 @@ import kotlinx.coroutines.test.TestScope
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TestName
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
-import org.robolectric.annotation.ConscryptMode
 import org.robolectric.shadows.ShadowConnectivityManager
 import org.robolectric.shadows.ShadowNetworkCapabilities
 import org.robolectric.shadows.ShadowNetworkInfo
 
 @RunWith(RobolectricTestRunner::class)
-@ConscryptMode(ConscryptMode.Mode.OFF)
 class ErrorBoundaryNetworkConnectivityTest {
     private lateinit var eb: ErrorBoundary
     private val app: Application = RuntimeEnvironment.getApplication()
@@ -42,9 +45,10 @@ class ErrorBoundaryNetworkConnectivityTest {
 
     private var ebCalled = false
 
+    // Dynamic port so this test can run in parallel with other wiremock tests
     @Rule
     @JvmField
-    val wireMockRule = WireMockRule()
+    val wireMockRule = WireMockRule(options().dynamicPort())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
