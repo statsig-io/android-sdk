@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.SharedPreferences
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.TestScope
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -15,10 +17,16 @@ class LogEventCompressionTest {
     private lateinit var app: Application
     private lateinit var testSharedPrefs: SharedPreferences
 
+    private lateinit var dispatcher: TestDispatcher
+
+    private lateinit var coroutineScope: TestScope
+
     @Before
     internal fun setup() {
         app = RuntimeEnvironment.getApplication()
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        dispatcher = TestUtil.mockDispatchers()
+        coroutineScope = TestScope(dispatcher)
 
         TestUtil.mockHashing()
     }
@@ -31,7 +39,7 @@ class LogEventCompressionTest {
                 testSharedPrefs,
                 options,
                 mockk<NetworkFallbackResolver>(),
-                TestUtil.coroutineScope,
+                coroutineScope,
                 store
             )
         return network

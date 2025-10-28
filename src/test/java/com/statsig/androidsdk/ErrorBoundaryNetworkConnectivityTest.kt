@@ -15,6 +15,7 @@ import io.mockk.mockk
 import junit.framework.TestCase.assertFalse
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -49,6 +50,8 @@ class ErrorBoundaryNetworkConnectivityTest {
     @Before
     internal fun setup() {
         clearAllMocks()
+        val dispatcher = TestUtil.mockDispatchers()
+        val coroutineScope = TestScope(dispatcher)
 
         ebCalled = false
         eb = mockk()
@@ -65,7 +68,7 @@ class ErrorBoundaryNetworkConnectivityTest {
         )
         val store =
             Store(
-                TestUtil.coroutineScope,
+                coroutineScope,
                 TestUtil.getTestSharedPrefs(app),
                 StatsigUser(),
                 "client-apikey",
@@ -78,7 +81,7 @@ class ErrorBoundaryNetworkConnectivityTest {
                 TestUtil.getTestSharedPrefs(app),
                 StatsigOptions(),
                 mockk(),
-                TestUtil.coroutineScope,
+                coroutineScope,
                 store
             )
     }

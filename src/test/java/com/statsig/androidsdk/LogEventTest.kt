@@ -11,6 +11,7 @@ import io.mockk.spyk
 import io.mockk.unmockkAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,10 +30,13 @@ class LogEventTest {
     private var logEventRequests = mutableListOf<LogEventData>()
     private lateinit var network: StatsigNetwork
 
+    private lateinit var coroutineScope: TestScope
+
     internal fun setup(options: StatsigOptions) {
         runBlocking {
             TestUtil.mockHashing()
-            TestUtil.mockDispatchers()
+            val dispatcher = TestUtil.mockDispatchers()
+            coroutineScope = TestScope(dispatcher)
             activity = mockk()
             testSharedPrefs = TestUtil.getTestSharedPrefs(app)
             Statsig.client = StatsigClient()
@@ -188,7 +192,7 @@ class LogEventTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun mockAppOnPause() {
         val store = Store(
-            TestUtil.coroutineScope,
+            coroutineScope,
             testSharedPrefs,
             StatsigUser(),
             "client-apikey",
@@ -201,7 +205,7 @@ class LogEventTest {
                 testSharedPrefs,
                 StatsigOptions(),
                 mockk(),
-                TestUtil.coroutineScope,
+                coroutineScope,
                 store
             )
         )

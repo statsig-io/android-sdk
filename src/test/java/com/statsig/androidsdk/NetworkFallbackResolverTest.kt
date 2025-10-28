@@ -10,6 +10,7 @@ import com.statsig.androidsdk.isDomainFailure
 import io.mockk.MockKAnnotations
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
@@ -25,6 +26,8 @@ class NetworkFallbackResolverTest {
     private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var resolver: NetworkFallbackResolver
     private var app: Application = RuntimeEnvironment.getApplication()
+
+    private lateinit var coroutineScope: TestScope
 
     companion object {
         const val SDK_KEY = "client-test-sdk-key"
@@ -49,13 +52,14 @@ class NetworkFallbackResolverTest {
     @Before
     internal fun setup() = runBlocking {
         MockKAnnotations.init(this)
-        TestUtil.mockDispatchers()
+        val dispatcher = TestUtil.mockDispatchers()
+        coroutineScope = TestScope(dispatcher)
         app = RuntimeEnvironment.getApplication()
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         testSharedPrefs.edit().clear().commit()
         TestUtil.mockHashing()
         resolver =
-            NetworkFallbackResolver(ErrorBoundary(), testSharedPrefs, TestUtil.coroutineScope)
+            NetworkFallbackResolver(ErrorBoundary(), testSharedPrefs, coroutineScope)
     }
 
     @Test
@@ -95,7 +99,7 @@ class NetworkFallbackResolverTest {
         editor.apply()
 
         val result = resolver.getActiveFallbackUrlFromMemory(DEFAULT_INIT_URL_CONFIG)
-        TestUtil.coroutineScope.advanceUntilIdle()
+        coroutineScope.advanceUntilIdle()
         val cache = resolver.readFallbackInfoFromCache()
 
         assertNull(result)

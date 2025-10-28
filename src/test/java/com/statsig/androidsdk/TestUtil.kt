@@ -9,12 +9,11 @@ import io.mockk.*
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -24,10 +23,8 @@ import org.junit.Assert
 class TestUtil {
     companion object {
 
-        private val dispatcher = UnconfinedTestDispatcher()
-        val coroutineScope = TestScope(dispatcher)
-
-        fun mockDispatchers(): CoroutineDispatcher {
+        fun mockDispatchers(): TestDispatcher {
+            val dispatcher = UnconfinedTestDispatcher()
             Dispatchers.setMain(dispatcher)
             mockkConstructor(CoroutineDispatcherProvider::class)
             mockkConstructor(MainCoroutineDispatcher::class)

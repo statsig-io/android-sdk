@@ -5,6 +5,7 @@ import io.mockk.coVerify
 import io.mockk.unmockkAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -21,9 +22,11 @@ class StoreTest {
     private val userDloomb = StatsigUser(userID = "dloomb")
     private val userTore = StatsigUser(userID = "tore")
 
+    private lateinit var coroutineScope: TestScope
+
     @Before
     internal fun setup() {
-        TestUtil.mockDispatchers()
+        coroutineScope = TestScope(TestUtil.mockDispatchers())
         app = RuntimeEnvironment.getApplication()
         TestUtil.mockHashing()
     }
@@ -105,7 +108,7 @@ class StoreTest {
     fun testCacheById() = runBlocking {
         val store =
             Store(
-                TestUtil.coroutineScope,
+                coroutineScope,
                 TestUtil.getTestSharedPrefs(app),
                 userJkw,
                 "client-apikey",
@@ -167,7 +170,7 @@ class StoreTest {
     fun testEvaluationReasons() = runBlocking {
         val sharedPrefs = TestUtil.getTestSharedPrefs(app)
         var store =
-            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
 
         // check before there is any value
         var exp = store.getExperiment("exp", false)
@@ -204,7 +207,7 @@ class StoreTest {
         // the evaluation time in details has not advanced
         Thread.sleep(1000)
         store =
-            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         exp = store.getExperiment(
             "exp",
@@ -218,7 +221,7 @@ class StoreTest {
 
         // re-initialize and check the previously saved sticky value
         store =
-            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v1", inExperiment = true, active = true), userJkw)
         store.persistStickyValues()
@@ -232,7 +235,7 @@ class StoreTest {
     fun testConfigNameNotHashed() = runBlocking {
         val store =
             Store(
-                TestUtil.coroutineScope,
+                coroutineScope,
                 TestUtil.getTestSharedPrefs(app),
                 userJkw,
                 "client-apikey",
@@ -250,7 +253,7 @@ class StoreTest {
     fun testStickyBucketing() = runBlocking {
         val store =
             Store(
-                TestUtil.coroutineScope,
+                coroutineScope,
                 TestUtil.getTestSharedPrefs(app),
                 userJkw,
                 "client-apikey",
@@ -322,7 +325,7 @@ class StoreTest {
     fun testInactiveExperimentStickyBehavior() = runBlocking {
         val store =
             Store(
-                TestUtil.coroutineScope,
+                coroutineScope,
                 TestUtil.getTestSharedPrefs(app),
                 userJkw,
                 "client-apikey",
@@ -343,7 +346,7 @@ class StoreTest {
     fun testStickyBehaviorWhenResettingUser() = runBlocking {
         val store =
             Store(
-                TestUtil.coroutineScope,
+                coroutineScope,
                 TestUtil.getTestSharedPrefs(app),
                 userJkw,
                 "client-apikey",
@@ -392,7 +395,7 @@ class StoreTest {
     fun testStickyBehaviorAcrossSessions() = runBlocking {
         val sharedPrefs = TestUtil.getTestSharedPrefs(app)
         var store =
-            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         val v0Values = getInitValue("v0", inExperiment = true, active = true)
         store.save(v0Values, userJkw)
@@ -410,7 +413,7 @@ class StoreTest {
 
         // Reinitialize, same user ID, should keep sticky values
         store =
-            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         val configs = v0Values.configs as MutableMap<String, APIDynamicConfig>
 
@@ -431,7 +434,7 @@ class StoreTest {
         // Re-create store with a different user ID, update the values, user should still get sticky
         // value for device and only device
         store =
-            Store(TestUtil.coroutineScope, sharedPrefs, userTore, "client-apikey", StatsigOptions())
+            Store(coroutineScope, sharedPrefs, userTore, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v1", inExperiment = true, active = true), userTore)
 
@@ -446,7 +449,7 @@ class StoreTest {
 
         // Re-create store with the original user ID, check that sticky values are persisted
         store =
-            Store(TestUtil.coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
+            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions())
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v2", inExperiment = true, active = true), userJkw)
 
