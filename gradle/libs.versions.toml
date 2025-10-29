@@ -2,40 +2,39 @@
 androidGradlePlugin = "8.13.0"
 gradleKtlint = "13.1.0"
 gradleNexusPublish = "2.0.0"
-kotlinAndroid = "2.2.20"
+kotlin = "1.9.25"
 appCompat = "1.7.1"
-coreKtx = "1.13.1"
+coreKtx = "1.9.0"
 gson = "2.13.2"
 junit = "4.13.2"
-kotlinStdlib = "2.2.20"
-kotlinxCoroutines = "1.10.2"
-mockk = "1.14.6"
-mockwebserver = "5.1.0"
+kotlinxCoroutines = "1.8.0"
+mockk = "1.13.13"
+okhttp = "4.12.0"
 robolectric = "4.16"
 slf4jSimple = "2.0.17"
 truth = "1.4.5"
 wiremock = "3.0.1"
-ktor = "3.3.0"
+ktor = "3.0.0"
 
 [libraries]
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appCompat" }
 core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 junit = { module = "junit:junit", version.ref = "junit" }
-kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlinStdlib" }
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
 ktor-server-test-host = {module = "io.ktor:ktor-server-test-host", version.ref = "ktor"}
 ktor-server-netty = {module = "io.ktor:ktor-server-netty", version.ref = "ktor"}
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "mockwebserver" }
+mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.ref = "okhttp" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4jSimple" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 wiremock = { module = "com.github.tomakehurst:wiremock", version.ref = "wiremock" }
 
 [plugins]
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlinAndroid"}
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin"}
 android-library = { id = "com.android.library", version.ref = "androidGradlePlugin"}
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin"}
 gradle-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "gradleKtlint"}
