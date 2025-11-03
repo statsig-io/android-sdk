@@ -146,6 +146,11 @@ class StatsigOptions(
 
     var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null,
 
+    /**
+     * A callback for SDK events that may fire more than once over the lifetime of the client.
+     */
+    var lifetimeCallback: IStatsigLifetimeCallback? = null,
+
     loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED
 ) : StatsigRuntimeMutableOptions(loggingEnabled) {
 

@@ -251,7 +251,13 @@ class TestUtil {
             if (network != null) {
                 Statsig.client.statsigNetwork = network
             }
-            Statsig.initializeAsync(app, "client-apikey", user, callback, options)
+            Statsig.initializeAsync(
+                app,
+                "client-apikey",
+                user,
+                callback,
+                options
+            )
             countdown.await(1L, TimeUnit.SECONDS)
         }
 
@@ -271,7 +277,13 @@ class TestUtil {
                 StatsigOptions::class.java
             )
             setupMethod.isAccessible = true
-            setupMethod.invoke(Statsig.client, app, "client-test", user, options)
+            setupMethod.invoke(
+                Statsig.client,
+                app,
+                "client-test",
+                user,
+                options
+            )
         }
 
         internal fun startStatsigClientAndWait(

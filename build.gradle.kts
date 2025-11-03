@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.config.JvmDefaultMode
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -55,6 +57,9 @@ android {
     }
     kotlin {
         jvmToolchain(17)
+        compilerOptions {
+            freeCompilerArgs.add("-Xjvm-default=all")
+        }
     }
 }
 

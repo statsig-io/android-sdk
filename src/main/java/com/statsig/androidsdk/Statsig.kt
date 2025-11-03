@@ -20,6 +20,21 @@ interface IStatsigCallback {
 }
 
 /**
+ * Callback interface for Statsig clients containing callbacks that may fire more than once
+ * over the lifetime of the Statsig SDK. All callbacks will be run on the main thread.
+ */
+interface IStatsigLifetimeCallback {
+    /**
+     * Callback fired when new values are received and available for use.
+     * May be called after [Statsig.updateUser], [Statsig.updateUserAsync],
+     * or auto value updates (see [StatsigOptions.enableAutoValueUpdate])
+     */
+    fun onValuesUpdated() {
+        // default impl: no-op
+    }
+}
+
+/**
  * A singleton class for interfacing with gates, configs, and logging in the Statsig console
  */
 object Statsig {

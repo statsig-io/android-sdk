@@ -3,13 +3,23 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.google.gson.Gson
 import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.unmockkAll
+import io.mockk.verify
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.time.delay
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -32,9 +42,11 @@ class StatsigTest {
     private var client: StatsigClient = StatsigClient()
     private lateinit var network: StatsigNetwork
 
+    private lateinit var dispatcher: TestDispatcher
+
     @Before
     internal fun setup() {
-        TestUtil.mockDispatchers()
+        dispatcher = TestUtil.mockDispatchers()
 
         app = RuntimeEnvironment.getApplication()
 
@@ -353,7 +365,13 @@ class StatsigTest {
             StatsigOptions::class.java
         )
         setupMethod.isAccessible = true
-        setupMethod.invoke(client, app, "client-key", user, option)
+        setupMethod.invoke(
+            client,
+            app,
+            "client-key",
+            user,
+            option
+        )
         // initialize function blocking timeout
         val network = spyk(client.statsigNetwork)
         client.statsigNetwork = network
@@ -518,5 +536,105 @@ class StatsigTest {
         assertNotNull("Layer exposure log should exist", layerLog)
         assertEquals("nonexistent_layer", layerLog!!.metadata!!["config"])
         assertEquals("param", layerLog.metadata!!["parameterName"])
+    }
+
+    @Suppress("UnusedFlow")
+    @Test
+    fun testAutoValueUpdateEnabled_callsPoll() {
+        val user = StatsigUser("test_user")
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(enableAutoValueUpdate = true),
+            network = network
+        )
+        client = Statsig.client
+
+        val expectedInterval = AUTO_VALUE_UPDATE_INTERVAL_MINIMUM_VALUE.minutes.inWholeMilliseconds
+        verify {
+            network.pollForChanges(
+                api = any(),
+                user = user,
+                metadata = any(),
+                updateIntervalMs = expectedInterval,
+                fallbackUrls = any()
+            )
+        }
+        client.shutdown()
+    }
+
+    @Suppress("UnusedFlow")
+    @Test
+    fun testAutoValueUpdateDisabled_doesNotCallPoll() {
+        val user = StatsigUser("test_user")
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(enableAutoValueUpdate = false),
+            network = network
+        )
+        client = Statsig.client
+
+        val expectedInterval = AUTO_VALUE_UPDATE_INTERVAL_MINIMUM_VALUE.minutes.inWholeMilliseconds
+        verify(exactly = 0) {
+            network.pollForChanges(
+                api = any(),
+                user = user,
+                metadata = any(),
+                updateIntervalMs = expectedInterval,
+                fallbackUrls = any()
+            )
+        }
+        client.shutdown()
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun testAutoValueUpdate_triggersCallback_onlyWithUpdates() = runBlocking {
+        val user = StatsigUser("test_user")
+        val testFlow = MutableSharedFlow<InitializeResponse.SuccessfulInitializeResponse?>()
+        coEvery {
+            network.pollForChanges(any(), any(), any(), any(), any())
+        } coAnswers {
+            testFlow
+        }
+        val mockPersistentCallback = mockk<IStatsigLifetimeCallback>()
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(
+                enableAutoValueUpdate = true,
+                lifetimeCallback = mockPersistentCallback
+            ),
+            network = network
+        )
+        client = Statsig.client
+        dispatcher.scheduler.advanceUntilIdle()
+
+        // Expect one call from startup.
+        coVerify(exactly = 1) {
+            mockPersistentCallback.onValuesUpdated()
+        }
+
+        // Callback should not trigger if polling response has no updates
+        runBlocking {
+            testFlow.emit(TestUtil.makeInitializeResponse(hasUpdates = false))
+        }
+
+        dispatcher.scheduler.advanceUntilIdle()
+        coVerify(exactly = 1) { mockPersistentCallback.onValuesUpdated() }
+
+        // Expect callback to trigger when polling response has updates
+        runBlocking {
+            testFlow.emit(TestUtil.makeInitializeResponse(hasUpdates = true))
+        }
+
+        // TODO: See about moving this test to StandardTestDispatcher -
+        //  delay() is a bad way to handle a flake-causing race condition
+        delay(0.5.seconds.toJavaDuration())
+
+        dispatcher.scheduler.advanceUntilIdle()
+        coVerify(exactly = 2) { mockPersistentCallback.onValuesUpdated() }
+        client.shutdown()
     }
 }

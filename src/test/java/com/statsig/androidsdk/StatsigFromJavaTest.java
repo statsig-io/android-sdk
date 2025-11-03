@@ -181,11 +181,15 @@ public class StatsigFromJavaTest {
             }
         });
 
+        StatsigOptions options = new StatsigOptions();
+        options.setLifetimeCallback(new TestStatsigLifetimeCallback());
+
         TestUtil.Companion.startStatsigAndWait(
                 app,
                 new StatsigUser("dloomb"),
-                new StatsigOptions(),
-                network);
+                options,
+                network
+        );
     }
 
     private APIFeatureGate makeGate(String name, Boolean value) {
@@ -213,5 +217,14 @@ public class StatsigFromJavaTest {
                 new String[] {},
                 null,
                 null);
+    }
+
+    /**
+     * This will fail to build if a new callback is added to IStatsigLifetimeCallback without a
+     * default implementation.
+     * If you see a build failure here, you should add a default no-op implementation: "{}"
+     */
+    private static class TestStatsigLifetimeCallback implements IStatsigLifetimeCallback {
+
     }
 }

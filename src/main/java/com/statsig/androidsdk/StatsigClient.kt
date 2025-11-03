@@ -37,8 +37,10 @@ class StatsigClient : LifecycleEventListener {
     private lateinit var logger: StatsigLogger
     private lateinit var statsigMetadata: StatsigMetadata
     private lateinit var exceptionHandler: CoroutineExceptionHandler
+    private var lifetimeCallback: IStatsigLifetimeCallback? = null
 
     private lateinit var diagnostics: Diagnostics
+
     private var initTime: Long = System.currentTimeMillis()
 
     @VisibleForTesting
@@ -581,6 +583,7 @@ class StatsigClient : LifecycleEventListener {
                     logEndDiagnostics(true, ContextType.UPDATE_USER, null)
                     Log.v(TAG, "updateUserAsync completed with provided values")
                     callback?.onStatsigUpdateUser()
+                    lifetimeCallback?.onValuesUpdated()
                 } else {
                     this.store.loadCacheForCurrentUser()
                     statsigScope.launch {
@@ -999,6 +1002,11 @@ class StatsigClient : LifecycleEventListener {
                             StepType.PROCESS
                         )
                         this@StatsigClient.store.save(initResponse, user)
+                        if (initResponse.hasUpdates) {
+                            statsigScope.launch(dispatcherProvider.main) {
+                                lifetimeCallback?.onValuesUpdated()
+                            }
+                        }
                         this@StatsigClient.diagnostics.markEnd(
                             KeyType.INITIALIZE,
                             true,
@@ -1074,6 +1082,7 @@ class StatsigClient : LifecycleEventListener {
         val normalizedUser = normalizeUser(user)
         val initializeValues = options.initializeValues
         this.user = normalizedUser
+        this.lifetimeCallback = options.lifetimeCallback
         exceptionHandler = errorBoundary.getExceptionHandler()
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         val networkFallbackResolver =
@@ -1188,6 +1197,11 @@ class StatsigClient : LifecycleEventListener {
                             overrideContext = ContextType.UPDATE_USER
                         )
                         store.save(initResponse, this@StatsigClient.user)
+                        if (initResponse.hasUpdates) {
+                            statsigScope.launch(dispatcherProvider.main) {
+                                lifetimeCallback?.onValuesUpdated()
+                            }
+                        }
                         diagnostics.markEnd(
                             KeyType.INITIALIZE,
                             true,
@@ -1328,6 +1342,12 @@ class StatsigClient : LifecycleEventListener {
                 .onEach {
                     if (it != null) {
                         store.save(it, user)
+                        if (it.hasUpdates) {
+                            Log.i(TAG, "enableAutoValueUpdate: values changed")
+                            withContext(dispatcherProvider.main) {
+                                lifetimeCallback?.onValuesUpdated()
+                            }
+                        }
                     }
                 }
                 .launchIn(statsigScope)
