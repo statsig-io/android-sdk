@@ -146,10 +146,10 @@ class StatsigTest {
         assertEquals(15, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
-        assertEquals("Android", (parsedLogs.statsigMetadata as StatsigMetadata).systemName)
-        assertEquals("Android", (parsedLogs.statsigMetadata as StatsigMetadata).deviceOS)
-        assert((parsedLogs.statsigMetadata as StatsigMetadata).locale.toString().startsWith("en"))
-        assert((parsedLogs.statsigMetadata as StatsigMetadata).language.toString().startsWith("en"))
+        assertEquals("Android", parsedLogs.statsigMetadata.systemName)
+        assertEquals("Android", parsedLogs.statsigMetadata.deviceOS)
+        assert(parsedLogs.statsigMetadata.locale.toString().startsWith("en"))
+        assert(parsedLogs.statsigMetadata.language.toString().startsWith("en"))
 
         // validate diagnostics
         assertEquals(parsedLogs.events[0].eventName, "statsig::diagnostics")

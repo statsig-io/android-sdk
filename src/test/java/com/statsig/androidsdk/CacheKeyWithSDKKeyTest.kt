@@ -28,7 +28,6 @@ class CacheKeyWithSDKKeyTest {
         values["values"] = TestUtil.makeInitializeResponse()
         values["stickyUserExperiments"] = sticky
         var cacheById: MutableMap<String, Any> = HashMap()
-        cacheById[user.getCacheKeyDEPRECATED()] = values
         // Write a cached by original key
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         testSharedPrefs.edit().putString(
@@ -38,14 +37,6 @@ class CacheKeyWithSDKKeyTest {
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockBrokenNetwork())
 
         return@runBlocking
-    }
-
-    @Test
-    fun testLoadFromPreviousCacheKey() {
-        assertThat(Statsig.client.checkGate("always_on")).isTrue()
-        val config = Statsig.client.getConfig("test_config")
-        assertThat(config.getEvaluationDetails().reason).isEqualTo(EvaluationReason.Cache)
-        assertThat(config.getString("string", "DEFAULT")).isEqualTo("test")
     }
 
     @Test

@@ -19,6 +19,7 @@ class StatsigNetworkConnectivityListener(context: Context) {
                 true
         }
 
+        @Suppress("DEPRECATION")
         return connectivityManager.activeNetworkInfo?.isConnectedOrConnecting == true
     }
 }

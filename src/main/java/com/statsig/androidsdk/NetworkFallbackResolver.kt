@@ -26,7 +26,7 @@ internal class NetworkFallbackResolver(
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
 
-    suspend fun tryBumpExpiryTime(sdkKey: String, urlConfig: UrlConfig) {
+    suspend fun tryBumpExpiryTime(urlConfig: UrlConfig) {
         val info = fallbackInfo?.get(urlConfig.endpoint) ?: return
         info.expiryTime = Date().time + DEFAULT_TTL_MS
         val updatedFallbackInfo = fallbackInfo?.toMutableMap()?.apply {
@@ -54,7 +54,6 @@ internal class NetworkFallbackResolver(
     }
 
     suspend fun tryFetchUpdatedFallbackInfo(
-        sdkKey: String,
         urlConfig: UrlConfig,
         errorMessage: String?,
         timedOut: Boolean,
@@ -75,18 +74,14 @@ internal class NetworkFallbackResolver(
             val newUrl =
                 pickNewFallbackUrl(fallbackInfo?.get(urlConfig.endpoint), urls) ?: return false
 
-            updateFallbackInfoWithNewUrl(sdkKey, urlConfig.endpoint, newUrl)
+            updateFallbackInfoWithNewUrl(urlConfig.endpoint, newUrl)
             true
         } catch (error: Exception) {
             false
         }
     }
 
-    private suspend fun updateFallbackInfoWithNewUrl(
-        sdkKey: String,
-        endpoint: Endpoint,
-        newUrl: String
-    ) {
+    private suspend fun updateFallbackInfoWithNewUrl(endpoint: Endpoint, newUrl: String) {
         val newFallbackInfo = FallbackInfoEntry(
             url = newUrl,
             expiryTime =

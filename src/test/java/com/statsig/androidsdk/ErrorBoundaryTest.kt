@@ -26,8 +26,8 @@ class ErrorBoundaryTest {
 
     @Before
     internal fun setup() {
-        TestUtil.mockDispatchers()
-        val coroutineScope = TestScope(UnconfinedTestDispatcher())
+        val dispatcher = TestUtil.mockDispatchers()
+        val coroutineScope = TestScope(dispatcher)
         boundary = ErrorBoundary(coroutineScope)
         boundary.initialize("client-key")
         boundary.urlString = wireMockRule.url("/v1/sdk_exception")

@@ -156,7 +156,7 @@ class AsyncInitVsUpdateTest {
         )
         values["values"] = userBCacheValues
         values["stickyUserExperiments"] = sticky
-        cacheById["user-b"] = values
+        cacheById["${userB.getCacheKey()}:client-key"] = values
         testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById)).apply()
 
         client.initializeAsync(app, "client-key", userA, callback)

@@ -74,7 +74,7 @@ internal interface StatsigNetwork {
         sinceTime: Long?,
         metadata: StatsigMetadata,
         coroutineScope: CoroutineScope,
-        context: ContextType,
+        contextType: ContextType,
         diagnostics: Diagnostics? = null,
         hashUsed: HashAlgorithm,
         previousDerivedFields: Map<String, String>,
@@ -361,10 +361,8 @@ internal class StatsigNetworkImpl(
                     PREVIOUS_DERIVED_FIELDS to previousDerivedFields,
                     FULL_CHECKSUM to fullChecksum
                 )
-                if (userCacheKey != null) {
-                    initializeRequestsMap[userCacheKey]?.disconnect()
-                    initializeRequestsMap.remove(userCacheKey)
-                }
+                initializeRequestsMap[userCacheKey]?.disconnect()
+                initializeRequestsMap.remove(userCacheKey)
                 try {
                     emit(
                         postRequest(
@@ -536,7 +534,7 @@ internal class StatsigNetworkImpl(
             var connection: HttpURLConnection? = null
             var errorMessage: String? = null
             val start = System.nanoTime()
-            var end = start
+            var end: Long
             try {
                 urlConfig.fallbackUrl = networkResolver.getActiveFallbackUrlFromMemory(urlConfig)
                 val url = URL(urlConfig.fallbackUrl ?: urlConfig.getUrl())
@@ -621,7 +619,7 @@ internal class StatsigNetworkImpl(
                 callback(code)
                 when (code) {
                     in 200..299 -> {
-                        networkResolver.tryBumpExpiryTime(sdkKey, urlConfig)
+                        networkResolver.tryBumpExpiryTime(urlConfig)
                         if (code == 204 && urlConfig.endpoint == Endpoint.Initialize) {
                             return@withContext gson.fromJson(
                                 "{has_updates: false}",
@@ -648,7 +646,6 @@ internal class StatsigNetworkImpl(
                 coroutineScope.launch(dispatcherProvider.io) {
                     val timedOut = (end - start) / 1_000_000_000 > (timeout ?: 0)
                     val fallbackUpdated = networkResolver.tryFetchUpdatedFallbackInfo(
-                        sdkKey,
                         urlConfig,
                         errorMessage,
                         timedOut,

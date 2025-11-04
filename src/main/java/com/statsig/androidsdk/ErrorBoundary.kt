@@ -35,10 +35,14 @@ internal class ErrorBoundary(
         this.statsigMetadata = statsigMetadata
     }
 
-    private fun handleException(exception: Throwable) {
+    private fun handleException(
+        exception: Throwable,
+        tag: String? = null,
+        configName: String? = null
+    ) {
         Log.e(TAG, "An unexpected exception occurred.", exception)
         if (exception !is ExternalException) {
-            this.logException(exception)
+            this.logException(exception, tag, configName)
         }
     }
 
@@ -62,7 +66,7 @@ internal class ErrorBoundary(
         try {
             task()
         } catch (e: Exception) {
-            handleException(e)
+            handleException(e, tag, configName)
             recover?.let { it(e) }
         }
     }
@@ -82,7 +86,11 @@ internal class ErrorBoundary(
             recover(e)
         }
 
-    internal fun logException(exception: Throwable, tag: String? = null) {
+    internal fun logException(
+        exception: Throwable,
+        tag: String? = null,
+        configName: String? = null
+    ) {
         try {
             this.coroutineScope.launch(this.getNoopExceptionHandler()) {
                 if (apiKey == null) {
@@ -102,7 +110,8 @@ internal class ErrorBoundary(
                     "exception" to name,
                     "info" to RuntimeException(exception).stackTraceToString(),
                     "statsigMetadata" to metadata,
-                    "tag" to (tag ?: "unknown")
+                    "tag" to (tag ?: "unknown"),
+                    "configName" to configName
                 )
                 val postData = Gson().toJson(body)
 

@@ -86,18 +86,6 @@ data class StatsigUser(
         return userCopy
     }
 
-    @Deprecated("Deprecating cache key on ids", ReplaceWith("getCacheKeyWithSDKKey"))
-    internal fun getCacheKeyDEPRECATED(): String {
-        var id = userID ?: STATSIG_NULL_USER
-        val customIds = customIDs ?: return id
-
-        for ((k, v) in customIds) {
-            id = "$id$k:$v"
-        }
-
-        return id
-    }
-
     fun getCacheKey(): String {
         var id = userID ?: STATSIG_NULL_USER
 

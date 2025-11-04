@@ -176,6 +176,7 @@ class StatsigOptions(
 
     fun getEnvironment(): MutableMap<String, String>? = environment
 
+    @Suppress("DEPRECATION") // disableDiagnosticsLogging
     internal fun toMap(): Map<String, Any?> = mapOf(
         "api" to api,
         "disableCurrentActivityLogging" to disableCurrentActivityLogging,
@@ -190,6 +191,7 @@ class StatsigOptions(
         "environment" to environment
     )
 
+    @Suppress("DEPRECATION") // disableDiagnosticsLogging
     internal fun getLoggingCopy(): Map<String, Any?> = mapOf(
         "api" to api,
         "eventLoggingApi" to eventLoggingAPI,

@@ -47,9 +47,9 @@ class StatsigOfflineInitializationTest {
         )
         initializeCountdown.await()
         var config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)
+        assert(config.getEvaluationDetails().reason == EvaluationReason.Cache)
         assert(config.getString("string", "DEFAULT") == "test")
-        assert(initializeNetworkCalled === 0)
+        assert(initializeNetworkCalled == 0)
         Statsig.shutdown()
         // Initialize offline
         Statsig.client.statsigNetwork = mockNetwork()
@@ -60,9 +60,9 @@ class StatsigOfflineInitializationTest {
             StatsigOptions(initializeOffline = true)
         )
         config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)
+        assert(config.getEvaluationDetails().reason == EvaluationReason.Cache)
         assert(config.getString("string", "DEFAULT") == "test")
-        assert(initializeNetworkCalled === 0)
+        assert(initializeNetworkCalled == 0)
         Statsig.shutdown()
         assert(logs.size == 2)
         assert(logs[0].events[0].eventName == "statsig::diagnostics")
@@ -107,17 +107,17 @@ class StatsigOfflineInitializationTest {
         )
         initializeCountdown.await()
         var config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason === EvaluationReason.Cache)
+        assert(config.getEvaluationDetails().reason == EvaluationReason.Cache)
         assert(config.getString("string", "DEFAULT") == "test")
-        assert(initializeNetworkCalled === 0)
+        assert(initializeNetworkCalled == 0)
         user.email = "abc@gmail.com"
         Statsig.client.updateUser(user)
         config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason === EvaluationReason.Network)
+        assert(config.getEvaluationDetails().reason == EvaluationReason.Network)
         assert(config.getString("string", "DEFAULT") == "test")
 
         // From UpdateUser
-        assert(initializeNetworkCalled === 1)
+        assert(initializeNetworkCalled == 1)
     }
 
     private fun mockNetwork(): StatsigNetwork {
@@ -133,7 +133,7 @@ class StatsigOfflineInitializationTest {
                 sinceTime = any(),
                 metadata = any(),
                 coroutineScope = any(),
-                context = any(),
+                contextType = any(),
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),

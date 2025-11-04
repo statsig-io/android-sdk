@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.NetworkInfo
 import android.os.Build
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.post
@@ -23,7 +22,6 @@ import kotlinx.coroutines.test.TestScope
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TestName
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -32,7 +30,6 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowConnectivityManager
 import org.robolectric.shadows.ShadowNetworkCapabilities
-import org.robolectric.shadows.ShadowNetworkInfo
 
 @RunWith(RobolectricTestRunner::class)
 class ErrorBoundaryNetworkConnectivityTest {
@@ -123,18 +120,6 @@ class ErrorBoundaryNetworkConnectivityTest {
         } catch (e: Exception) {
             // noop
         }
-    }
-
-    private fun setActiveNetworkInfo(value: Boolean) {
-        val networkInfo =
-            ShadowNetworkInfo.newInstance(
-                NetworkInfo.DetailedState.CONNECTED,
-                ConnectivityManager.TYPE_WIFI,
-                0,
-                true,
-                value
-            )
-        shadowConMan.setActiveNetworkInfo(networkInfo)
     }
 
     private fun setNetworkInternetCapabilities() {

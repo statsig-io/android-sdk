@@ -83,7 +83,7 @@ class StatsigInitializationTimeoutTest {
 
     @Test
     fun testInitializeAsyncWithSlowErrorBoundary() = runBlocking {
-        var initializationDetails: InitializationDetails? = null
+        var initializationDetails: InitializationDetails?
         var initTimeout = 500L
         runBlocking {
             initializationDetails =

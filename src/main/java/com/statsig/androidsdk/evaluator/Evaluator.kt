@@ -111,7 +111,7 @@ internal class Evaluator(private val store: SpecStore) {
             )
         } catch (e: UnsupportedEvaluationException) {
             // Return default value for unsupported evaluation
-            Statsig.client.errorBoundary.logException(e, "evaluate")
+            Statsig.client.errorBoundary.logException(e, tag = "evaluate")
 
             return ConfigEvaluation(
                 booleanValue = false,
@@ -531,7 +531,7 @@ internal class Evaluator(private val store: SpecStore) {
         } catch (e: NumberFormatException) {
             false
         } catch (e: Exception) {
-            Statsig.client.errorBoundary.logException(e, "versionCompareHelper")
+            Statsig.client.errorBoundary.logException(e, tag = "versionCompareHelper")
             false
         }
     }

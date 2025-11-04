@@ -180,7 +180,7 @@ internal object EvaluatorUtils {
                 val format = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
                 return format.parse(input)
             } catch (e: Exception) {
-                Statsig.client.errorBoundary.logException(e, "parseISOTimestamp")
+                Statsig.client.errorBoundary.logException(e, tag = "parseISOTimestamp")
                 null
             }
         }

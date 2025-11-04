@@ -193,6 +193,7 @@ public class StatsigFromJavaTest {
     }
 
     private APIFeatureGate makeGate(String name, Boolean value) {
+        //noinspection unchecked
         return new APIFeatureGate(
                 name,
                 value,
@@ -203,6 +204,7 @@ public class StatsigFromJavaTest {
     }
 
     private APIDynamicConfig makeConfig(String name, Map<String, Object> values) {
+        //noinspection unchecked
         return new APIDynamicConfig(
                 name,
                 values,

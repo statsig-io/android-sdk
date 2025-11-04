@@ -9,6 +9,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
+@OptIn(DelicateCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class StatsigMultipleInitializeTest {
 
@@ -31,7 +32,7 @@ class StatsigMultipleInitializeTest {
                 sinceTime = any(),
                 metadata = any(),
                 coroutineScope = any(),
-                context = any(),
+                contextType = any(),
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
@@ -66,7 +67,7 @@ class StatsigMultipleInitializeTest {
                 sinceTime = any(),
                 metadata = any(),
                 coroutineScope = any(),
-                context = any(),
+                contextType = any(),
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
@@ -99,7 +100,7 @@ class StatsigMultipleInitializeTest {
                 sinceTime = any(),
                 metadata = any(),
                 coroutineScope = any(),
-                context = any(),
+                contextType = any(),
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
@@ -133,7 +134,7 @@ class StatsigMultipleInitializeTest {
                 sinceTime = any(),
                 metadata = any(),
                 coroutineScope = any(),
-                context = any(),
+                contextType = any(),
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),
@@ -166,7 +167,7 @@ class StatsigMultipleInitializeTest {
                 sinceTime = any(),
                 metadata = any(),
                 coroutineScope = any(),
-                context = any(),
+                contextType = any(),
                 diagnostics = any(),
                 hashUsed = any(),
                 previousDerivedFields = any(),

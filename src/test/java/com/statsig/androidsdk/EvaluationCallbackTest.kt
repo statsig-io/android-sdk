@@ -56,7 +56,6 @@ class EvaluationCallbackTest {
     @Test
     fun testInitialize() {
         val user = StatsigUser("123")
-        val now = System.currentTimeMillis()
         user.customIDs = mapOf("random_id" to "abcde")
 
         fun evalCallback(config: BaseConfig) {

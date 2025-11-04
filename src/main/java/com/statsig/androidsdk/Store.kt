@@ -42,9 +42,6 @@ internal class Store(
 
     private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
-
-    // Migrating to caching on SDK Key and user ids (Custom IDS + user id)
-    private var currentUserCacheKeyDeprecated: String
     private var currentUserCacheKeyV2: String
     private var currentFullUserCacheKey: String
     private var cacheById: ConcurrentHashMap<String, Cache>
@@ -55,7 +52,6 @@ internal class Store(
     private var currentUser: StatsigUser
 
     init {
-        currentUserCacheKeyDeprecated = user.getCacheKeyDEPRECATED()
         currentUserCacheKeyV2 = this.getScopedCacheKey(user)
         currentFullUserCacheKey = this.getScopedFullUserCacheKey(user)
         cacheById = ConcurrentHashMap()
@@ -137,7 +133,6 @@ internal class Store(
 
     fun resetUser(user: StatsigUser) {
         reason = EvaluationReason.Uninitialized
-        currentUserCacheKeyDeprecated = user.getCacheKeyDEPRECATED()
         currentUserCacheKeyV2 = this.getScopedCacheKey(user)
         currentFullUserCacheKey = this.getScopedFullUserCacheKey(user)
         currentUser = user
@@ -174,15 +169,12 @@ internal class Store(
         if (fullHashCachedValues != null) {
             return fullHashCachedValues
         }
-        var cachedValues =
-            cacheById[this.getScopedCacheKey(user)] ?: cacheById[user.getCacheKeyDEPRECATED()]
+        var cachedValues = cacheById[this.getScopedCacheKey(user)]
         if (cachedValues != null) {
             return cachedValues
         }
 
-        var cacheMapping =
-            cacheKeyMapping[this.getScopedCacheKey(user)]
-                ?: cacheKeyMapping[user.getCacheKeyDEPRECATED()]
+        val cacheMapping = cacheKeyMapping[this.getScopedCacheKey(user)]
         if (cacheMapping != null) {
             cachedValues = cacheById[cacheMapping]
             if (cachedValues != null) {
@@ -198,7 +190,7 @@ internal class Store(
         if (cachedValues?.userHash != user.toHashString()) {
             return null
         }
-        return cachedValues?.values?.time
+        return cachedValues.values.time
     }
 
     fun getPreviousDerivedFields(user: StatsigUser): Map<String, String> {
@@ -206,12 +198,12 @@ internal class Store(
         if (cachedValues?.userHash != user.toHashString()) {
             return mapOf()
         }
-        return cachedValues?.values?.derivedFields ?: mapOf()
+        return cachedValues.values.derivedFields ?: mapOf()
     }
 
     fun getFullChecksum(user: StatsigUser): String? {
         var cachedValues = this.getCachedValuesForUser(user)
-        return cachedValues?.values?.fullChecksum ?: null
+        return cachedValues?.values?.fullChecksum
     }
 
     private fun getScopedCacheKey(user: StatsigUser): String =
@@ -239,8 +231,7 @@ internal class Store(
             }
         }
 
-        // Drop out cache entry with deprecated cache key
-        cacheById.remove(user.getCacheKeyDEPRECATED())
+        // Drop out cache entry
         cacheById.remove(cacheKey)
 
         // point the partial cache key to the full cache key

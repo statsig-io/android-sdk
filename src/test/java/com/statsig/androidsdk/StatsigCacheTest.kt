@@ -39,15 +39,15 @@ class StatsigCacheTest {
     fun testInitializeUsesCacheBeforeNetworkResponse() {
         val user = StatsigUser("123")
 
-        var cacheById: MutableMap<String, Any> = HashMap()
+        var cacheByUser: MutableMap<String, Any> = HashMap()
         var values: MutableMap<String, Any> = HashMap()
         val sticky: MutableMap<String, Any> = HashMap()
         var initialize = TestUtil.makeInitializeResponse()
         values.put("values", initialize)
         values.put("stickyUserExperiments", sticky)
-        cacheById.put("123", values)
+        cacheByUser.put("${user.getCacheKey()}:client-test", values)
 
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById)).apply()
+        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheByUser)).apply()
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
@@ -70,15 +70,15 @@ class StatsigCacheTest {
     fun testSetupDoesntLoadFromCacheWhenSetToAsync() {
         val user = StatsigUser("123")
 
-        var cacheById: MutableMap<String, Any> = HashMap()
+        var cacheByUser: MutableMap<String, Any> = HashMap()
         var values: MutableMap<String, Any> = HashMap()
         val sticky: MutableMap<String, Any> = HashMap()
         var initialize = TestUtil.makeInitializeResponse()
         values.put("values", initialize)
         values.put("stickyUserExperiments", sticky)
-        cacheById.put("123", values)
+        cacheByUser.put("${user.getCacheKey()}:client-test", values)
 
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById)).apply()
+        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheByUser)).apply()
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions(loadCacheAsync = true))
         client = Statsig.client

@@ -77,7 +77,7 @@ class StatsigLongInitializationTimeoutTest {
             "client-key",
             StatsigUser("test_user"),
             object : IStatsigCallback {
-                override fun onStatsigInitialize(details: InitializationDetails) {
+                override fun onStatsigInitialize(initDetails: InitializationDetails) {
                     latch.countDown()
                 }
                 override fun onStatsigUpdateUser() {}

@@ -97,20 +97,20 @@ class StatsigMultiClientTest {
         val config1 = client1.getConfig("test_config")
         assert(config1.getEvaluationDetails().reason == EvaluationReason.Network)
         assert(config1.getString("string", "DEFAULT") == "test_1")
-        assert(config1.getInt("number", 0) === 42)
-        assert(config1.getInt("otherNumber", 0) === 17)
+        assert(config1.getInt("number", 0) == 42)
+        assert(config1.getInt("otherNumber", 0) == 17)
 
         val config2 = client2.getConfig("test_config")
         assert(config2.getEvaluationDetails().reason == EvaluationReason.Network)
         assert(config2.getString("string", "DEFAULT") == "test_2")
-        assert(config2.getInt("number", 0) === 84)
-        assert(config2.getInt("otherNumber", 0) === 34)
+        assert(config2.getInt("number", 0) == 84)
+        assert(config2.getInt("otherNumber", 0) == 34)
 
         val config3 = client3.getConfig("test_config")
         assert(config3.getEvaluationDetails().reason == EvaluationReason.Network)
         assert(config3.getString("string", "DEFAULT") == "test_3")
-        assert(config3.getInt("number", 0) === 126)
-        assert(config3.getInt("otherNumber", 0) === 51)
+        assert(config3.getInt("number", 0) == 126)
+        assert(config3.getInt("otherNumber", 0) == 51)
 
         val notValidConfig = client3.getConfig("experiment_1")
         assert(notValidConfig.getEvaluationDetails().reason == EvaluationReason.Unrecognized)
@@ -202,20 +202,20 @@ class StatsigMultiClientTest {
         val config1 = client1.getConfig("test_config")
         assert(config1.getEvaluationDetails().reason == EvaluationReason.Cache)
         assert(config1.getString("string", "DEFAULT") == "test_1")
-        assert(config1.getInt("number", 0) === 42)
-        assert(config1.getInt("otherNumber", 0) === 17)
+        assert(config1.getInt("number", 0) == 42)
+        assert(config1.getInt("otherNumber", 0) == 17)
 
         val config2 = client2.getConfig("test_config")
         assert(config2.getEvaluationDetails().reason == EvaluationReason.Cache)
         assert(config2.getString("string", "DEFAULT") == "test_2")
-        assert(config2.getInt("number", 0) === 84)
-        assert(config2.getInt("otherNumber", 0) === 34)
+        assert(config2.getInt("number", 0) == 84)
+        assert(config2.getInt("otherNumber", 0) == 34)
 
         val config3 = client3.getConfig("test_config")
         assert(config3.getEvaluationDetails().reason == EvaluationReason.Cache)
         assert(config3.getString("string", "DEFAULT") == "test_3")
-        assert(config3.getInt("number", 0) === 126)
-        assert(config3.getInt("otherNumber", 0) === 51)
+        assert(config3.getInt("number", 0) == 126)
+        assert(config3.getInt("otherNumber", 0) == 51)
 
         // Other project configs
         val invalidConfig1 = client1.getConfig("experiment_2")
@@ -232,16 +232,16 @@ class StatsigMultiClientTest {
         assert(client1.checkGate("always_on_1"))
         var config1 = client1.getConfig("test_config")
         assert(config1.getString("string", "DEFAULT") == "test_1")
-        assert(config1.getInt("number", 0) === 42)
-        assert(config1.getInt("otherNumber", 0) === 17)
+        assert(config1.getInt("number", 0) == 42)
+        assert(config1.getInt("otherNumber", 0) == 17)
         client1.shutdown()
         assert(!client1.isInitialized())
         // Reinitialize we should say different result
         TestUtil.startStatsigClientAndWait(app, client1, sdkKey = sdkKey1, user, network = network2)
         config1 = client1.getConfig("test_config")
         assert(config1.getString("string", "DEFAULT") == "test_2")
-        assert(config1.getInt("number", 0) === 84)
-        assert(config1.getInt("otherNumber", 0) === 34)
+        assert(config1.getInt("number", 0) == 84)
+        assert(config1.getInt("otherNumber", 0) == 34)
     }
 
     @Test
@@ -273,7 +273,7 @@ class StatsigMultiClientTest {
         "gate_1!" to
             APIFeatureGate(
                 "gate_1!",
-                key % 2 === 0,
+                key % 2 == 0,
                 "gate_1_rule",
                 "gate_1_group",
                 arrayOf(
@@ -292,7 +292,7 @@ class StatsigMultiClientTest {
         "gate_2!" to
             APIFeatureGate(
                 "gate_2!",
-                key % 2 === 1,
+                key % 2 == 1,
                 "gate_2_rule",
                 "gate_2_group",
                 arrayOf()

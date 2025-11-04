@@ -1,8 +1,8 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
-import junit.framework.Assert.assertEquals
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -63,7 +63,7 @@ class InitializationRetryFailedLogsTest {
             StatsigUser("test"),
             StatsigOptions(api = url, eventLoggingAPI = url)
         )
-        assertEquals(0, logEventHits)
+        assertThat(logEventHits).isEqualTo(0)
 
         val gateResult = Statsig.checkGate("test_gate")
 
@@ -76,7 +76,7 @@ class InitializationRetryFailedLogsTest {
     fun testStoredFailedLogsDoNotBlockInitializeAsync() = runBlocking {
         val callback = object : IStatsigCallback {
             override fun onStatsigInitialize(initDetails: InitializationDetails) {
-                assertEquals(0, logEventHits)
+                assertThat(logEventHits).isEqualTo(0)
             }
 
             override fun onStatsigUpdateUser() {
@@ -95,7 +95,7 @@ class InitializationRetryFailedLogsTest {
 
         Statsig.shutdown()
 
-        assert(!gateResult)
+        assertThat(gateResult).isFalse()
     }
 
     @Test
@@ -127,14 +127,10 @@ class InitializationRetryFailedLogsTest {
         // Group received requests by unique requestBody
         val requestCountMap = receivedRequestBodies.groupingBy { it }.eachCount()
         // Assert: no more than 10 distinct requests sent (others were dropped)
-        assert(requestCountMap.size <= 10) {
-            "Expected at most 10 unique log_event requests, got ${requestCountMap.size}"
-        }
+        assertThat(requestCountMap.size).isAtMost(10)
 
         // Assert: no request was retried more than 3 times
         val maxRetriesSeen = requestCountMap.values.maxOrNull() ?: 0
-        assert(maxRetriesSeen <= maxAttemptsPerRequest) {
-            "Expected max 3 retries per request, got $maxRetriesSeen"
-        }
+        assertThat(maxRetriesSeen).isAtMost(maxAttemptsPerRequest)
     }
 }
