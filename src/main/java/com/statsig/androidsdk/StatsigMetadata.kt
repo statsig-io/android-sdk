@@ -4,7 +4,7 @@ import android.os.Build
 import com.google.gson.annotations.SerializedName
 import java.util.*
 
-internal data class StatsigMetadata(
+data class StatsigMetadata(
     @SerializedName("stableID") var stableID: String? = null,
     @SerializedName("sdkType") var sdkType: String? = "android-client",
     @SerializedName("sdkVersion") var sdkVersion: String? = BuildConfig.VERSION_NAME,
@@ -35,14 +35,7 @@ internal fun createStatsigMetadata(): StatsigMetadata = StatsigMetadata(
     deviceModel = Build.MODEL,
     deviceOS = "Android",
     locale = Locale.getDefault().toString(),
-    language = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        // API 21+
-        Locale.getDefault().toLanguageTag()
-    } else {
-        Locale.getDefault().let { locale ->
-            "${locale.language}-${locale.country}"
-        }
-    },
+    language = Locale.getDefault().toLanguageTag(),
     systemVersion = Build.VERSION.SDK_INT.toString(),
     systemName = "Android"
 )

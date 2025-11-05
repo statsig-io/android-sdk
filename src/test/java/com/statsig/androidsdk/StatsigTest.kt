@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -636,5 +637,26 @@ class StatsigTest {
         dispatcher.scheduler.advanceUntilIdle()
         coVerify(exactly = 2) { mockPersistentCallback.onValuesUpdated() }
         client.shutdown()
+    }
+
+    @Test
+    fun testGetStatsigMetadata_returnsNewInstance() {
+        val user = StatsigUser("123")
+        user.customIDs = mapOf("random_id" to "abcde")
+        val customID = "custom_stable_id"
+
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(overrideStableID = customID),
+            network = network
+        )
+        client = Statsig.client
+
+        val metadata = Statsig.getStatsigMetadata()
+        assertThat(metadata).isEqualTo(client.statsigMetadata)
+        assertThat(metadata).isNotSameInstanceAs(client.statsigMetadata)
+        assertThat(metadata.stableID).isEqualTo(customID)
+        assertThat(metadata.sdkVersion).isEqualTo(BuildConfig.VERSION_NAME)
     }
 }

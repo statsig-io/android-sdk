@@ -452,14 +452,28 @@ object Statsig {
     /**
      * @return the current Statsig stableID, or an empty [String] if Statsig is not initialized.
      */
+    @Deprecated(
+        "This function will be deprecated in a future release - the field is available in StatsigMetadata",
+        ReplaceWith("getStatsigMetadata().getStableID()")
+    )
     @JvmStatic
     fun getStableID(): String = client.getStableID()
 
     /**
      * @return the current Statsig sessionId
      */
+    @Deprecated(
+        "This function will be deprecated in a future release - the field is available in StatsigMetadata",
+        ReplaceWith("getStatsigMetadata().getSessionID()")
+    )
     @JvmStatic
     fun getSessionID(): String = client.getSessionID()
+
+    /**
+     * @return the current [StatsigMetadata] values for the Statsig SDK client
+     */
+    @JvmStatic
+    fun getStatsigMetadata(): StatsigMetadata = client.getStatsigMetadata()
 
     /**
      * @param gateName the name of the gate you want to override

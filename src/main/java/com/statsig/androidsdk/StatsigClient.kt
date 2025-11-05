@@ -35,7 +35,9 @@ class StatsigClient : LifecycleEventListener {
     private lateinit var sdkKey: String
     private lateinit var lifecycleListener: StatsigActivityLifecycleListener
     private lateinit var logger: StatsigLogger
-    private lateinit var statsigMetadata: StatsigMetadata
+
+    @VisibleForTesting
+    internal lateinit var statsigMetadata: StatsigMetadata
     private lateinit var exceptionHandler: CoroutineExceptionHandler
     private var lifetimeCallback: IStatsigLifetimeCallback? = null
 
@@ -779,6 +781,10 @@ class StatsigClient : LifecycleEventListener {
     }
 
     /** @return the current Statsig stableID, or an empty [String] prior to completion of async initialization */
+    @Deprecated(
+        "This function will be deprecated in a future release - the field is available in StatsigMetadata",
+        ReplaceWith("getStatsigMetadata().stableID")
+    )
     fun getStableID(): String {
         val functionName = "getStableID"
         enforceInitialized(functionName)
@@ -790,12 +796,25 @@ class StatsigClient : LifecycleEventListener {
     /**
      * @return the current Statsig sessionID
      */
+    @Deprecated(
+        "This function will be deprecated in a future release - the field is available in StatsigMetadata",
+        ReplaceWith("getStatsigMetadata().stableID")
+    )
     fun getSessionID(): String {
         val functionName = "getSessionID"
         enforceInitialized(functionName)
         var result = ""
         errorBoundary.capture({ result = statsigMetadata.sessionID }, tag = "getSessionID")
         return result
+    }
+
+    /**
+     * @return the current [StatsigMetadata] of this client instance
+     */
+    fun getStatsigMetadata(): StatsigMetadata {
+        val functionName = "getStatsigMetadata()"
+        enforceInitialized(functionName)
+        return statsigMetadata.copy()
     }
 
     /**
