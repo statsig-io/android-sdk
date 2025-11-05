@@ -82,9 +82,7 @@ class DebugView {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
-            }
+            CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
             return webView
         }
     }
