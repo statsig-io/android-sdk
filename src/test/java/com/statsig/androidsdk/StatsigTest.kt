@@ -654,8 +654,8 @@ class StatsigTest {
         client = Statsig.client
 
         val metadata = Statsig.getStatsigMetadata()
-        assertThat(metadata).isEqualTo(client.statsigMetadata)
-        assertThat(metadata).isNotSameInstanceAs(client.statsigMetadata)
+        assertThat(metadata).isEqualTo(client.statsigClientMetadata)
+        assertThat(metadata).isNotSameInstanceAs(client.statsigClientMetadata)
         assertThat(metadata.stableID).isEqualTo(customID)
         assertThat(metadata.sdkVersion).isEqualTo(BuildConfig.VERSION_NAME)
     }

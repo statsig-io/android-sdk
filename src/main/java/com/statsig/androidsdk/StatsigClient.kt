@@ -36,8 +36,10 @@ class StatsigClient : LifecycleEventListener {
     private lateinit var lifecycleListener: StatsigActivityLifecycleListener
     private lateinit var logger: StatsigLogger
 
+    // This field is named `statsigClientMetadata` instead of `statsigMetadata` so
+    // @VisibleForTesting isn't transitively applied to the public getter (which returns a copy).
     @VisibleForTesting
-    internal lateinit var statsigMetadata: StatsigMetadata
+    internal lateinit var statsigClientMetadata: StatsigMetadata
     private lateinit var exceptionHandler: CoroutineExceptionHandler
     private var lifetimeCallback: IStatsigLifetimeCallback? = null
 
@@ -789,7 +791,9 @@ class StatsigClient : LifecycleEventListener {
         val functionName = "getStableID"
         enforceInitialized(functionName)
         var result = ""
-        errorBoundary.capture({ result = statsigMetadata.stableID ?: "" }, tag = "getStableID")
+        errorBoundary.capture({
+            result = statsigClientMetadata.stableID ?: ""
+        }, tag = "getStableID")
         return result
     }
 
@@ -804,7 +808,7 @@ class StatsigClient : LifecycleEventListener {
         val functionName = "getSessionID"
         enforceInitialized(functionName)
         var result = ""
-        errorBoundary.capture({ result = statsigMetadata.sessionID }, tag = "getSessionID")
+        errorBoundary.capture({ result = statsigClientMetadata.sessionID }, tag = "getSessionID")
         return result
     }
 
@@ -814,7 +818,7 @@ class StatsigClient : LifecycleEventListener {
     fun getStatsigMetadata(): StatsigMetadata {
         val functionName = "getStatsigMetadata()"
         enforceInitialized(functionName)
-        return statsigMetadata.copy()
+        return statsigClientMetadata.copy()
     }
 
     /**
@@ -996,7 +1000,7 @@ class StatsigClient : LifecycleEventListener {
                                 this@StatsigClient.store.getLastUpdateTime(
                                     this@StatsigClient.user
                                 ),
-                                this@StatsigClient.statsigMetadata,
+                                this@StatsigClient.statsigClientMetadata,
                                 statsigScope,
                                 ContextType.INITIALIZE,
                                 this@StatsigClient.diagnostics,
@@ -1125,13 +1129,13 @@ class StatsigClient : LifecycleEventListener {
                     urlConnectionProvider
                 )
         }
-        statsigMetadata =
+        statsigClientMetadata =
             if (options.optOutNonSdkMetadata) {
                 createCoreStatsigMetadata()
             } else {
                 createStatsigMetadata()
             }
-        errorBoundary.setMetadata(statsigMetadata)
+        errorBoundary.setMetadata(statsigClientMetadata)
 
         onDeviceEvalAdapter = options.onDeviceEvalAdapter
         this.initialized.set(true)
@@ -1143,7 +1147,7 @@ class StatsigClient : LifecycleEventListener {
                 statsigScope,
                 sdkKey,
                 options.eventLoggingAPI,
-                statsigMetadata,
+                statsigClientMetadata,
                 statsigNetwork,
                 normalizedUser,
                 diagnostics,
@@ -1154,7 +1158,7 @@ class StatsigClient : LifecycleEventListener {
 
         if (options.overrideStableID == null) {
             val stableID = getLocalStorageStableID()
-            this@StatsigClient.statsigMetadata.overrideStableID(stableID)
+            this@StatsigClient.statsigClientMetadata.overrideStableID(stableID)
         }
 
         if (!this@StatsigClient.options.loadCacheAsync) {
@@ -1195,7 +1199,7 @@ class StatsigClient : LifecycleEventListener {
                             options.api,
                             this@StatsigClient.user,
                             sinceTime,
-                            statsigMetadata,
+                            statsigClientMetadata,
                             statsigScope,
                             ContextType.UPDATE_USER,
                             diagnostics = this@StatsigClient.diagnostics,
@@ -1354,7 +1358,7 @@ class StatsigClient : LifecycleEventListener {
                 .pollForChanges(
                     options.api,
                     user,
-                    statsigMetadata,
+                    statsigClientMetadata,
                     (options.autoValueUpdateIntervalMinutes * 60 * 1000).toLong(),
                     options.initializeFallbackUrls
                 )
@@ -1373,13 +1377,13 @@ class StatsigClient : LifecycleEventListener {
     }
 
     private fun populateStatsigMetadata() {
-        statsigMetadata.overrideStableID(options.overrideStableID)
+        statsigClientMetadata.overrideStableID(options.overrideStableID)
         try {
             if (application.packageManager != null && !options.optOutNonSdkMetadata) {
                 val pInfo: PackageInfo =
                     application.packageManager.getPackageInfo(application.packageName, 0)
-                statsigMetadata.appVersion = pInfo.versionName
-                statsigMetadata.appIdentifier = pInfo.packageName
+                statsigClientMetadata.appVersion = pInfo.versionName
+                statsigClientMetadata.appIdentifier = pInfo.packageName
             }
         } catch (e: PackageManager.NameNotFoundException) {
             // noop
