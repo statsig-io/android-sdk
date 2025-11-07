@@ -172,7 +172,14 @@ class StoreTest {
     fun testEvaluationReasons() = runBlocking {
         val sharedPrefs = TestUtil.getTestSharedPrefs(app)
         var store =
-            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions(), StatsigUtil.buildGson())
+            Store(
+                coroutineScope,
+                sharedPrefs,
+                userJkw,
+                "client-apikey",
+                StatsigOptions(),
+                StatsigUtil.buildGson()
+            )
 
         // check before there is any value
         var exp = store.getExperiment("exp", false)
@@ -209,7 +216,14 @@ class StoreTest {
         // the evaluation time in details has not advanced
         Thread.sleep(1000)
         store =
-            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions(), StatsigUtil.buildGson())
+            Store(
+                coroutineScope,
+                sharedPrefs,
+                userJkw,
+                "client-apikey",
+                StatsigOptions(),
+                StatsigUtil.buildGson()
+            )
         store.syncLoadFromLocalStorage()
         exp = store.getExperiment(
             "exp",
@@ -223,7 +237,14 @@ class StoreTest {
 
         // re-initialize and check the previously saved sticky value
         store =
-            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions(), StatsigUtil.buildGson())
+            Store(
+                coroutineScope,
+                sharedPrefs,
+                userJkw,
+                "client-apikey",
+                StatsigOptions(),
+                StatsigUtil.buildGson()
+            )
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v1", inExperiment = true, active = true), userJkw)
         store.persistStickyValues()
@@ -401,7 +422,14 @@ class StoreTest {
     fun testStickyBehaviorAcrossSessions() = runBlocking {
         val sharedPrefs = TestUtil.getTestSharedPrefs(app)
         var store =
-            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions(), StatsigUtil.buildGson())
+            Store(
+                coroutineScope,
+                sharedPrefs,
+                userJkw,
+                "client-apikey",
+                StatsigOptions(),
+                StatsigUtil.buildGson()
+            )
         store.syncLoadFromLocalStorage()
         val v0Values = getInitValue("v0", inExperiment = true, active = true)
         store.save(v0Values, userJkw)
@@ -419,7 +447,14 @@ class StoreTest {
 
         // Reinitialize, same user ID, should keep sticky values
         store =
-            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions(), StatsigUtil.buildGson())
+            Store(
+                coroutineScope,
+                sharedPrefs,
+                userJkw,
+                "client-apikey",
+                StatsigOptions(),
+                StatsigUtil.buildGson()
+            )
         store.syncLoadFromLocalStorage()
         val configs = v0Values.configs as MutableMap<String, APIDynamicConfig>
 
@@ -440,7 +475,14 @@ class StoreTest {
         // Re-create store with a different user ID, update the values, user should still get sticky
         // value for device and only device
         store =
-            Store(coroutineScope, sharedPrefs, userTore, "client-apikey", StatsigOptions(), StatsigUtil.buildGson())
+            Store(
+                coroutineScope,
+                sharedPrefs,
+                userTore,
+                "client-apikey",
+                StatsigOptions(),
+                StatsigUtil.buildGson()
+            )
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v1", inExperiment = true, active = true), userTore)
 
@@ -455,7 +497,14 @@ class StoreTest {
 
         // Re-create store with the original user ID, check that sticky values are persisted
         store =
-            Store(coroutineScope, sharedPrefs, userJkw, "client-apikey", StatsigOptions(), StatsigUtil.buildGson())
+            Store(
+                coroutineScope,
+                sharedPrefs,
+                userJkw,
+                "client-apikey",
+                StatsigOptions(),
+                StatsigUtil.buildGson()
+            )
         store.syncLoadFromLocalStorage()
         store.save(getInitValue("v2", inExperiment = true, active = true), userJkw)
 

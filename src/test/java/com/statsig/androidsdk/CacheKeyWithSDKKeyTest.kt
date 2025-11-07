@@ -47,6 +47,8 @@ class CacheKeyWithSDKKeyTest {
             StatsigUtil.getFromSharedPrefs(testSharedPrefs, "Statsig.CACHE_BY_USER"),
             Map::class.java
         )
-        assertThat(cacheById.keys).contains("${user.toHashString(gson = StatsigUtil.buildGson())}:client-apikey")
+        assertThat(
+            cacheById.keys
+        ).contains("${user.toHashString(gson = StatsigUtil.buildGson())}:client-apikey")
     }
 }

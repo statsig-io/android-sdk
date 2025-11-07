@@ -266,7 +266,10 @@ class StatsigInitializationFailureTest {
         } coAnswers {
             // Blocking logevent
             countDownLatch.await()
-            val logs = StatsigUtil.buildGson().fromJson(secondArg<String>(), LogEventData::class.java)
+            val logs = StatsigUtil.buildGson().fromJson(
+                secondArg<String>(),
+                LogEventData::class.java
+            )
             logEventRequests.add(logs)
             logEventCountdown.countDown()
         }
