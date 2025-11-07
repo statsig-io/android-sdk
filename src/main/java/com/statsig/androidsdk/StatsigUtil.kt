@@ -76,7 +76,7 @@ internal object StatsigUtil {
         }
     }
 
-    internal fun getGson(): Gson = GsonBuilder()
+    internal fun buildGson(): Gson = GsonBuilder()
         .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
         .create()
 }

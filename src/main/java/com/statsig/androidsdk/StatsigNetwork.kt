@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.google.gson.Gson
 import java.io.BufferedReader
 import java.net.ConnectException
 import java.net.HttpURLConnection
@@ -116,7 +117,8 @@ internal fun StatsigNetwork(
     networkFallbackResolver: NetworkFallbackResolver,
     coroutineScope: CoroutineScope,
     store: Store,
-    urlConnectionProvider: UrlConnectionProvider = defaultProvider
+    urlConnectionProvider: UrlConnectionProvider = defaultProvider,
+    gson: Gson
 ): StatsigNetwork = StatsigNetworkImpl(
     context,
     sdkKey,
@@ -125,7 +127,8 @@ internal fun StatsigNetwork(
     networkFallbackResolver,
     coroutineScope,
     store,
-    urlConnectionProvider
+    urlConnectionProvider,
+    gson
 )
 
 internal class StatsigNetworkImpl(
@@ -136,10 +139,10 @@ internal class StatsigNetworkImpl(
     private val networkResolver: NetworkFallbackResolver,
     private val coroutineScope: CoroutineScope,
     private val store: Store,
-    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider
+    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider,
+    private val gson: Gson
 ) : StatsigNetwork {
 
-    private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private val connectivityListener = StatsigNetworkConnectivityListener(context)
     private val offlineLogsKeyV2 = "$OFFLINE_LOGS_KEY_V1:$sdkKey"

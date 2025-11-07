@@ -191,12 +191,14 @@ class LogEventTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun mockAppOnPause() {
+        val gson = StatsigUtil.buildGson()
         val store = Store(
             coroutineScope,
             testSharedPrefs,
             StatsigUser(),
             "client-apikey",
-            StatsigOptions()
+            StatsigOptions(),
+            gson
         )
         val network = spyk(
             StatsigNetwork(
@@ -206,14 +208,15 @@ class LogEventTest {
                 StatsigOptions(),
                 mockk(),
                 coroutineScope,
-                store
+                store,
+                gson = gson
             )
         )
         coEvery {
             network.apiPostLogs(any(), any(), any())
         } answers {
             logEventRequests.add(
-                StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java)
+                StatsigUtil.buildGson().fromJson(secondArg<String>(), LogEventData::class.java)
             )
             callOriginal()
         }
@@ -223,7 +226,7 @@ class LogEventTest {
             StatsigUtil.saveStringToSharedPrefs(
                 testSharedPrefs,
                 "StatsigNetwork.OFFLINE_LOGS",
-                StatsigUtil.getGson().toJson(StatsigPendingRequests(listOf(firstArg())))
+                StatsigUtil.buildGson().toJson(StatsigPendingRequests(listOf(firstArg())))
             )
         }
         mockNetwork(network)

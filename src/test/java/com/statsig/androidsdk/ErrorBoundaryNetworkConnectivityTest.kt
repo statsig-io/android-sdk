@@ -62,6 +62,7 @@ class ErrorBoundaryNetworkConnectivityTest {
         conMan = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         shadowConMan = Shadows.shadowOf(conMan)
         shadowConMan.setDefaultNetworkActive(false)
+        val gson = StatsigUtil.buildGson()
 
         stubFor(
             post(urlMatching("/initialize"))
@@ -73,7 +74,8 @@ class ErrorBoundaryNetworkConnectivityTest {
                 TestUtil.getTestSharedPrefs(app),
                 StatsigUser(),
                 "client-apikey",
-                StatsigOptions()
+                StatsigOptions(),
+                gson
             )
         network =
             StatsigNetworkImpl(
@@ -83,7 +85,8 @@ class ErrorBoundaryNetworkConnectivityTest {
                 StatsigOptions(),
                 mockk(),
                 coroutineScope,
-                store
+                store,
+                gson
             )
     }
 

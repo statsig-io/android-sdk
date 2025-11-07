@@ -4,7 +4,6 @@ import android.app.Application
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.util.concurrent.CountDownLatch
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
@@ -20,7 +19,7 @@ class StatsigOfflineInitializationTest {
     private val logs = mutableListOf<LogEventData>()
     private var initializeNetworkCalled = 0
     private val user = StatsigUser("123")
-    private val gson = StatsigUtil.getGson()
+    private val gson = StatsigUtil.buildGson()
 
     @Before
     internal fun setup() {
