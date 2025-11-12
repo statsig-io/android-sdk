@@ -6,7 +6,7 @@ import com.statsig.androidsdk.evaluator.Evaluator
 import com.statsig.androidsdk.evaluator.SpecStore
 import com.statsig.androidsdk.evaluator.SpecsResponse
 
-class OnDeviceEvalAdapter(private val data: String?, private val gson: Gson) {
+class OnDeviceEvalAdapter(private val data: String?) {
     private companion object {
         private const val TAG: String = "statsig::OnDeviceEval"
     }
@@ -19,7 +19,7 @@ class OnDeviceEvalAdapter(private val data: String?, private val gson: Gson) {
 
     fun setData(data: String) {
         val specs: SpecsResponse = try {
-            gson.fromJson(data, SpecsResponse::class.java)
+            StatsigUtil.getOrBuildGson().fromJson(data, SpecsResponse::class.java)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse specs from data string")
             return
