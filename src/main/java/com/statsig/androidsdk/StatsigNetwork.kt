@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.annotation.VisibleForTesting
 import java.io.BufferedReader
 import java.net.ConnectException
 import java.net.HttpURLConnection
@@ -63,6 +64,9 @@ private const val STATSIG_CLIENT_TIME_HEADER_KEY = "STATSIG-CLIENT-TIME"
 private const val STATSIG_SDK_TYPE_KEY = "STATSIG-SDK-TYPE"
 private const val STATSIG_SDK_VERSION_KEY = "STATSIG-SDK-VERSION"
 private const val STATSIG_EVENT_COUNT = "STATSIG-EVENT-COUNT"
+
+@VisibleForTesting
+internal const val STATSIG_STABLE_ID_HEADER_KEY = "STATSIG-STABLE-ID"
 private const val ACCEPT_HEADER_KEY = "Accept"
 private const val ACCEPT_HEADER_VALUE = "application/json"
 
@@ -287,7 +291,8 @@ internal class StatsigNetworkImpl(
                 contextType,
                 diagnostics,
                 timeoutMs,
-                requestCacheKey = userCacheKey
+                requestCacheKey = userCacheKey,
+                stableID = metadataCopy.stableID
             ) { status: Int? -> statusCode = status }
             response ?: InitializeResponse.FailedInitializeResponse(
                 InitializeFailReason.NetworkError,
@@ -373,7 +378,8 @@ internal class StatsigNetworkImpl(
                             requestCacheKey = this@StatsigNetworkImpl.options.customCacheKey(
                                 this@StatsigNetworkImpl.sdkKey,
                                 userCopy
-                            )
+                            ),
+                            stableID = metadataCopy.stableID
                         )
                     )
                 } catch (_: Exception) {
@@ -527,6 +533,7 @@ internal class StatsigNetworkImpl(
         timeout: Int? = null,
         eventsCount: String? = null,
         requestCacheKey: String? = null,
+        stableID: String? = null,
         crossinline callback: ((statusCode: Int?) -> Unit) = { _: Int? -> }
     ): T? {
         return withContext(dispatcherProvider.io) {
@@ -567,6 +574,10 @@ internal class StatsigNetworkImpl(
 
                 if (eventsCount != null) {
                     connection.setRequestProperty(STATSIG_EVENT_COUNT, eventsCount)
+                }
+
+                if (stableID != null) {
+                    connection.setRequestProperty(STATSIG_STABLE_ID_HEADER_KEY, stableID)
                 }
 
                 connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
