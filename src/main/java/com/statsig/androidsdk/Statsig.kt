@@ -457,6 +457,7 @@ object Statsig {
         ReplaceWith("getStatsigMetadata().getStableID()")
     )
     @JvmStatic
+    @Suppress("DEPRECATION")
     fun getStableID(): String = client.getStableID()
 
     /**
@@ -467,6 +468,7 @@ object Statsig {
         ReplaceWith("getStatsigMetadata().getSessionID()")
     )
     @JvmStatic
+    @Suppress("DEPRECATION")
     fun getSessionID(): String = client.getSessionID()
 
     /**
