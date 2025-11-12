@@ -32,6 +32,7 @@ class StatsigClient : LifecycleEventListener {
     private lateinit var store: Store
     private lateinit var user: StatsigUser
     private lateinit var application: Application
+    private lateinit var sharedPreferences: SharedPreferences
     private lateinit var sdkKey: String
     private lateinit var lifecycleListener: StatsigActivityLifecycleListener
     private lateinit var logger: StatsigLogger
@@ -1100,6 +1101,8 @@ class StatsigClient : LifecycleEventListener {
         this.diagnostics = Diagnostics(options.getLoggingCopy())
         diagnostics.markStart(KeyType.OVERALL)
         this.application = application
+        this.sharedPreferences =
+            application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
         this.sdkKey = sdkKey
         this.options = options
         val normalizedUser = normalizeUser(user)
@@ -1110,18 +1113,18 @@ class StatsigClient : LifecycleEventListener {
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         val networkFallbackResolver =
             NetworkFallbackResolver(
-                getSharedPrefs(),
+                sharedPreferences,
                 statsigScope,
                 urlConnectionProvider
             )
-        store = Store(statsigScope, getSharedPrefs(), normalizedUser, sdkKey, options)
+        store = Store(statsigScope, sharedPreferences, normalizedUser, sdkKey, options)
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
             statsigNetwork =
                 StatsigNetwork(
                     application,
                     sdkKey,
-                    getSharedPrefs(),
+                    sharedPreferences,
                     options,
                     networkFallbackResolver,
                     statsigScope,
@@ -1316,7 +1319,7 @@ class StatsigClient : LifecycleEventListener {
     }
 
     private fun getLocalStorageStableID(): String {
-        var stableID = this@StatsigClient.getSharedPrefs().getString(STABLE_ID_KEY, null)
+        var stableID = this@StatsigClient.sharedPreferences.getString(STABLE_ID_KEY, null)
         if (stableID == null) {
             stableID = UUID.randomUUID().toString()
             statsigScope.launch {
@@ -1390,11 +1393,8 @@ class StatsigClient : LifecycleEventListener {
         }
     }
 
-    internal fun getSharedPrefs(): SharedPreferences =
-        application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
-
     internal suspend fun saveStringToSharedPrefs(key: String, value: String) {
-        StatsigUtil.saveStringToSharedPrefs(getSharedPrefs(), key, value)
+        StatsigUtil.saveStringToSharedPrefs(sharedPreferences, key, value)
     }
 
     private suspend fun shutdownImpl() {
