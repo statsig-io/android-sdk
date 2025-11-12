@@ -40,7 +40,8 @@ class LogEventCompressionTest {
                 options,
                 mockk<NetworkFallbackResolver>(),
                 coroutineScope,
-                store
+                store,
+                gson = StatsigUtil.getOrBuildGson()
             )
         return network
     }

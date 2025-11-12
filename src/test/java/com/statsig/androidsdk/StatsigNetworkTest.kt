@@ -32,6 +32,8 @@ class StatsigNetworkTest {
     private val metadata = StatsigMetadata()
 
     private val user = StatsigUser()
+
+    private val gson = StatsigUtil.getOrBuildGson()
     private lateinit var network: StatsigNetworkImpl
 
     private lateinit var options: StatsigOptions
@@ -51,7 +53,12 @@ class StatsigNetworkTest {
         )
 
         options = StatsigOptions(api = wireMockRule.baseUrl())
-        fallbackResolver = NetworkFallbackResolver(sharedPreferences, coroutineScope)
+        fallbackResolver =
+            NetworkFallbackResolver(
+                sharedPreferences,
+                coroutineScope,
+                gson = gson
+            )
 
         val store =
             Store(
@@ -59,7 +66,8 @@ class StatsigNetworkTest {
                 sharedPreferences,
                 user,
                 "client-apikey",
-                options
+                options,
+                gson = gson
             )
         network =
             StatsigNetworkImpl(
@@ -69,7 +77,8 @@ class StatsigNetworkTest {
                 options,
                 networkResolver = fallbackResolver,
                 coroutineScope,
-                store
+                store,
+                gson = gson
             )
     }
 

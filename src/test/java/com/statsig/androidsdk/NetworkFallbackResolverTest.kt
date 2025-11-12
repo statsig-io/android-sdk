@@ -6,6 +6,7 @@ import com.statsig.androidsdk.BuildConfig
 import com.statsig.androidsdk.DEFAULT_INIT_API
 import com.statsig.androidsdk.Endpoint
 import com.statsig.androidsdk.NetworkFallbackResolver
+import com.statsig.androidsdk.StatsigUtil
 import com.statsig.androidsdk.TestUtil
 import com.statsig.androidsdk.UrlConfig
 import com.statsig.androidsdk.isDomainFailure
@@ -71,7 +72,11 @@ class NetworkFallbackResolverTest {
         testSharedPrefs =
             app.getSharedPreferences(name.methodName + BuildConfig.DEBUG, MODE_PRIVATE)
         resolver =
-            NetworkFallbackResolver(testSharedPrefs, coroutineScope)
+            NetworkFallbackResolver(
+                testSharedPrefs,
+                coroutineScope,
+                gson = StatsigUtil.getOrBuildGson()
+            )
     }
 
     @Test

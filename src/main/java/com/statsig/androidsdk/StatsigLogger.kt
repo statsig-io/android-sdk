@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.util.Log
+import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -37,12 +38,12 @@ internal class StatsigLogger(
     private val statsigUser: StatsigUser,
     private val diagnostics: Diagnostics,
     private val fallbackUrls: List<String>? = null,
-    private var loggingEnabled: Boolean
+    private var loggingEnabled: Boolean,
+    private val gson: Gson
 ) {
     private companion object {
         private const val TAG: String = "statsig::StatsigLogger"
     }
-    private val gson = StatsigUtil.getGson()
 
     private val executor = Executors.newSingleThreadExecutor()
     private val singleThreadDispatcher = executor.asCoroutineDispatcher()

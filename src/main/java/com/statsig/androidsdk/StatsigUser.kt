@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 
 internal const val STATSIG_NULL_USER: String = "Statsig.NULL_USER"
@@ -95,6 +96,6 @@ data class StatsigUser(
         return id
     }
 
-    internal fun toHashString(): String =
-        Hashing.getHashedString(StatsigUtil.getGson().toJson(this), HashAlgorithm.DJB2)
+    internal fun toHashString(gson: Gson): String =
+        Hashing.getHashedString(gson.toJson(this), HashAlgorithm.DJB2)
 }

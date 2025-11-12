@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.content.SharedPreferences
 import androidx.annotation.VisibleForTesting
+import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import java.util.concurrent.ConcurrentHashMap
@@ -36,11 +37,11 @@ internal class Store(
     private val sharedPrefs: SharedPreferences,
     user: StatsigUser,
     private val sdkKey: String,
-    private val options: StatsigOptions
+    private val options: StatsigOptions,
+    private val gson: Gson
 ) {
     var reason: EvaluationReason
 
-    private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var currentUserCacheKeyV2: String
     private var currentFullUserCacheKey: String
@@ -187,7 +188,7 @@ internal class Store(
 
     fun getLastUpdateTime(user: StatsigUser): Long? {
         var cachedValues = this.getCachedValuesForUser(user)
-        if (cachedValues?.userHash != user.toHashString()) {
+        if (cachedValues?.userHash != user.toHashString(gson)) {
             return null
         }
         return cachedValues.values.time
@@ -195,7 +196,7 @@ internal class Store(
 
     fun getPreviousDerivedFields(user: StatsigUser): Map<String, String> {
         var cachedValues = this.getCachedValuesForUser(user)
-        if (cachedValues?.userHash != user.toHashString()) {
+        if (cachedValues?.userHash != user.toHashString(gson)) {
             return mapOf()
         }
         return cachedValues.values.derivedFields ?: mapOf()
@@ -210,7 +211,7 @@ internal class Store(
         this.options.customCacheKey(this.sdkKey, user)
 
     private fun getScopedFullUserCacheKey(user: StatsigUser): String =
-        "${user.toHashString()}:${this.sdkKey}"
+        "${user.toHashString(gson)}:${this.sdkKey}"
 
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
         val cacheKey = this.getScopedCacheKey(user)
@@ -220,7 +221,7 @@ internal class Store(
                 val cache = cacheById[fullCacheKey] ?: createEmptyCache()
                 cache.values = data
                 cache.evaluationTime = System.currentTimeMillis()
-                cache.userHash = user.toHashString()
+                cache.userHash = user.toHashString(gson)
                 cacheById[fullCacheKey] = cache
 
                 currentCache = cache

@@ -62,6 +62,8 @@ class StatsigClient : LifecycleEventListener {
     private var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null
     private val retryScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
 
+    private val gson = StatsigUtil.getOrBuildGson()
+
     @VisibleForTesting
     internal lateinit var statsigScope: CoroutineScope
 
@@ -1115,9 +1117,10 @@ class StatsigClient : LifecycleEventListener {
             NetworkFallbackResolver(
                 sharedPreferences,
                 statsigScope,
-                urlConnectionProvider
+                urlConnectionProvider,
+                gson
             )
-        store = Store(statsigScope, sharedPreferences, normalizedUser, sdkKey, options)
+        store = Store(statsigScope, sharedPreferences, normalizedUser, sdkKey, options, gson)
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
             statsigNetwork =
@@ -1129,7 +1132,8 @@ class StatsigClient : LifecycleEventListener {
                     networkFallbackResolver,
                     statsigScope,
                     store,
-                    urlConnectionProvider
+                    urlConnectionProvider,
+                    gson
                 )
         }
         statsigClientMetadata =
@@ -1155,7 +1159,8 @@ class StatsigClient : LifecycleEventListener {
                 normalizedUser,
                 diagnostics,
                 options.logEventFallbackUrls,
-                options.loggingEnabled
+                options.loggingEnabled,
+                gson
             )
         populateStatsigMetadata()
 

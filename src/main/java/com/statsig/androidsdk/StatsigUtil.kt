@@ -9,6 +9,11 @@ import kotlinx.coroutines.withContext
 
 internal object StatsigUtil {
     private val dispatcherProvider = CoroutineDispatcherProvider()
+    private val gson by lazy {
+        GsonBuilder()
+            .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
+            .create()
+    }
 
     fun normalizeUser(user: Map<String, Any>?): Map<String, Any>? {
         if (user == null) {
@@ -76,7 +81,5 @@ internal object StatsigUtil {
         }
     }
 
-    internal fun getGson(): Gson = GsonBuilder()
-        .setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE)
-        .create()
+    internal fun getOrBuildGson(): Gson = gson
 }

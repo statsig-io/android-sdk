@@ -18,7 +18,7 @@ class OfflineStorageTest {
 
     private val app: Application = RuntimeEnvironment.getApplication()
     private lateinit var testSharedPrefs: SharedPreferences
-    private val gson = Gson()
+    private val gson = StatsigUtil.getOrBuildGson()
     private lateinit var network: StatsigNetwork
     private val now = System.currentTimeMillis()
     private val threeDaysInMs = 3 * 24 * 60 * 60 * 1000L
@@ -34,7 +34,8 @@ class OfflineStorageTest {
             StatsigOptions(),
             mockk(),
             mockk(),
-            mockk()
+            mockk(),
+            gson = gson
         )
     }
 

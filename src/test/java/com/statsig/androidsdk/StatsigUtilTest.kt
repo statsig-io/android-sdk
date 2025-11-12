@@ -76,7 +76,7 @@ class StatsigUtilTest {
 
     @Test
     fun testUserHashing() {
-        val gson = StatsigUtil.getGson()
+        val gson = StatsigUtil.getOrBuildGson()
         val userA = gson.fromJson(
             "{\"userID\":\"userA\",\"email\":\"userA@gmail.com\",\"country\":\"US\"}",
             StatsigUser::class.java
@@ -99,9 +99,9 @@ class StatsigUtilTest {
         )
         userAMoreDetails.statsigEnvironment = mapOf("tier" to "production")
 
-        assertTrue(userA.toHashString() == userADifferentOrder.toHashString())
-        assertTrue(userA.toHashString() != userB.toHashString())
-        assertTrue(userA.toHashString() != userADifferentEnvironment.toHashString())
-        assertTrue(userA.toHashString() != userAMoreDetails.toHashString())
+        assertTrue(userA.toHashString(gson) == userADifferentOrder.toHashString(gson))
+        assertTrue(userA.toHashString(gson) != userB.toHashString(gson))
+        assertTrue(userA.toHashString(gson) != userADifferentEnvironment.toHashString(gson))
+        assertTrue(userA.toHashString(gson) != userAMoreDetails.toHashString(gson))
     }
 }

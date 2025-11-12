@@ -32,7 +32,7 @@ class CacheKeyWithSDKKeyTest {
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         testSharedPrefs.edit().putString(
             "Statsig.CACHE_BY_USER",
-            StatsigUtil.getGson().toJson(cacheById)
+            StatsigUtil.getOrBuildGson().toJson(cacheById)
         ).apply()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockBrokenNetwork())
 
@@ -43,10 +43,12 @@ class CacheKeyWithSDKKeyTest {
     fun testWriteToCacheWithNewKey() = runBlocking {
         Statsig.client.shutdown()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())
-        val cacheById = StatsigUtil.getGson().fromJson(
+        val cacheById = StatsigUtil.getOrBuildGson().fromJson(
             StatsigUtil.getFromSharedPrefs(testSharedPrefs, "Statsig.CACHE_BY_USER"),
             Map::class.java
         )
-        assertThat(cacheById.keys).contains("${user.toHashString()}:client-apikey")
+        assertThat(
+            cacheById.keys
+        ).contains("${user.toHashString(gson = StatsigUtil.getOrBuildGson())}:client-apikey")
     }
 }

@@ -76,7 +76,7 @@ class TestUtil {
                 "testEmptyDict" : {}
             }
             """.trimIndent()
-            val gson = StatsigUtil.getGson()
+            val gson = StatsigUtil.getOrBuildGson()
 
             @Suppress("UNCHECKED_CAST")
             return gson.fromJson(
@@ -349,7 +349,10 @@ class TestUtil {
                 statsigNetwork.apiPostLogs(any(), any(), any())
             } answers {
                 onLog?.invoke(
-                    StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java)
+                    StatsigUtil.getOrBuildGson().fromJson(
+                        secondArg<String>(),
+                        LogEventData::class.java
+                    )
                 )
                 throw IOException("Example exception in StatsigNetwork apiPostLogs")
             }
@@ -389,7 +392,10 @@ class TestUtil {
                 statsigNetwork.apiPostLogs(any(), any(), any())
             } answers {
                 onLog?.invoke(
-                    StatsigUtil.getGson().fromJson(secondArg<String>(), LogEventData::class.java)
+                    StatsigUtil.getOrBuildGson().fromJson(
+                        secondArg<String>(),
+                        LogEventData::class.java
+                    )
                 )
             }
 

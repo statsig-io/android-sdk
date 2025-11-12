@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.content.SharedPreferences
+import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.net.URL
 import java.util.Date
@@ -19,11 +20,11 @@ const val COOLDOWN_TIME_MS = 4 * 60 * 60 * 1000L // 4 hours
 internal class NetworkFallbackResolver(
     private val sharedPreferences: SharedPreferences,
     private val statsigScope: CoroutineScope,
-    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider
+    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider,
+    private val gson: Gson
 ) {
     private var fallbackInfo: MutableMap<Endpoint, FallbackInfoEntry>? = null
     private val dnsQueryCooldowns: MutableMap<Endpoint, Long> = mutableMapOf()
-    private val gson = StatsigUtil.getGson()
     private val dispatcherProvider = CoroutineDispatcherProvider()
 
     suspend fun tryBumpExpiryTime(urlConfig: UrlConfig) {

@@ -1,17 +1,17 @@
 package com.statsig.androidsdk
 
 import android.util.Log
+import com.google.gson.Gson
 import com.statsig.androidsdk.evaluator.Evaluator
 import com.statsig.androidsdk.evaluator.SpecStore
 import com.statsig.androidsdk.evaluator.SpecsResponse
 
-class OnDeviceEvalAdapter(private val data: String?) {
+class OnDeviceEvalAdapter(private val data: String?, private val gson: Gson) {
     private companion object {
         private const val TAG: String = "statsig::OnDeviceEval"
     }
     private val store = SpecStore()
     private val evaluator = Evaluator(store)
-    private val gson = StatsigUtil.getGson()
 
     init {
         data?.let { setData(it) }
