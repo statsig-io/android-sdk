@@ -39,7 +39,7 @@ internal class StatsigLogger(
     private val fallbackUrls: List<String>? = null,
     private var loggingEnabled: Boolean
 ) {
-    companion object {
+    private companion object {
         private const val TAG: String = "statsig::StatsigLogger"
     }
     private val gson = StatsigUtil.getGson()

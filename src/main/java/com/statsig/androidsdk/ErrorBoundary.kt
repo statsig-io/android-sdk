@@ -13,7 +13,7 @@ internal class ExternalException(message: String? = null) : Exception(message)
 internal class ErrorBoundary(
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) {
-    companion object {
+    private companion object {
         private const val TAG: String = "statsig::ErrorBoundary"
     }
     internal var urlString = "https://prodregistryv2.org/v1/rgstr_e"

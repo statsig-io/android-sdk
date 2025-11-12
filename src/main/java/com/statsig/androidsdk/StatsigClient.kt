@@ -26,7 +26,7 @@ internal const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
 
 class StatsigClient : LifecycleEventListener {
-    companion object {
+    private companion object {
         private const val TAG: String = "statsig::StatsigClient"
     }
     private lateinit var store: Store
