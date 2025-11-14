@@ -64,7 +64,7 @@ internal class Store(
         currentUser = user
     }
 
-    fun syncLoadFromLocalStorage() {
+    fun syncLoadFromLocalStorage() = statsigScope.launch(dispatcherProvider.io) {
         val cachedResponse = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
         val cachedDeviceValues = StatsigUtil.syncGetFromSharedPrefs(
             sharedPrefs,
