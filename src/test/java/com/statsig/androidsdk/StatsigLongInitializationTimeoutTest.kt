@@ -32,6 +32,7 @@ class StatsigLongInitializationTimeoutTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setup() {
+        TestUtil.setupHttp(app)
         mockWebServer = MockWebServer()
         val dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse =
@@ -65,6 +66,7 @@ class StatsigLongInitializationTimeoutTest {
     @After
     fun tearDown() {
         mockWebServer.shutdown()
+        TestUtil.reset()
     }
 
     @Test

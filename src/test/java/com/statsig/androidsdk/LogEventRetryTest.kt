@@ -1,17 +1,23 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
+import java.io.IOException
 import kotlinx.coroutines.runBlocking
+import okhttp3.Interceptor
+import okhttp3.Response
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.shadows.ShadowLog
 
 @RunWith(RobolectricTestRunner::class)
 class LogEventRetryTest {
@@ -23,7 +29,13 @@ class LogEventRetryTest {
 
     @Before
     fun setup() {
+        ShadowLog.stream = System.out
         logEventHits = 0
+        TestUtil.setupHttp(app)
+        val testClient = HttpUtils.okHttpClient!!.newBuilder().addInterceptor(
+            testFailureInterceptor
+        ).build()
+        HttpUtils.okHttpClient = testClient
         TestUtil.mockDispatchers()
         mockWebServer = MockWebServer()
         val dispatcher = object : Dispatcher() {
@@ -36,9 +48,6 @@ class LogEventRetryTest {
                     logEventHits++
                     val logEventStatusCode = if (logEventHits >= 2) 404 else 599
                     val response = MockResponse().setResponseCode(logEventStatusCode)
-                    if (!enforceLogEventException) {
-                        response.setBody("err")
-                    }
                     return response
                 } else {
                     MockResponse().setResponseCode(404)
@@ -47,6 +56,11 @@ class LogEventRetryTest {
         }
         mockWebServer.dispatcher = dispatcher
         mockWebServer.start()
+    }
+
+    @After
+    fun teardown() {
+        TestUtil.reset()
     }
 
     @Test
@@ -60,7 +74,7 @@ class LogEventRetryTest {
         )
         Statsig.logEvent("test-event1")
         Statsig.shutdown()
-        assert(logEventHits == 2)
+        assertThat(logEventHits).isEqualTo(2)
     }
 
     @Test
@@ -73,8 +87,17 @@ class LogEventRetryTest {
             StatsigOptions(api = url, eventLoggingAPI = url)
         )
         enforceLogEventException = true
-        Statsig.logEvent("test")
+        Statsig.logEvent("test-event1")
         Statsig.shutdown()
-        assert(logEventHits == 1)
+        assertThat(logEventHits).isEqualTo(1)
+    }
+
+    private val testFailureInterceptor = object : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            if (enforceLogEventException && logEventHits > 0) {
+                throw IOException("Artificially injected network failure")
+            }
+            return chain.proceed(chain.request())
+        }
     }
 }

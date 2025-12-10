@@ -84,6 +84,8 @@ dependencies {
 
     implementation(libs.gson)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.dnsoverhttps)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

@@ -35,6 +35,7 @@ class InitializationTest {
         app = RuntimeEnvironment.getApplication()
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         TestUtil.mockHashing()
+        TestUtil.setupHttp(app)
 
         initializationHits = 0
         val dispatcher = object : Dispatcher() {
@@ -54,6 +55,7 @@ class InitializationTest {
     @After
     fun tearDown() {
         mockWebServer.shutdown()
+        TestUtil.reset()
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

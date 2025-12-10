@@ -20,7 +20,6 @@ const val COOLDOWN_TIME_MS = 4 * 60 * 60 * 1000L // 4 hours
 internal class NetworkFallbackResolver(
     private val sharedPreferences: SharedPreferences,
     private val statsigScope: CoroutineScope,
-    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider,
     private val gson: Gson
 ) {
     private var fallbackInfo: MutableMap<Endpoint, FallbackInfoEntry>? = null
@@ -108,7 +107,7 @@ internal class NetworkFallbackResolver(
         dnsQueryCooldowns[urlConfig.endpoint] = Date().time + COOLDOWN_TIME_MS
 
         val result = mutableListOf<String>()
-        val records = fetchTxtRecords(urlConnectionProvider)
+        val records = fetchTxtRecords()
         val path = extractPathFromUrl(urlConfig.defaultUrl)
 
         for (record in records) {

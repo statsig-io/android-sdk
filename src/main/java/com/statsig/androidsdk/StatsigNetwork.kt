@@ -2,17 +2,20 @@ package com.statsig.androidsdk
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.annotation.VisibleForTesting
+import android.util.Log
 import com.google.gson.Gson
-import java.io.BufferedReader
+import com.statsig.androidsdk.HttpUtils.Companion.RETRY_CODES
+import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_EVENT_COUNT
+import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_STABLE_ID_HEADER_KEY
+import java.io.IOException
 import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.util.Collections
 import java.util.concurrent.TimeUnit
-import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.toJavaDuration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -21,17 +24,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-
-private val RETRY_CODES: IntArray = intArrayOf(
-    HttpURLConnection.HTTP_CLIENT_TIMEOUT,
-    HttpURLConnection.HTTP_INTERNAL_ERROR,
-    HttpURLConnection.HTTP_BAD_GATEWAY,
-    HttpURLConnection.HTTP_UNAVAILABLE,
-    HttpURLConnection.HTTP_GATEWAY_TIMEOUT,
-    522,
-    524,
-    599
-)
+import okhttp3.Call
+import okhttp3.Request
 
 // Constants
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
@@ -55,21 +49,6 @@ private const val FULL_CHECKSUM = "full_checksum"
 
 // SharedPref keys
 private const val OFFLINE_LOGS_KEY_V1: String = "StatsigNetwork.OFFLINE_LOGS"
-
-// HTTP
-private const val POST = "POST"
-private const val CONTENT_TYPE_HEADER_KEY = "Content-Type"
-private const val CONTENT_TYPE_HEADER_VALUE = "application/json; charset=UTF-8"
-private const val STATSIG_API_HEADER_KEY = "STATSIG-API-KEY"
-private const val STATSIG_CLIENT_TIME_HEADER_KEY = "STATSIG-CLIENT-TIME"
-private const val STATSIG_SDK_TYPE_KEY = "STATSIG-SDK-TYPE"
-private const val STATSIG_SDK_VERSION_KEY = "STATSIG-SDK-VERSION"
-private const val STATSIG_EVENT_COUNT = "STATSIG-EVENT-COUNT"
-
-@VisibleForTesting
-internal const val STATSIG_STABLE_ID_HEADER_KEY = "STATSIG-STABLE-ID"
-private const val ACCEPT_HEADER_KEY = "Accept"
-private const val ACCEPT_HEADER_VALUE = "application/json"
 
 internal interface StatsigNetwork {
 
@@ -147,12 +126,19 @@ internal class StatsigNetworkImpl(
     private val gson: Gson
 ) : StatsigNetwork {
 
+    private companion object {
+        private const val TAG = "statsig::StatsigNetwork"
+    }
+
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private val connectivityListener = StatsigNetworkConnectivityListener(context)
     private val offlineLogsKeyV2 = "$OFFLINE_LOGS_KEY_V1:$sdkKey"
     private var initializeRequestsMap = Collections.synchronizedMap(
-        mutableMapOf<String, HttpURLConnection>()
+        mutableMapOf<String, Call>()
     )
+
+    private val gzipInterceptor = GZipRequestInterceptor()
+
     override suspend fun initialize(
         api: String,
         user: StatsigUser,
@@ -285,7 +271,7 @@ internal class StatsigNetworkImpl(
                 FULL_CHECKSUM to fullChecksum
             )
             var statusCode: Int? = null
-            initializeRequestsMap[userCacheKey]?.disconnect()
+            initializeRequestsMap[userCacheKey]?.cancel()
             initializeRequestsMap.remove(userCacheKey)
             val response = postRequest<InitializeResponse.SuccessfulInitializeResponse>(
                 UrlConfig(Endpoint.Initialize, api, fallbackUrls),
@@ -324,6 +310,13 @@ internal class StatsigNetworkImpl(
                 is TimeoutCancellationException -> {
                     return InitializeResponse.FailedInitializeResponse(
                         InitializeFailReason.CoroutineTimeout,
+                        e
+                    )
+                }
+
+                is IOException -> {
+                    return InitializeResponse.FailedInitializeResponse(
+                        InitializeFailReason.NetworkError,
                         e
                     )
                 }
@@ -369,7 +362,7 @@ internal class StatsigNetworkImpl(
                     PREVIOUS_DERIVED_FIELDS to previousDerivedFields,
                     FULL_CHECKSUM to fullChecksum
                 )
-                initializeRequestsMap[userCacheKey]?.disconnect()
+                initializeRequestsMap[userCacheKey]?.cancel()
                 initializeRequestsMap.remove(userCacheKey)
                 try {
                     emit(
@@ -385,7 +378,8 @@ internal class StatsigNetworkImpl(
                             stableID = metadataCopy.stableID
                         )
                     )
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.e(TAG, "Init Polling Error", e)
                 }
             }
         }
@@ -418,7 +412,6 @@ internal class StatsigNetworkImpl(
 
         try {
             while (currRetry <= LOG_EVENT_RETRY) {
-                ++currRetry
                 val response = postRequest<LogEventResponse>(
                     UrlConfig(Endpoint.Rgstr, api, fallbackUrls),
                     request.requestBody,
@@ -428,6 +421,7 @@ internal class StatsigNetworkImpl(
                 ) {
                     statusCode = it
                 }
+                currRetry++
 
                 if (response?.success == true || statusCode?.let { it in 200..299 } == true) {
                     return
@@ -445,8 +439,9 @@ internal class StatsigNetworkImpl(
                     return
                 }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             if (request.retryCount < MAX_LOG_RETRIES) {
+                Log.e(TAG, "Error posting logs, saving for retry...", e)
                 addFailedLogRequest(
                     request.copy(retryCount = request.retryCount + 1)
                 )
@@ -541,50 +536,46 @@ internal class StatsigNetworkImpl(
     ): T? {
         return withContext(dispatcherProvider.io) {
             // Perform network calls in IO thread
-            var connection: HttpURLConnection? = null
             var errorMessage: String? = null
             val start = System.nanoTime()
             var end: Long
+            var call: Call? = null
             try {
                 urlConfig.fallbackUrl = networkResolver.getActiveFallbackUrlFromMemory(urlConfig)
                 val url = URL(urlConfig.fallbackUrl ?: urlConfig.getUrl())
-                connection = urlConnectionProvider.open(url) as HttpURLConnection
-                if (requestCacheKey != null && urlConfig.endpoint != Endpoint.Rgstr) {
-                    if (initializeRequestsMap.size > MAX_INITIALIZE_REQUESTS) {
-                        initializeRequestsMap.values.forEach { it.disconnect() }
-                        initializeRequestsMap = Collections.synchronizedMap(mutableMapOf())
-                    }
-                    initializeRequestsMap[requestCacheKey] = connection
-                }
-                connection.doOutput = true
 
-                connection.requestMethod = POST
+                val clientBuilder = HttpUtils.getHttpClient().newBuilder()
+
                 if (timeout != null) {
-                    connection.connectTimeout = timeout
-                    connection.readTimeout = timeout
+                    clientBuilder.callTimeout(timeout.milliseconds.toJavaDuration())
                 }
-                connection.setRequestProperty(
-                    CONTENT_TYPE_HEADER_KEY,
-                    CONTENT_TYPE_HEADER_VALUE
-                )
-                connection.setRequestProperty(STATSIG_API_HEADER_KEY, sdkKey)
-                connection.setRequestProperty(STATSIG_SDK_TYPE_KEY, "android-client")
-                connection.setRequestProperty(STATSIG_SDK_VERSION_KEY, BuildConfig.VERSION_NAME)
-                connection.setRequestProperty(
-                    STATSIG_CLIENT_TIME_HEADER_KEY,
-                    System.currentTimeMillis().toString()
-                )
+
+                if (shouldCompressLogEvent(urlConfig, url.toString())) {
+                    clientBuilder.addInterceptor(gzipInterceptor)
+                }
+
+                val client = clientBuilder.build()
+
+                val body = bodyString.toJsonRequestBody()
+                val requestBuilder = Request.Builder().url(url).post(body).addStatsigHeaders(sdkKey)
 
                 if (eventsCount != null) {
-                    connection.setRequestProperty(STATSIG_EVENT_COUNT, eventsCount)
+                    requestBuilder.addHeader(STATSIG_EVENT_COUNT, eventsCount)
                 }
 
                 if (stableID != null) {
-                    connection.setRequestProperty(STATSIG_STABLE_ID_HEADER_KEY, stableID)
+                    requestBuilder.addHeader(STATSIG_STABLE_ID_HEADER_KEY, stableID)
                 }
 
-                connection.setRequestProperty(ACCEPT_HEADER_KEY, ACCEPT_HEADER_VALUE)
-                connection.setRequestProperty("Accept-Encoding", "gzip")
+                call = client.newCall(requestBuilder.build())
+
+                if (requestCacheKey != null && urlConfig.endpoint != Endpoint.Rgstr) {
+                    if (initializeRequestsMap.size > MAX_INITIALIZE_REQUESTS) {
+                        initializeRequestsMap.values.forEach { it.cancel() }
+                        initializeRequestsMap = Collections.synchronizedMap(mutableMapOf())
+                    }
+                    initializeRequestsMap[requestCacheKey] = call
+                }
 
                 if (contextType != null) {
                     diagnostics?.markStart(
@@ -595,37 +586,25 @@ internal class StatsigNetworkImpl(
                     )
                 }
 
-                val outputStream = if (shouldCompressLogEvent(urlConfig, url.toString())) {
-                    // Tell the server it's gzipped
-                    connection.setRequestProperty("Content-Encoding", "gzip")
-                    GZIPOutputStream(connection.outputStream)
-                } else {
-                    connection.outputStream
-                }
-
-                outputStream.bufferedWriter(Charsets.UTF_8)
-                    .use { it.write(bodyString) }
-                val code = connection.responseCode
-                val inputStream = if (code < HttpURLConnection.HTTP_BAD_REQUEST) {
-                    connection.inputStream
-                } else {
-                    connection.errorStream
-                }
+                // TODO: Should likely be call.executeAsync() after updating to OkHttp 5
+                val response = call.execute()
+                val code = response.code
 
                 val errorMarker = if (code >= HttpURLConnection.HTTP_BAD_REQUEST) {
-                    errorMessage =
-                        inputStream.bufferedReader(Charsets.UTF_8).use(BufferedReader::readText)
+                    errorMessage = response.body?.string()
                     Marker.ErrorMessage(errorMessage, code.toString(), null)
                 } else {
                     null
                 }
+
+                val region = response.header("x-statsig-region")
 
                 endDiagnostics(
                     diagnostics,
                     contextType,
                     KeyType.INITIALIZE,
                     code,
-                    connection.headerFields["x-statsig-region"]?.get(0),
+                    region,
                     retries,
                     errorMarker,
                     timeout
@@ -640,13 +619,7 @@ internal class StatsigNetworkImpl(
                                 T::class.java
                             )
                         }
-                        val encoding = connection.getHeaderField("Content-Encoding")
-
-                        var stream = inputStream
-                        if (encoding != null && encoding.equals("gzip")) {
-                            stream = GZIPInputStream(stream)
-                        }
-
+                        val stream = response.body!!.byteStream()
                         return@withContext stream.bufferedReader(Charsets.UTF_8)
                             .use { gson.fromJson(it, T::class.java) }
                     }
@@ -655,8 +628,11 @@ internal class StatsigNetworkImpl(
                 errorMessage = e.message
                 throw e
             } finally {
+                // Ensure call is either closed or cancelled.
+                if (call != null && call.isExecuted()) {
+                    call.cancel()
+                }
                 end = System.nanoTime()
-                connection?.disconnect()
                 coroutineScope.launch(dispatcherProvider.io) {
                     val timedOut = (end - start) / 1_000_000_000 > (timeout ?: 0)
                     val fallbackUpdated = networkResolver.tryFetchUpdatedFallbackInfo(
@@ -666,6 +642,7 @@ internal class StatsigNetworkImpl(
                         connectivityListener.isNetworkAvailable()
                     )
                     if (fallbackUpdated) {
+                        Log.i(TAG, "Updated fallback URL,")
                         urlConfig.fallbackUrl =
                             networkResolver.getActiveFallbackUrlFromMemory(urlConfig)
                     }

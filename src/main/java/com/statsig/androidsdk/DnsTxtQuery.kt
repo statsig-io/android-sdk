@@ -1,11 +1,10 @@
 package com.statsig.androidsdk
 
-import java.io.ByteArrayOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
+import android.util.Log
 import java.nio.charset.StandardCharsets
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 val FEATURE_ASSETS_DNS_QUERY = byteArrayOf(
     0x00, 0x00, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0d,
@@ -22,48 +21,23 @@ private val coroutineDispatcherProvider by lazy {
     CoroutineDispatcherProvider()
 }
 
-suspend fun fetchTxtRecords(
-    urlConnectionProvider: UrlConnectionProvider = defaultProvider
-): List<String> = withContext(coroutineDispatcherProvider.io) {
-    val connection = createHttpConnection(DNS_QUERY_ENDPOINT, urlConnectionProvider)
+private val TAG = "statsig::DnsTxtQuery"
 
+suspend fun fetchTxtRecords(): List<String> = withContext(coroutineDispatcherProvider.io) {
+    val request =
+        Request.Builder().url(DNS_QUERY_ENDPOINT).post(FEATURE_ASSETS_DNS_QUERY.toRequestBody())
+            .addHeader(HttpUtils.CONTENT_TYPE_HEADER_KEY, "application/dns-message")
+            .addHeader("Accept", "application/dns-message")
+            .addHeader(HttpUtils.CONNECTION_HEADER_KEY, HttpUtils.CONNECTION_HEADER_CLOSE)
+            .build()
+    val response = HttpUtils.getHttpClient().newCall(request).execute()
     try {
-        connection.outputStream.use { outputStream ->
-            val byteArray = ByteArrayOutputStream().apply {
-                write(FEATURE_ASSETS_DNS_QUERY)
-            }.toByteArray()
-            outputStream.write(byteArray)
-        }
-
-        if (connection.responseCode != HttpURLConnection.HTTP_OK) {
-            throw DnsTxtFetchError("Failed to fetch TXT records from DNS")
-        }
-
-        val inputStream = connection.inputStream
-
-        val bytes = inputStream.readBytes()
-        return@withContext parseDnsResponse(bytes)
+        return@withContext parseDnsResponse(response.body!!.bytes())
     } catch (e: Exception) {
         throw DnsTxtFetchError("Request timed out while fetching TXT records")
     } finally {
-        connection.disconnect()
+        response.close()
     }
-}
-
-private fun createHttpConnection(
-    url: String,
-    urlConnectionProvider: UrlConnectionProvider = defaultProvider
-): HttpURLConnection {
-    val connection = urlConnectionProvider.open(URL(url))as HttpURLConnection
-    connection.apply {
-        requestMethod = "POST"
-        setRequestProperty("Content-Type", "application/dns-message")
-        setRequestProperty("Accept", "application/dns-message")
-        doOutput = true
-//        connectTimeout = TimeUnit.SECONDS.toMillis(10).toInt()
-//        readTimeout = TimeUnit.SECONDS.toMillis(10).toInt()
-    }
-    return connection
 }
 
 fun parseDnsResponse(input: ByteArray): List<String> {
@@ -78,6 +52,7 @@ fun parseDnsResponse(input: ByteArray): List<String> {
     }
 
     val result = String(input.copyOfRange(startIndex - 1, input.size), StandardCharsets.UTF_8)
+    Log.v(TAG, "Parsed response: $result")
     return result.split(",")
 }
 

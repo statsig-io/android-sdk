@@ -1100,6 +1100,7 @@ class StatsigClient : LifecycleEventListener {
             )
         }
         initTime = System.currentTimeMillis()
+        HttpUtils.maybeInitializeHttpClient(application)
         this.diagnostics = Diagnostics(options.getLoggingCopy())
         diagnostics.markStart(KeyType.OVERALL)
         this.application = application
@@ -1117,7 +1118,6 @@ class StatsigClient : LifecycleEventListener {
             NetworkFallbackResolver(
                 sharedPreferences,
                 statsigScope,
-                urlConnectionProvider,
                 gson
             )
         store = Store(statsigScope, sharedPreferences, normalizedUser, sdkKey, options, gson)

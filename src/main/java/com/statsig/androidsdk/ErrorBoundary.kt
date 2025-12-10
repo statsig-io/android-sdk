@@ -2,11 +2,10 @@ package com.statsig.androidsdk
 
 import android.util.Log
 import com.google.gson.Gson
-import java.io.DataOutputStream
 import java.lang.RuntimeException
-import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.*
+import okhttp3.Request
 
 internal class ExternalException(message: String? = null) : Exception(message)
 
@@ -96,6 +95,7 @@ internal class ErrorBoundary(
                 if (apiKey == null) {
                     return@launch
                 }
+                val scopedApi = apiKey ?: ""
 
                 val name = exception.javaClass.canonicalName ?: exception.javaClass.name
                 if (seen.contains(name)) {
@@ -114,15 +114,13 @@ internal class ErrorBoundary(
                     "configName" to configName
                 )
                 val postData = Gson().toJson(body)
-
-                val conn = urlConnectionProvider.open(url) as HttpURLConnection
-                conn.requestMethod = "POST"
-                conn.doOutput = true
-                conn.setRequestProperty("Content-Type", "application/json")
-                conn.setRequestProperty("STATSIG-API-KEY", apiKey)
-                conn.useCaches = false
-                DataOutputStream(conn.outputStream).use { it.writeBytes(postData) }
-                conn.responseCode // triggers request
+                val httpClient = HttpUtils.getHttpClient()
+                val request = Request.Builder()
+                    .url(url)
+                    .post(postData.toJsonRequestBody())
+                    .addStatsigHeaders(scopedApi)
+                    .build()
+                httpClient.newCall(request).execute()
             }
         } catch (e: Exception) {
             // noop

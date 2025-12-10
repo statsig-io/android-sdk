@@ -31,6 +31,7 @@ class StatsigInitializationTimeoutTest {
 
     @Before
     fun setup() {
+        TestUtil.setupHttp(app)
         mockWebServer = MockWebServer()
         val dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse =
@@ -78,6 +79,7 @@ class StatsigInitializationTimeoutTest {
 
     @After
     fun tearDown() {
+        TestUtil.reset()
         mockWebServer.shutdown()
     }
 

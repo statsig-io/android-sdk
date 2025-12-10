@@ -34,6 +34,7 @@ class ErrorBoundaryTest {
 
         stubFor(post(urlMatching("/v1/sdk_exception")).willReturn(aResponse().withStatus(202)))
 
+        TestUtil.setupHttp(app)
         TestUtil.mockHashing()
         val network = TestUtil.mockBrokenNetwork()
         Statsig.client = StatsigClient()

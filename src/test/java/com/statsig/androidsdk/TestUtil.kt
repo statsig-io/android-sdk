@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import okhttp3.Dns
 import org.junit.Assert
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -402,9 +403,16 @@ class TestUtil {
             return statsigNetwork
         }
 
+        fun setupHttp(app: Application) {
+            // Tests need an OkHttpClient without the custom DNS resolution
+            HttpUtils.maybeInitializeHttpClient(app)
+            HttpUtils.okHttpClient = HttpUtils.getHttpClient().newBuilder().dns(Dns.SYSTEM).build()
+        }
+
         fun reset() {
             clearMockDispatchers()
             clearAllMocks()
+            HttpUtils.okHttpClient = null
         }
 
         fun clearMockDispatchers() {

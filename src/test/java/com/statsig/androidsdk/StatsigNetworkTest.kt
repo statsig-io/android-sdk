@@ -10,6 +10,9 @@ import com.github.tomakehurst.wiremock.client.WireMock.stubFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlMatching
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import com.github.tomakehurst.wiremock.junit.WireMockRule
+import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_STABLE_ID_HEADER_KEY
+import io.mockk.every
+import io.mockk.spyk
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import org.junit.After
@@ -46,9 +49,15 @@ class StatsigNetworkTest {
         val coroutineScope = TestScope(dispatcher)
         TestUtil.mockHashing()
         sharedPreferences = TestUtil.getTestSharedPrefs(app)
+        TestUtil.setupHttp(app)
 
         stubFor(
             post(urlMatching("/initialize"))
+                .willReturn(aResponse().withStatus(202))
+        )
+
+        stubFor(
+            post(urlMatching("/log_event"))
                 .willReturn(aResponse().withStatus(202))
         )
 
@@ -59,8 +68,7 @@ class StatsigNetworkTest {
                 coroutineScope,
                 gson = gson
             )
-
-        val store =
+        val store = spyk<Store>(
             Store(
                 coroutineScope,
                 sharedPreferences,
@@ -69,6 +77,12 @@ class StatsigNetworkTest {
                 options,
                 gson = gson
             )
+        )
+        every {
+            store.getSDKFlags()
+        } answers {
+            mapOf("enable_log_event_compression" to true)
+        }
         network =
             StatsigNetworkImpl(
                 app,
@@ -100,6 +114,29 @@ class StatsigNetworkTest {
         )
     }
 
+    @Test
+    fun initialize_declaresAcceptEncoding() {
+        runBlocking { makeInitializeRequest() }
+
+        wireMockRule.verify(
+            postRequestedFor(
+                urlMatching("/initialize")
+            ).withHeader("Accept-Encoding", equalTo(HttpUtils.ENCODING_GZIP))
+        )
+    }
+
+    @Test
+    fun logEvent_gzipsRequestBody() {
+        val event = LogEvent("eventName")
+        runBlocking { makeLogEventRequest(listOf(event)) }
+
+        wireMockRule.verify(
+            postRequestedFor(
+                urlMatching("/log_event")
+            ).withHeader(HttpUtils.CONTENT_ENCODING_HEADER_KEY, equalTo(HttpUtils.ENCODING_GZIP))
+        )
+    }
+
     private suspend fun makeInitializeRequest() {
         try {
             network.initializeImpl(
@@ -117,6 +154,20 @@ class StatsigNetworkTest {
             )
         } catch (e: Exception) {
             // noop
+        }
+    }
+
+    private suspend fun makeLogEventRequest(events: List<LogEvent>) {
+        val logEventBody = LogEventData(ArrayList(events), metadata)
+        try {
+            network.apiPostLogs(
+                api = wireMockRule.baseUrl(),
+                bodyString = gson.toJson(logEventBody),
+                eventsCount = "1",
+                fallbackUrls = null
+            )
+        } catch (e: Exception) {
+            throw e
         }
     }
 }

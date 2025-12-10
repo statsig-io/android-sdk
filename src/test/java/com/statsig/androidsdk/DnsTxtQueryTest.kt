@@ -1,11 +1,30 @@
+import com.statsig.androidsdk.TestUtil
 import com.statsig.androidsdk.fetchTxtRecords
 import java.io.IOException
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 
+@RunWith(RobolectricTestRunner::class)
 class DnsTxtQueryTest {
+
+    @Before
+    fun setUp() {
+        val app = RuntimeEnvironment.getApplication()
+        TestUtil.setupHttp(app)
+    }
+
+    @After
+    fun tearDown() {
+        TestUtil.reset()
+    }
+
     @Test
     fun testTxtRecords() = runBlocking {
         try {

@@ -8,6 +8,7 @@ import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.RecordedRequest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +25,7 @@ class InitializationRetryFailedLogsTest {
 
     @Before
     fun setup() {
+        TestUtil.setupHttp(app)
         mockWebServer = MockWebServer()
         TestUtil.mockDispatchers()
 
@@ -53,6 +55,11 @@ class InitializationRetryFailedLogsTest {
             }
         }
         mockWebServer.dispatcher = dispatcher
+    }
+
+    @After
+    fun teardown() {
+        TestUtil.reset()
     }
 
     @Test
