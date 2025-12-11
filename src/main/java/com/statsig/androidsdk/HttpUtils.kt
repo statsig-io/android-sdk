@@ -102,7 +102,8 @@ class HttpUtils {
         }
 
         @JvmSynthetic
-        internal fun maybeInitializeHttpClient(app: Application? = null) {
+        @VisibleForTesting(otherwise = PACKAGE_PRIVATE)
+        fun maybeInitializeHttpClient(app: Application? = null) {
             if (okHttpClient == null) {
                 okHttpClient = buildHttpClient(app)
             }
