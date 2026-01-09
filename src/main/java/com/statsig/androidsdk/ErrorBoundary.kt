@@ -28,11 +28,8 @@ internal class ErrorBoundary(
     private var statsigMetadata: StatsigMetadata? = null
     private var seen = HashSet<String>()
 
-    private lateinit var urlConnectionProvider: UrlConnectionProvider
-
-    fun initialize(apiKey: String, urlConnectionProvider: UrlConnectionProvider = defaultProvider) {
+    fun initialize(apiKey: String) {
         this.apiKey = apiKey
-        this.urlConnectionProvider = urlConnectionProvider
     }
 
     fun getUrl(): String = urlString

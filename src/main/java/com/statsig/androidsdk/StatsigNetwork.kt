@@ -100,7 +100,6 @@ internal fun StatsigNetwork(
     networkFallbackResolver: NetworkFallbackResolver,
     coroutineScope: CoroutineScope,
     store: Store,
-    urlConnectionProvider: UrlConnectionProvider = defaultProvider,
     gson: Gson
 ): StatsigNetwork = StatsigNetworkImpl(
     context,
@@ -110,7 +109,6 @@ internal fun StatsigNetwork(
     networkFallbackResolver,
     coroutineScope,
     store,
-    urlConnectionProvider,
     gson
 )
 
@@ -122,7 +120,6 @@ internal class StatsigNetworkImpl(
     private val networkResolver: NetworkFallbackResolver,
     private val coroutineScope: CoroutineScope,
     private val store: Store,
-    private val urlConnectionProvider: UrlConnectionProvider = defaultProvider,
     private val gson: Gson
 ) : StatsigNetwork {
 

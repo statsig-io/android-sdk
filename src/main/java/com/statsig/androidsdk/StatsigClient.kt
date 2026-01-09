@@ -46,9 +46,6 @@ class StatsigClient : LifecycleEventListener {
 
     private var initTime: Long = System.currentTimeMillis()
 
-    @VisibleForTesting
-    var urlConnectionProvider: UrlConnectionProvider = defaultProvider
-
     private var dispatcherProvider = CoroutineDispatcherProvider()
     private val errorScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
     internal var errorBoundary = ErrorBoundary(errorScope)
@@ -102,7 +99,7 @@ class StatsigClient : LifecycleEventListener {
             )
             return
         }
-        errorBoundary.initialize(sdkKey, urlConnectionProvider)
+        errorBoundary.initialize(sdkKey)
         errorBoundary.capture(
             {
                 val normalizedUser = setup(application, sdkKey, user, options)
@@ -170,7 +167,7 @@ class StatsigClient : LifecycleEventListener {
             )
             return null
         }
-        errorBoundary.initialize(sdkKey, urlConnectionProvider)
+        errorBoundary.initialize(sdkKey)
         return errorBoundary.captureAsync(
             {
                 val normalizedUser = setup(application, sdkKey, user, options)
@@ -1130,7 +1127,6 @@ class StatsigClient : LifecycleEventListener {
                     networkFallbackResolver,
                     statsigScope,
                     store,
-                    urlConnectionProvider,
                     gson
                 )
         }
