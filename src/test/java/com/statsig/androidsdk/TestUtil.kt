@@ -313,7 +313,10 @@ class TestUtil {
         }
 
         fun getTestSharedPrefs(context: Context): SharedPreferences =
-            context.getSharedPreferences(SHARED_PREFERENCES_KEY, MODE_PRIVATE)
+            context.getSharedPreferences(LegacyKeyValueStorage.SHARED_PREFERENCES_KEY, MODE_PRIVATE)
+
+        internal fun getTestKeyValueStore(app: Application): KeyValueStorage<String> =
+            LegacyKeyValueStorage(app)
 
         fun mockHashing() {
             mockkObject(Hashing)

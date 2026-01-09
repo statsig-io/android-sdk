@@ -3,6 +3,7 @@ import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import com.statsig.androidsdk.DEFAULT_INIT_API
 import com.statsig.androidsdk.Endpoint
+import com.statsig.androidsdk.KeyValueStorage
 import com.statsig.androidsdk.NetworkFallbackResolver
 import com.statsig.androidsdk.StatsigUtil
 import com.statsig.androidsdk.TestUtil
@@ -29,6 +30,7 @@ import org.robolectric.RuntimeEnvironment
 class NetworkFallbackResolverTest {
 
     private lateinit var testSharedPrefs: SharedPreferences
+    private lateinit var testKeyValueStorage: KeyValueStorage<String>
     private lateinit var resolver: NetworkFallbackResolver
     private var app: Application = RuntimeEnvironment.getApplication()
 
@@ -62,9 +64,10 @@ class NetworkFallbackResolverTest {
         coroutineScope = TestScope(dispatcher)
         app = RuntimeEnvironment.getApplication()
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
         resolver =
             NetworkFallbackResolver(
-                testSharedPrefs,
+                testKeyValueStorage,
                 coroutineScope,
                 gson = StatsigUtil.getOrBuildGson()
             )
@@ -76,7 +79,7 @@ class NetworkFallbackResolverTest {
     }
 
     @Test
-    fun getsFallbackInfo() = runTest(dispatcher) {
+    fun getsFallbackInfo() = runTest {
         val editor = testSharedPrefs.edit()
         val json = """
             {
@@ -97,7 +100,7 @@ class NetworkFallbackResolverTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun wipesFallbackInfoWhenExpired() = runTest(dispatcher) {
+    fun wipesFallbackInfoWhenExpired() = runTest {
         // Synchronize watches!
         // The test scheduler has a distinct system time that starts at 0.
         val now = System.currentTimeMillis()
@@ -127,8 +130,8 @@ class NetworkFallbackResolverTest {
         val result = resolver.getActiveFallbackUrlFromMemory(DEFAULT_INIT_URL_CONFIG)
 
         assertThat(result).isNull()
-        // TODO: uncomment below check after de-flaking the race condition causing it to fail
-        // assertThat(resolver.readFallbackInfoFromCache()).isNull()
+        testScheduler.advanceUntilIdle()
+        assertThat(resolver.readFallbackInfoFromCache()).isNull()
     }
 
     @Test

@@ -2,9 +2,9 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import android.content.SharedPreferences
+import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
 import io.mockk.coEvery
-import io.mockk.spyk
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -66,7 +66,7 @@ class AsyncInitVsUpdateTest {
             val user = secondArg<StatsigUser>()
             getResponseForUser(user)
         }
-        client = spyk()
+        client = StatsigClient()
         client.statsigNetwork = network
     }
 
@@ -75,7 +75,7 @@ class AsyncInitVsUpdateTest {
         runBlocking {
             client.shutdownSuspend()
         }
-        TestUtil.clearMockDispatchers()
+        TestUtil.reset()
     }
 
     @Test
@@ -183,9 +183,8 @@ class AsyncInitVsUpdateTest {
         assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     @Test
-    fun testNoAwait() {
+    fun testNoAwait() = runBlocking {
         val userA = StatsigUser("user-a")
         val userB = StatsigUser("user-b")
 
@@ -199,14 +198,14 @@ class AsyncInitVsUpdateTest {
         }
         client.initializeAsync(app, "client-key", userA, callback)
         didInitializeUserA.await(1, TimeUnit.SECONDS)
-        GlobalScope.async {
+        async {
             client.updateUser(userB)
         }
 
         // Calling updateUser without suspending will not guarantee synchronous load from cache
         val config = client.getConfig("a_config")
         val value = config.getString("key", "default")
-        assertEquals("user_a_value", value)
-        assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
+        assertThat("user_a_value").isEqualTo(value)
+        assertThat(EvaluationReason.Network).isEqualTo(config.getEvaluationDetails().reason)
     }
 }

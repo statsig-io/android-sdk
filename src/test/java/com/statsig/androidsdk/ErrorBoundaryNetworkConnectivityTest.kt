@@ -71,7 +71,7 @@ class ErrorBoundaryNetworkConnectivityTest {
         val store =
             Store(
                 coroutineScope,
-                TestUtil.getTestSharedPrefs(app),
+                TestUtil.getTestKeyValueStore(app),
                 StatsigUser(),
                 "client-apikey",
                 StatsigOptions(),
@@ -81,7 +81,7 @@ class ErrorBoundaryNetworkConnectivityTest {
             StatsigNetworkImpl(
                 app,
                 "client-key",
-                TestUtil.getTestSharedPrefs(app),
+                TestUtil.getTestKeyValueStore(app),
                 StatsigOptions(),
                 mockk(),
                 coroutineScope,

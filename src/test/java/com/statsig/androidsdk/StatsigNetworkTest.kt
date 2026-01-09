@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.equalTo
 import com.github.tomakehurst.wiremock.client.WireMock.post
@@ -13,8 +12,8 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule
 import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_STABLE_ID_HEADER_KEY
 import io.mockk.every
 import io.mockk.spyk
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -41,14 +40,14 @@ class StatsigNetworkTest {
 
     private lateinit var options: StatsigOptions
     private lateinit var fallbackResolver: NetworkFallbackResolver
-    private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var keyValueStorage: KeyValueStorage<String>
 
     @Before
     fun setup() {
         val dispatcher = TestUtil.mockDispatchers()
         val coroutineScope = TestScope(dispatcher)
         TestUtil.mockHashing()
-        sharedPreferences = TestUtil.getTestSharedPrefs(app)
+        keyValueStorage = TestUtil.getTestKeyValueStore(app)
         TestUtil.setupHttp(app)
 
         stubFor(
@@ -64,14 +63,14 @@ class StatsigNetworkTest {
         options = StatsigOptions(api = wireMockRule.baseUrl())
         fallbackResolver =
             NetworkFallbackResolver(
-                sharedPreferences,
+                keyValueStorage,
                 coroutineScope,
                 gson = gson
             )
         val store = spyk<Store>(
             Store(
                 coroutineScope,
-                sharedPreferences,
+                keyValueStorage,
                 user,
                 "client-apikey",
                 options,
@@ -87,7 +86,7 @@ class StatsigNetworkTest {
             StatsigNetworkImpl(
                 app,
                 "client-key",
-                TestUtil.getTestSharedPrefs(app),
+                TestUtil.getTestKeyValueStore(app),
                 options,
                 networkResolver = fallbackResolver,
                 coroutineScope,
@@ -102,10 +101,10 @@ class StatsigNetworkTest {
     }
 
     @Test
-    fun initialize_includesStableIDinHeader() {
+    fun initialize_includesStableIDinHeader() = runTest {
         metadata.overrideStableID(overrideID)
 
-        runBlocking { makeInitializeRequest() }
+        makeInitializeRequest()
 
         wireMockRule.verify(
             postRequestedFor(
@@ -115,8 +114,8 @@ class StatsigNetworkTest {
     }
 
     @Test
-    fun initialize_declaresAcceptEncoding() {
-        runBlocking { makeInitializeRequest() }
+    fun initialize_declaresAcceptEncoding() = runTest {
+        makeInitializeRequest()
 
         wireMockRule.verify(
             postRequestedFor(
@@ -126,9 +125,9 @@ class StatsigNetworkTest {
     }
 
     @Test
-    fun logEvent_gzipsRequestBody() {
+    fun logEvent_gzipsRequestBody() = runTest {
         val event = LogEvent("eventName")
-        runBlocking { makeLogEventRequest(listOf(event)) }
+        makeLogEventRequest(listOf(event))
 
         wireMockRule.verify(
             postRequestedFor(

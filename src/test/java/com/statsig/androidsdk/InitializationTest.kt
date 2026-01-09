@@ -1,10 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestScope
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
@@ -19,21 +16,16 @@ import org.robolectric.RuntimeEnvironment
 
 @RunWith(RobolectricTestRunner::class)
 class InitializationTest {
-    private lateinit var dispatcher: CoroutineDispatcher
     private lateinit var app: Application
     private lateinit var mockWebServer: MockWebServer
     private var user: StatsigUser = StatsigUser("test-user")
-    private lateinit var testSharedPrefs: SharedPreferences
     private var initializationHits = 0
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     internal fun setup() {
+        TestUtil.mockDispatchers()
         mockWebServer = MockWebServer()
-
-        dispatcher = TestUtil.mockDispatchers()
         app = RuntimeEnvironment.getApplication()
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         TestUtil.mockHashing()
         TestUtil.setupHttp(app)
 
@@ -58,20 +50,17 @@ class InitializationTest {
         TestUtil.reset()
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun testDefaultInitialization() = runTest(dispatcher) {
+    fun testDefaultInitialization() = runTest {
         val options = StatsigOptions(api = mockWebServer.url("/v1").toString())
         val client = StatsigClient()
-        client.statsigScope = TestScope(dispatcher)
         client.initialize(app, "client-key", user, options)
-        assert(initializationHits == 1)
+        assertThat(initializationHits).isEqualTo(1)
         client.shutdown()
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun testRetry() = runTest(dispatcher) {
+    fun testRetry() = runTest {
         val options =
             StatsigOptions(
                 api = mockWebServer.url("/v1").toString(),
@@ -81,7 +70,7 @@ class InitializationTest {
         val client = StatsigClient()
 
         client.initialize(app, "client-key", user, options)
-        assert(initializationHits == 3)
+        assertThat(initializationHits).isEqualTo(3)
         client.shutdown()
     }
 }

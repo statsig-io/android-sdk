@@ -25,6 +25,7 @@ class LogEventTest {
     private val loggingDisabled = StatsigRuntimeMutableOptions(loggingEnabled = false)
     private val app: Application = RuntimeEnvironment.getApplication()
     private lateinit var testSharedPrefs: SharedPreferences
+    private lateinit var testKeyValueStorage: KeyValueStorage<String>
     private lateinit var activity: Activity
     private lateinit var statsigLifecycleListener: Application.ActivityLifecycleCallbacks
     private var logEventRequests = mutableListOf<LogEventData>()
@@ -39,6 +40,7 @@ class LogEventTest {
             coroutineScope = TestScope(dispatcher)
             activity = mockk()
             testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+            testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
             Statsig.client = StatsigClient()
             network = TestUtil.mockNetwork(onLog = {
                 logEventRequests.add(it)
@@ -71,8 +73,7 @@ class LogEventTest {
             Thread.sleep(500)
             assert(logEventRequests.size == 1)
             assert(
-                StatsigUtil.getFromSharedPrefs(testSharedPrefs, "StatsigNetwork.OFFLINE_LOGS")!!
-                    .isNotEmpty()
+                testSharedPrefs.getString("StatsigNetwork.OFFLINE_LOGS", null)!!.isNotEmpty()
             )
             assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
             assert(logEventRequests[0].events[1].eventName == "viewCartIcon")
@@ -194,7 +195,7 @@ class LogEventTest {
         val gson = StatsigUtil.getOrBuildGson()
         val store = Store(
             coroutineScope,
-            testSharedPrefs,
+            testKeyValueStorage,
             StatsigUser(),
             "client-apikey",
             StatsigOptions(),
@@ -204,7 +205,7 @@ class LogEventTest {
             StatsigNetwork(
                 app,
                 "client-apikey",
-                testSharedPrefs,
+                testKeyValueStorage,
                 StatsigOptions(),
                 mockk(),
                 coroutineScope,
@@ -223,11 +224,12 @@ class LogEventTest {
         coEvery {
             network.addFailedLogRequest(any())
         } coAnswers {
-            StatsigUtil.saveStringToSharedPrefs(
-                testSharedPrefs,
+            testSharedPrefs.edit().putString(
                 "StatsigNetwork.OFFLINE_LOGS",
-                StatsigUtil.getOrBuildGson().toJson(StatsigPendingRequests(listOf(firstArg())))
-            )
+                StatsigUtil.getOrBuildGson().toJson(
+                    StatsigPendingRequests(listOf(firstArg()))
+                )
+            ).apply()
         }
         mockNetwork(network)
         statsigLifecycleListener.onActivityPaused(activity)

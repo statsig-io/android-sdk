@@ -2,7 +2,6 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import android.content.Context
-import android.content.SharedPreferences
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.util.Log
@@ -21,9 +20,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
-@VisibleForTesting
-internal const val SHARED_PREFERENCES_KEY: String = "com.statsig.androidsdk"
 private const val STABLE_ID_KEY: String = "STABLE_ID"
+private const val STABLE_ID_STORE_NAME: String = "stableidstore"
 
 class StatsigClient : LifecycleEventListener {
     private companion object {
@@ -32,7 +30,7 @@ class StatsigClient : LifecycleEventListener {
     private lateinit var store: Store
     private lateinit var user: StatsigUser
     private lateinit var application: Application
-    private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var keyValueStorage: KeyValueStorage<String>
     private lateinit var sdkKey: String
     private lateinit var lifecycleListener: StatsigActivityLifecycleListener
     private lateinit var logger: StatsigLogger
@@ -53,7 +51,6 @@ class StatsigClient : LifecycleEventListener {
 
     private var dispatcherProvider = CoroutineDispatcherProvider()
     private val errorScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
-
     internal var errorBoundary = ErrorBoundary(errorScope)
 
     private var pollingJob: Job? = null
@@ -1106,8 +1103,7 @@ class StatsigClient : LifecycleEventListener {
         this.diagnostics = Diagnostics(options.getLoggingCopy())
         diagnostics.markStart(KeyType.OVERALL)
         this.application = application
-        this.sharedPreferences =
-            application.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+        this.keyValueStorage = LegacyKeyValueStorage(application)
         this.sdkKey = sdkKey
         this.options = options
         val normalizedUser = normalizeUser(user)
@@ -1118,18 +1114,18 @@ class StatsigClient : LifecycleEventListener {
         statsigScope = CoroutineScope(statsigJob + dispatcherProvider.main + exceptionHandler)
         val networkFallbackResolver =
             NetworkFallbackResolver(
-                sharedPreferences,
+                keyValueStorage,
                 statsigScope,
                 gson
             )
-        store = Store(statsigScope, sharedPreferences, normalizedUser, sdkKey, options, gson)
+        store = Store(statsigScope, keyValueStorage, normalizedUser, sdkKey, options, gson)
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
             statsigNetwork =
                 StatsigNetwork(
                     application,
                     sdkKey,
-                    sharedPreferences,
+                    keyValueStorage,
                     options,
                     networkFallbackResolver,
                     statsigScope,
@@ -1326,12 +1322,15 @@ class StatsigClient : LifecycleEventListener {
     }
 
     private fun getLocalStorageStableID(): String {
-        var stableID = this@StatsigClient.sharedPreferences.getString(STABLE_ID_KEY, null)
+        var stableID = this@StatsigClient.keyValueStorage.readValueSync(
+            STABLE_ID_STORE_NAME,
+            STABLE_ID_KEY
+        )
         if (stableID == null) {
             stableID = UUID.randomUUID().toString()
             statsigScope.launch {
                 withContext(dispatcherProvider.io) {
-                    this@StatsigClient.saveStringToSharedPrefs(STABLE_ID_KEY, stableID)
+                    keyValueStorage.writeValue(STABLE_ID_STORE_NAME, STABLE_ID_KEY, stableID)
                 }
             }
         }
@@ -1398,10 +1397,6 @@ class StatsigClient : LifecycleEventListener {
         } catch (e: PackageManager.NameNotFoundException) {
             // noop
         }
-    }
-
-    internal suspend fun saveStringToSharedPrefs(key: String, value: String) {
-        StatsigUtil.saveStringToSharedPrefs(sharedPreferences, key, value)
     }
 
     private suspend fun shutdownImpl() {

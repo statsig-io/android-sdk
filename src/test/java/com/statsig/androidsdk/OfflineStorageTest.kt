@@ -18,6 +18,7 @@ class OfflineStorageTest {
 
     private val app: Application = RuntimeEnvironment.getApplication()
     private lateinit var testSharedPrefs: SharedPreferences
+    private lateinit var testKeyValueStorage: KeyValueStorage<String>
     private val gson = StatsigUtil.getOrBuildGson()
     private lateinit var network: StatsigNetwork
     private val now = System.currentTimeMillis()
@@ -26,11 +27,12 @@ class OfflineStorageTest {
     @Before
     fun setUp() {
         testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
 
         network = StatsigNetwork(
             app,
             "client-key",
-            testSharedPrefs,
+            testKeyValueStorage,
             StatsigOptions(),
             mockk(),
             mockk(),

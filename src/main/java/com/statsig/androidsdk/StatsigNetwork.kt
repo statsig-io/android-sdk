@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.util.Log
 import com.google.gson.Gson
 import com.statsig.androidsdk.HttpUtils.Companion.RETRY_CODES
@@ -49,6 +48,7 @@ private const val FULL_CHECKSUM = "full_checksum"
 
 // SharedPref keys
 private const val OFFLINE_LOGS_KEY_V1: String = "StatsigNetwork.OFFLINE_LOGS"
+private const val OFFLINE_LOGS_STORE_NAME: String = "offlinelogs"
 
 internal interface StatsigNetwork {
 
@@ -95,7 +95,7 @@ internal interface StatsigNetwork {
 internal fun StatsigNetwork(
     context: Context,
     sdkKey: String,
-    sharedPrefs: SharedPreferences,
+    keyValueStorage: KeyValueStorage<String>,
     options: StatsigOptions,
     networkFallbackResolver: NetworkFallbackResolver,
     coroutineScope: CoroutineScope,
@@ -105,7 +105,7 @@ internal fun StatsigNetwork(
 ): StatsigNetwork = StatsigNetworkImpl(
     context,
     sdkKey,
-    sharedPrefs,
+    keyValueStorage,
     options,
     networkFallbackResolver,
     coroutineScope,
@@ -117,7 +117,7 @@ internal fun StatsigNetwork(
 internal class StatsigNetworkImpl(
     context: Context,
     private val sdkKey: String,
-    private val sharedPrefs: SharedPreferences,
+    private val keyValueStorage: KeyValueStorage<String>,
     private val options: StatsigOptions,
     private val networkResolver: NetworkFallbackResolver,
     private val coroutineScope: CoroutineScope,
@@ -457,8 +457,8 @@ internal class StatsigNetworkImpl(
         if (savedLogs.isEmpty()) {
             return
         }
-        StatsigUtil.removeFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY_V1)
-        StatsigUtil.removeFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
+        keyValueStorage.removeValue(OFFLINE_LOGS_STORE_NAME, OFFLINE_LOGS_KEY_V1)
+        keyValueStorage.removeValue(OFFLINE_LOGS_STORE_NAME, offlineLogsKeyV2)
 
         val eventsCount = savedLogs.size.toString()
         savedLogs.map { retryApiPostLogs(api, it, eventsCount, fallbackUrls) }
@@ -476,21 +476,21 @@ internal class StatsigNetworkImpl(
             val limitedLogs = filterValidLogs(savedLogs)
 
             try {
-                StatsigUtil.saveStringToSharedPrefs(
-                    sharedPrefs,
+                keyValueStorage.writeValue(
+                    OFFLINE_LOGS_STORE_NAME,
                     offlineLogsKeyV2,
                     gson.toJson(StatsigPendingRequests(limitedLogs))
                 )
             } catch (_: Exception) {
-                StatsigUtil.removeFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
+                keyValueStorage.removeValue(OFFLINE_LOGS_STORE_NAME, offlineLogsKeyV2)
             }
         }
     }
 
     override suspend fun getSavedLogs(): List<StatsigOfflineRequest> {
         return withContext(dispatcherProvider.io) {
-            val json: String = StatsigUtil.getFromSharedPrefs(sharedPrefs, offlineLogsKeyV2)
-                ?: StatsigUtil.getFromSharedPrefs(sharedPrefs, OFFLINE_LOGS_KEY_V1)
+            val json: String = keyValueStorage.readValue(OFFLINE_LOGS_STORE_NAME, offlineLogsKeyV2)
+                ?: keyValueStorage.readValue(OFFLINE_LOGS_STORE_NAME, OFFLINE_LOGS_KEY_V1)
                 ?: return@withContext arrayListOf()
             return@withContext try {
                 val pendingRequests = gson.fromJson(json, StatsigPendingRequests::class.java)
@@ -587,6 +587,7 @@ internal class StatsigNetworkImpl(
                 }
 
                 // TODO: Should likely be call.executeAsync() after updating to OkHttp 5
+                //  Alternatively, could convert to enqueue() w/ a callback
                 val response = call.execute()
                 val code = response.code
 

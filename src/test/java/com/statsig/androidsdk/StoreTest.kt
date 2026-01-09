@@ -109,7 +109,7 @@ class StoreTest {
         val store =
             Store(
                 coroutineScope,
-                TestUtil.getTestSharedPrefs(app),
+                TestUtil.getTestKeyValueStore(app),
                 userJkw,
                 "client-apikey",
                 StatsigOptions(),
@@ -169,7 +169,7 @@ class StoreTest {
 
     @Test
     fun testEvaluationReasons() = runBlocking {
-        val sharedPrefs = TestUtil.getTestSharedPrefs(app)
+        val sharedPrefs = TestUtil.getTestKeyValueStore(app)
         var store =
             Store(
                 coroutineScope,
@@ -258,7 +258,7 @@ class StoreTest {
         val store =
             Store(
                 coroutineScope,
-                TestUtil.getTestSharedPrefs(app),
+                TestUtil.getTestKeyValueStore(app),
                 userJkw,
                 "client-apikey",
                 StatsigOptions(),
@@ -277,7 +277,7 @@ class StoreTest {
         val store =
             Store(
                 coroutineScope,
-                TestUtil.getTestSharedPrefs(app),
+                TestUtil.getTestKeyValueStore(app),
                 userJkw,
                 "client-apikey",
                 StatsigOptions(),
@@ -350,7 +350,7 @@ class StoreTest {
         val store =
             Store(
                 coroutineScope,
-                TestUtil.getTestSharedPrefs(app),
+                TestUtil.getTestKeyValueStore(app),
                 userJkw,
                 "client-apikey",
                 StatsigOptions(),
@@ -372,7 +372,7 @@ class StoreTest {
         val store =
             Store(
                 coroutineScope,
-                TestUtil.getTestSharedPrefs(app),
+                TestUtil.getTestKeyValueStore(app),
                 userJkw,
                 "client-apikey",
                 StatsigOptions(),
@@ -419,7 +419,7 @@ class StoreTest {
 
     @Test
     fun testStickyBehaviorAcrossSessions() = runBlocking {
-        val sharedPrefs = TestUtil.getTestSharedPrefs(app)
+        val sharedPrefs = TestUtil.getTestKeyValueStore(app)
         var store =
             Store(
                 coroutineScope,

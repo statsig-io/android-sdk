@@ -1,6 +1,5 @@
 package com.statsig.androidsdk
 
-import android.content.SharedPreferences
 import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
@@ -14,6 +13,8 @@ private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STIC
 private const val STICKY_DEVICE_EXPERIMENTS_KEY: String = "Statsig.STICKY_DEVICE_EXPERIMENTS"
 private const val LOCAL_OVERRIDES_KEY: String = "Statsig.LOCAL_OVERRIDES"
 private const val CACHE_KEY_MAPPING_KEY: String = "Statsig.CACHE_KEY_MAPPING"
+
+private const val STORE_NAME: String = "ondiskvaluecache"
 
 private data class StickyUserExperiments(
     @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>
@@ -34,7 +35,7 @@ private data class Cache(
 
 internal class Store(
     private val statsigScope: CoroutineScope,
-    private val sharedPrefs: SharedPreferences,
+    private val keyValueStorage: KeyValueStorage<String>,
     user: StatsigUser,
     private val sdkKey: String,
     private val options: StatsigOptions,
@@ -65,19 +66,17 @@ internal class Store(
     }
 
     fun syncLoadFromLocalStorage() {
-        val cachedResponse = StatsigUtil.syncGetFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
-        val cachedDeviceValues = StatsigUtil.syncGetFromSharedPrefs(
-            sharedPrefs,
+        val cachedResponse = keyValueStorage.readValueSync(STORE_NAME, CACHE_BY_USER_KEY)
+        val cachedDeviceValues = keyValueStorage.readValueSync(
+            STORE_NAME,
             STICKY_DEVICE_EXPERIMENTS_KEY
         )
-        val cachedLocalOverrides = StatsigUtil.syncGetFromSharedPrefs(
-            sharedPrefs,
-            LOCAL_OVERRIDES_KEY
-        )
-        val cachedCacheKeyMapping = StatsigUtil.syncGetFromSharedPrefs(
-            sharedPrefs,
+        val cachedLocalOverrides = keyValueStorage.readValueSync(STORE_NAME, LOCAL_OVERRIDES_KEY)
+        val cachedCacheKeyMapping = keyValueStorage.readValueSync(
+            STORE_NAME,
             CACHE_KEY_MAPPING_KEY
         )
+
         if (cachedResponse != null) {
             val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
             try {
@@ -85,7 +84,7 @@ internal class Store(
                 cacheById = ConcurrentHashMap(localCache)
             } catch (_: Exception) {
                 statsigScope.launch(dispatcherProvider.io) {
-                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY)
+                    keyValueStorage.removeValue(STORE_NAME, CACHE_BY_USER_KEY)
                 }
             }
         }
@@ -101,7 +100,7 @@ internal class Store(
                 stickyDeviceExperiments = ConcurrentHashMap(localSticky)
             } catch (_: Exception) {
                 statsigScope.launch(dispatcherProvider.io) {
-                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, STICKY_DEVICE_EXPERIMENTS_KEY)
+                    keyValueStorage.removeValue(STORE_NAME, STICKY_DEVICE_EXPERIMENTS_KEY)
                 }
             }
         }
@@ -112,7 +111,7 @@ internal class Store(
                 localOverrides = gson.fromJson(cachedLocalOverrides, StatsigOverrides::class.java)
             } catch (_: Exception) {
                 statsigScope.launch(dispatcherProvider.io) {
-                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, LOCAL_OVERRIDES_KEY)
+                    keyValueStorage.removeValue(STORE_NAME, LOCAL_OVERRIDES_KEY)
                 }
             }
         }
@@ -124,7 +123,7 @@ internal class Store(
                 cacheKeyMapping = gson.fromJson(cachedCacheKeyMapping, type)
             } catch (_: Exception) {
                 statsigScope.launch(dispatcherProvider.io) {
-                    StatsigUtil.removeFromSharedPrefs(sharedPrefs, CACHE_KEY_MAPPING_KEY)
+                    keyValueStorage.removeValue(STORE_NAME, CACHE_KEY_MAPPING_KEY)
                 }
             }
         }
@@ -251,11 +250,12 @@ internal class Store(
 
         var cacheKeyMappingString = gson.toJson(cacheKeyMapping)
 
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, cacheString)
-        StatsigUtil.saveStringToSharedPrefs(
-            sharedPrefs,
-            CACHE_KEY_MAPPING_KEY,
-            cacheKeyMappingString
+        keyValueStorage.writeValues(
+            STORE_NAME,
+            mapOf(
+                CACHE_BY_USER_KEY to cacheString,
+                CACHE_KEY_MAPPING_KEY to cacheKeyMappingString
+            )
         )
     }
 
@@ -486,11 +486,7 @@ internal class Store(
     }
 
     suspend fun saveOverridesToLocalStorage() {
-        StatsigUtil.saveStringToSharedPrefs(
-            sharedPrefs,
-            LOCAL_OVERRIDES_KEY,
-            gson.toJson(localOverrides)
-        )
+        keyValueStorage.writeValue(STORE_NAME, LOCAL_OVERRIDES_KEY, gson.toJson(localOverrides))
     }
 
     fun getAllOverrides(): StatsigOverrides = StatsigOverrides(
@@ -567,9 +563,9 @@ internal class Store(
     }
 
     suspend fun persistStickyValues() {
-        StatsigUtil.saveStringToSharedPrefs(sharedPrefs, CACHE_BY_USER_KEY, gson.toJson(cacheById))
-        StatsigUtil.saveStringToSharedPrefs(
-            sharedPrefs,
+        keyValueStorage.writeValue(STORE_NAME, CACHE_BY_USER_KEY, gson.toJson(cacheById))
+        keyValueStorage.writeValue(
+            STORE_NAME,
             STICKY_DEVICE_EXPERIMENTS_KEY,
             gson.toJson(stickyDeviceExperiments)
         )

@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.TestDispatcher
@@ -15,7 +14,7 @@ import org.robolectric.RuntimeEnvironment
 @RunWith(RobolectricTestRunner::class)
 class LogEventCompressionTest {
     private lateinit var app: Application
-    private lateinit var testSharedPrefs: SharedPreferences
+    private lateinit var testStorage: KeyValueStorage<String>
 
     private lateinit var dispatcher: TestDispatcher
 
@@ -24,7 +23,7 @@ class LogEventCompressionTest {
     @Before
     internal fun setup() {
         app = RuntimeEnvironment.getApplication()
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        testStorage = TestUtil.getTestKeyValueStore(app)
         dispatcher = TestUtil.mockDispatchers()
         coroutineScope = TestScope(dispatcher)
 
@@ -36,7 +35,7 @@ class LogEventCompressionTest {
             StatsigNetworkImpl(
                 app,
                 "sdk-key",
-                testSharedPrefs,
+                testStorage,
                 options,
                 mockk<NetworkFallbackResolver>(),
                 coroutineScope,

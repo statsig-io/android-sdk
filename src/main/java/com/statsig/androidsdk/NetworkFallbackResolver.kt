@@ -7,6 +7,7 @@ import java.net.URL
 import java.util.Date
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class FallbackInfoEntry(
     var url: String? = null,
@@ -18,13 +19,15 @@ const val DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000L // 7 days
 const val COOLDOWN_TIME_MS = 4 * 60 * 60 * 1000L // 4 hours
 
 internal class NetworkFallbackResolver(
-    private val sharedPreferences: SharedPreferences,
+    private val keyValueStorage: KeyValueStorage<String>,
     private val statsigScope: CoroutineScope,
     private val gson: Gson
 ) {
     private var fallbackInfo: MutableMap<Endpoint, FallbackInfoEntry>? = null
     private val dnsQueryCooldowns: MutableMap<Endpoint, Long> = mutableMapOf()
     private val dispatcherProvider = CoroutineDispatcherProvider()
+
+    private val storeName = "networkfallback"
 
     suspend fun tryBumpExpiryTime(urlConfig: UrlConfig) {
         val info = fallbackInfo?.get(urlConfig.endpoint) ?: return
@@ -35,7 +38,7 @@ internal class NetworkFallbackResolver(
         tryWriteFallbackInfoToCache(updatedFallbackInfo)
     }
 
-    fun initializeFallbackInfo() {
+    suspend fun initializeFallbackInfo() {
         fallbackInfo = readFallbackInfoFromCache()
     }
 
@@ -125,15 +128,15 @@ internal class NetworkFallbackResolver(
     suspend fun tryWriteFallbackInfoToCache(info: MutableMap<Endpoint, FallbackInfoEntry>?) {
         val hashKey = getFallbackInfoStorageKey()
         if (info.isNullOrEmpty()) {
-            StatsigUtil.removeFromSharedPrefs(sharedPreferences, hashKey)
+            keyValueStorage.removeValue(storeName, hashKey)
         } else {
-            StatsigUtil.saveStringToSharedPrefs(sharedPreferences, hashKey, gson.toJson(info))
+            keyValueStorage.writeValue(storeName, hashKey, gson.toJson(info))
         }
     }
 
-    fun readFallbackInfoFromCache(): MutableMap<Endpoint, FallbackInfoEntry>? {
+    suspend fun readFallbackInfoFromCache(): MutableMap<Endpoint, FallbackInfoEntry>? {
         val hashKey = getFallbackInfoStorageKey()
-        val data = StatsigUtil.syncGetFromSharedPrefs(sharedPreferences, hashKey) ?: return null
+        val data = keyValueStorage.readValue(storeName, hashKey) ?: return null
         return try {
             val mapType = object : TypeToken<MutableMap<Endpoint, FallbackInfoEntry>>() {}.type
             gson.fromJson(data, mapType)

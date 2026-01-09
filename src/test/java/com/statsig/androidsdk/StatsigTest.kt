@@ -20,6 +20,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestDispatcher
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.time.delay
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -66,7 +67,7 @@ class StatsigTest {
 
     @After
     internal fun tearDown() {
-        unmockkAll()
+        TestUtil.reset()
     }
 
     @Test
@@ -541,7 +542,7 @@ class StatsigTest {
 
     @Suppress("UnusedFlow")
     @Test
-    fun testAutoValueUpdateEnabled_callsPoll() {
+    fun testAutoValueUpdateEnabled_callsPoll() = runTest {
         val user = StatsigUser("test_user")
         TestUtil.startStatsigAndWait(
             app,
@@ -591,7 +592,7 @@ class StatsigTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun testAutoValueUpdate_triggersCallback_onlyWithUpdates() = runBlocking {
+    fun testAutoValueUpdate_triggersCallback_onlyWithUpdates() = runTest {
         val user = StatsigUser("test_user")
         val testFlow = MutableSharedFlow<InitializeResponse.SuccessfulInitializeResponse?>()
         coEvery {
@@ -610,7 +611,6 @@ class StatsigTest {
             network = network
         )
         client = Statsig.client
-        dispatcher.scheduler.advanceUntilIdle()
 
         // Expect one call from startup.
         coVerify(exactly = 1) {
@@ -618,23 +618,13 @@ class StatsigTest {
         }
 
         // Callback should not trigger if polling response has no updates
-        runBlocking {
-            testFlow.emit(TestUtil.makeInitializeResponse(hasUpdates = false))
-        }
+        testFlow.emit(TestUtil.makeInitializeResponse(hasUpdates = false))
 
-        dispatcher.scheduler.advanceUntilIdle()
         coVerify(exactly = 1) { mockPersistentCallback.onValuesUpdated() }
 
         // Expect callback to trigger when polling response has updates
-        runBlocking {
-            testFlow.emit(TestUtil.makeInitializeResponse(hasUpdates = true))
-        }
+        testFlow.emit(TestUtil.makeInitializeResponse(hasUpdates = true))
 
-        // TODO: See about moving this test to StandardTestDispatcher -
-        //  delay() is a bad way to handle a flake-causing race condition
-        delay(0.5.seconds.toJavaDuration())
-
-        dispatcher.scheduler.advanceUntilIdle()
         coVerify(exactly = 2) { mockPersistentCallback.onValuesUpdated() }
         client.shutdown()
     }
