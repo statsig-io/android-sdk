@@ -32,7 +32,7 @@ class StatsigCacheTest {
 
     @After
     internal fun tearDown() {
-        unmockkAll()
+        TestUtil.reset()
     }
 
     @Test

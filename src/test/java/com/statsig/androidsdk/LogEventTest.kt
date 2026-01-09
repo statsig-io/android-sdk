@@ -56,7 +56,7 @@ class LogEventTest {
 
     @After
     internal fun tearDown() {
-        unmockkAll()
+        TestUtil.reset()
     }
 
     @Test

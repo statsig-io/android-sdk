@@ -50,7 +50,7 @@ class EvaluationCallbackTest {
 
     @After
     internal fun tearDown() {
-        unmockkAll()
+        TestUtil.reset()
     }
 
     @Test

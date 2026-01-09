@@ -17,7 +17,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
-import org.robolectric.shadows.ShadowLog
 
 @RunWith(RobolectricTestRunner::class)
 class LogEventRetryTest {
@@ -29,7 +28,6 @@ class LogEventRetryTest {
 
     @Before
     fun setup() {
-        ShadowLog.stream = System.out
         logEventHits = 0
         TestUtil.setupHttp(app)
         val testClient = HttpUtils.okHttpClient!!.newBuilder().addInterceptor(
@@ -60,6 +58,7 @@ class LogEventRetryTest {
 
     @After
     fun teardown() {
+        mockWebServer.shutdown()
         TestUtil.reset()
     }
 

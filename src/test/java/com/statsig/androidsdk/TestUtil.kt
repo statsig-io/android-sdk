@@ -412,6 +412,7 @@ class TestUtil {
         fun reset() {
             clearMockDispatchers()
             clearAllMocks()
+            HttpUtils.okHttpClient?.dispatcher?.cancelAll()
             HttpUtils.okHttpClient = null
         }
 

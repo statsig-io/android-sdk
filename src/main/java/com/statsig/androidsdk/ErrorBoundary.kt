@@ -2,10 +2,17 @@ package com.statsig.androidsdk
 
 import android.util.Log
 import com.google.gson.Gson
-import java.lang.RuntimeException
+import java.io.IOException
 import java.net.URL
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.Request
+import okhttp3.Response
 
 internal class ExternalException(message: String? = null) : Exception(message)
 
@@ -120,7 +127,18 @@ internal class ErrorBoundary(
                     .post(postData.toJsonRequestBody())
                     .addStatsigHeaders(scopedApi)
                     .build()
-                httpClient.newCall(request).execute()
+
+                httpClient.newCall(request).enqueue(
+                    responseCallback = object : Callback {
+                        override fun onFailure(call: Call, e: IOException) {
+                            // no-op
+                        }
+
+                        override fun onResponse(call: Call, response: Response) {
+                            response.close()
+                        }
+                    }
+                )
             }
         } catch (e: Exception) {
             // noop

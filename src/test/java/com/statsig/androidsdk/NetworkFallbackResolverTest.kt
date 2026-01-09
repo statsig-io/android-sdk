@@ -1,8 +1,6 @@
 import android.app.Application
-import android.content.Context.MODE_PRIVATE
 import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
-import com.statsig.androidsdk.BuildConfig
 import com.statsig.androidsdk.DEFAULT_INIT_API
 import com.statsig.androidsdk.Endpoint
 import com.statsig.androidsdk.NetworkFallbackResolver
@@ -17,23 +15,18 @@ import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TestName
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
 @RunWith(RobolectricTestRunner::class)
 class NetworkFallbackResolverTest {
-
-    @Rule
-    @JvmField
-    val name: TestName = TestName()
 
     private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var resolver: NetworkFallbackResolver
@@ -64,19 +57,22 @@ class NetworkFallbackResolverTest {
 
     @Before
     internal fun setup() {
-        TestUtil.reset()
         TestUtil.mockHashing()
         dispatcher = TestUtil.mockDispatchers(StandardTestDispatcher())
         coroutineScope = TestScope(dispatcher)
         app = RuntimeEnvironment.getApplication()
-        testSharedPrefs =
-            app.getSharedPreferences(name.methodName + BuildConfig.DEBUG, MODE_PRIVATE)
+        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         resolver =
             NetworkFallbackResolver(
                 testSharedPrefs,
                 coroutineScope,
                 gson = StatsigUtil.getOrBuildGson()
             )
+    }
+
+    @After
+    internal fun teardown() {
+        TestUtil.reset()
     }
 
     @Test

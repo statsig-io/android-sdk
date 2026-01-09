@@ -32,6 +32,7 @@ class StatsigLongInitializationTimeoutTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Before
     fun setup() {
+        TestUtil.mockDispatchers()
         TestUtil.setupHttp(app)
         mockWebServer = MockWebServer()
         val dispatcher = object : Dispatcher() {
@@ -53,8 +54,6 @@ class StatsigLongInitializationTimeoutTest {
         client = spyk(StatsigClient(), recordPrivateCalls = true)
         client.errorBoundary = spyk(client.errorBoundary)
         errorBoundary = client.errorBoundary
-
-        TestUtil.mockDispatchers()
 
         every {
             errorBoundary.getUrl()

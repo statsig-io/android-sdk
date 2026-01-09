@@ -51,11 +51,13 @@ class StatsigClient : LifecycleEventListener {
     @VisibleForTesting
     var urlConnectionProvider: UrlConnectionProvider = defaultProvider
 
-    internal var errorBoundary = ErrorBoundary()
+    private var dispatcherProvider = CoroutineDispatcherProvider()
+    private val errorScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
+
+    internal var errorBoundary = ErrorBoundary(errorScope)
 
     private var pollingJob: Job? = null
     private var statsigJob = SupervisorJob()
-    private var dispatcherProvider = CoroutineDispatcherProvider()
     private var initialized = AtomicBoolean(false)
     private var isBootstrapped = AtomicBoolean(false)
     private var isInitializing = AtomicBoolean(false)
@@ -1409,7 +1411,7 @@ class StatsigClient : LifecycleEventListener {
         logger.shutdown()
         lifecycleListener.shutdown()
         isBootstrapped.set(false)
-        errorBoundary = ErrorBoundary()
+        errorBoundary = ErrorBoundary(errorScope)
         statsigJob = SupervisorJob()
         isInitializing.set(false)
         Log.v(TAG, "shutdown completed.")
