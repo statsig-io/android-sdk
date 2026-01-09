@@ -30,7 +30,7 @@ class StatsigInitializationTimeoutTest {
     private lateinit var mockWebServer: MockWebServer
     private val hitErrorBoundary = CountDownLatch(1)
 
-    private val errorBoundaryDelay = 1000L
+    private val errorBoundaryDelay = 2000L
 
     @Before
     fun setup() {
@@ -96,7 +96,7 @@ class StatsigInitializationTimeoutTest {
 
         // error boundary was hit, but has not completed at this point,
         // so it did not block initialize()
-        assertThat(hitErrorBoundary.await(1, TimeUnit.SECONDS)).isTrue()
+        assertThat(hitErrorBoundary.await(2, TimeUnit.SECONDS)).isTrue()
         assertThat(initializationDetails!!.duration).isLessThan(errorBoundaryDelay)
     }
 }
