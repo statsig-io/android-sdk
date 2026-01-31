@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import io.mockk.spyk
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -26,7 +25,6 @@ class StatsigMultiClientTest {
     private lateinit var network2: StatsigNetwork
     private lateinit var network3: StatsigNetwork
     private lateinit var brokenNetwork: StatsigNetwork
-    private lateinit var testSharedPrefs: SharedPreferences
     private val user = StatsigUser("testUser")
 
     @Before
@@ -34,7 +32,6 @@ class StatsigMultiClientTest {
         TestUtil.mockDispatchers()
 
         app = RuntimeEnvironment.getApplication()
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
 
         TestUtil.mockHashing()
 

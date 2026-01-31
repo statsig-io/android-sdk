@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import io.mockk.unmockkAll
 import java.util.Collections
 import kotlinx.coroutines.runBlocking
@@ -16,7 +15,6 @@ import org.robolectric.RuntimeEnvironment
 @RunWith(RobolectricTestRunner::class)
 class LayerConfigTest {
     private lateinit var app: Application
-    private lateinit var sharedPrefs: SharedPreferences
     private var client: StatsigClient = StatsigClient()
     private lateinit var layer: Layer
     private val nullUser = StatsigUser(null)
@@ -24,7 +22,6 @@ class LayerConfigTest {
     @Before
     internal fun setup() = runBlocking {
         app = RuntimeEnvironment.getApplication()
-        sharedPrefs = TestUtil.getTestSharedPrefs(app)
 
         TestUtil.mockHashing()
         TestUtil.mockDispatchers()

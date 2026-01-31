@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.*
@@ -16,7 +15,7 @@ import org.robolectric.RuntimeEnvironment
 @RunWith(RobolectricTestRunner::class)
 class StatsigStickyExperimentTest {
     private lateinit var app: Application
-    private lateinit var testSharedPrefs: SharedPreferences
+    private lateinit var testKeyValueStorage: KeyValueStorage<String>
 
     @Before
     internal fun setup() {
@@ -24,7 +23,7 @@ class StatsigStickyExperimentTest {
 
         app = RuntimeEnvironment.getApplication()
         TestUtil.mockHashing()
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
 
         // Because we are going through the static Statsig interface,
         // we need to ensure no other test has initialized the client
@@ -265,7 +264,7 @@ class StatsigStickyExperimentTest {
     }
 
     @Test
-    fun testKeepDeviceValueFalseDoesNotWriteToSharedPrefs() = runBlocking {
+    fun testKeepDeviceValueFalseDoesNotWriteToStorage() = runBlocking {
         val expConfig = APIDynamicConfig(
             "exp!",
             mapOf("key" to "exp_v_no_write"),
@@ -299,13 +298,13 @@ class StatsigStickyExperimentTest {
         )
 
         // Empty existing values
-        testSharedPrefs.edit().clear().apply()
+        testKeyValueStorage.clearAll()
 
         Statsig.getExperiment("exp", keepDeviceValue = false)
         Statsig.getLayer("layer", keepDeviceValue = false)
 
         // Ensure that 'keepDeviceValue = false' prevents a write
-        assertThat(testSharedPrefs.all).isEmpty()
+        assertThat(testKeyValueStorage.readAll("ondiskvaluecache")).isEmpty()
 
         Statsig.shutdown()
     }

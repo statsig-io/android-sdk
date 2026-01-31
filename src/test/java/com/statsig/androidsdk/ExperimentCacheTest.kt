@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import io.mockk.coEvery
 import io.mockk.spyk
 import java.util.concurrent.CountDownLatch
@@ -37,7 +36,6 @@ internal suspend fun getResponseForUser(user: StatsigUser, configName: String): 
 @RunWith(RobolectricTestRunner::class)
 class ExperimentCacheTest {
     private lateinit var app: Application
-    private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var network: StatsigNetwork
     private var initializeCalls: Int = 0
 
@@ -45,7 +43,6 @@ class ExperimentCacheTest {
     fun setup() {
         TestUtil.mockDispatchers()
         app = RuntimeEnvironment.getApplication()
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         TestUtil.mockHashing()
 
         // Setup network mock that returns different responses for first/second session

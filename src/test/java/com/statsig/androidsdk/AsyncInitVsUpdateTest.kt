@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
 import io.mockk.coEvery
@@ -46,7 +45,7 @@ internal suspend fun getResponseForUser(user: StatsigUser): InitializeResponse =
 @RunWith(RobolectricTestRunner::class)
 class AsyncInitVsUpdateTest {
     lateinit var app: Application
-    private lateinit var testSharedPrefs: SharedPreferences
+    private lateinit var testKeyValueStorage: KeyValueStorage<String>
     private val gson = Gson()
     private lateinit var client: StatsigClient
     private lateinit var network: StatsigNetwork
@@ -56,7 +55,7 @@ class AsyncInitVsUpdateTest {
         TestUtil.mockDispatchers()
 
         app = RuntimeEnvironment.getApplication()
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
         TestUtil.mockHashing()
 
         network = TestUtil.mockNetwork()
@@ -157,7 +156,13 @@ class AsyncInitVsUpdateTest {
         values["values"] = userBCacheValues
         values["stickyUserExperiments"] = sticky
         cacheById["${userB.getCacheKey()}:client-key"] = values
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheById)).apply()
+        runBlocking {
+            testKeyValueStorage.writeValue(
+                "ondiskvaluecache",
+                "Statsig.CACHE_BY_USER",
+                gson.toJson(cacheById)
+            )
+        }
 
         client.initializeAsync(app, "client-key", userA, callback)
         client.updateUserAsync(userB, callback)

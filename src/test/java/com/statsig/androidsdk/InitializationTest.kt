@@ -23,11 +23,11 @@ class InitializationTest {
 
     @Before
     internal fun setup() {
-        TestUtil.mockDispatchers()
-        mockWebServer = MockWebServer()
         app = RuntimeEnvironment.getApplication()
-        TestUtil.mockHashing()
+        TestUtil.mockDispatchers()
         TestUtil.setupHttp(app)
+        mockWebServer = MockWebServer()
+        TestUtil.mockHashing()
 
         initializationHits = 0
         val dispatcher = object : Dispatcher() {
@@ -46,8 +46,8 @@ class InitializationTest {
 
     @After
     fun tearDown() {
-        mockWebServer.shutdown()
         TestUtil.reset()
+        mockWebServer.shutdown()
     }
 
     @Test

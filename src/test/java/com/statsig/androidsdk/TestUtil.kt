@@ -9,9 +9,11 @@ import io.mockk.*
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainCoroutineDispatcher
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -23,7 +25,6 @@ import org.junit.Assert
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestUtil {
     companion object {
-
         fun mockDispatchers(): TestDispatcher = mockDispatchers(UnconfinedTestDispatcher())
 
         fun mockDispatchers(dispatcher: TestDispatcher): TestDispatcher {
@@ -315,8 +316,13 @@ class TestUtil {
         fun getTestSharedPrefs(context: Context): SharedPreferences =
             context.getSharedPreferences(LegacyKeyValueStorage.SHARED_PREFERENCES_KEY, MODE_PRIVATE)
 
-        internal fun getTestKeyValueStore(app: Application): KeyValueStorage<String> =
-            LegacyKeyValueStorage(app)
+        internal fun getTestKeyValueStore(
+            app: Application,
+            coroutineScope: CoroutineScope? = null
+        ): KeyValueStorage<String> {
+            val scope = coroutineScope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            return StatsigClient.createKeyValueStorage(app, scope)
+        }
 
         fun mockHashing() {
             mockkObject(Hashing)
@@ -415,8 +421,11 @@ class TestUtil {
         fun reset() {
             clearMockDispatchers()
             clearAllMocks()
-            HttpUtils.okHttpClient?.dispatcher?.cancelAll()
+            HttpUtils.okHttpClient?.dispatcher?.executorService?.shutdown()
             HttpUtils.okHttpClient = null
+            runBlocking {
+                PreferencesDataStoreKeyValueStorage.resetForTesting()
+            }
         }
 
         fun clearMockDispatchers() {

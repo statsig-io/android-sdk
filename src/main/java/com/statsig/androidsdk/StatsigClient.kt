@@ -24,8 +24,38 @@ private const val STABLE_ID_KEY: String = "STABLE_ID"
 private const val STABLE_ID_STORE_NAME: String = "stableidstore"
 
 class StatsigClient : LifecycleEventListener {
-    private companion object {
+    internal companion object {
         private const val TAG: String = "statsig::StatsigClient"
+
+        @VisibleForTesting
+        internal enum class KeyValueStorageImplementation {
+            LEGACY,
+            PREFERENCES_DATASTORE
+        }
+
+        @VisibleForTesting
+        @JvmSynthetic
+        internal var keyValueStorageImplementationOverride: KeyValueStorageImplementation? =
+            KeyValueStorageImplementation.PREFERENCES_DATASTORE
+
+        @VisibleForTesting
+        @JvmSynthetic
+        internal fun createKeyValueStorage(
+            application: Application,
+            scope: CoroutineScope
+        ): KeyValueStorage<String> = resolveKeyValueStorageFactory().invoke(application, scope)
+
+        private fun resolveKeyValueStorageFactory(): (
+            Application,
+            CoroutineScope
+        ) -> KeyValueStorage<String> =
+            when (keyValueStorageImplementationOverride) {
+                KeyValueStorageImplementation.LEGACY -> { app, _ -> LegacyKeyValueStorage(app) }
+                KeyValueStorageImplementation.PREFERENCES_DATASTORE,
+                null -> { app, scope ->
+                    PreferencesDataStoreKeyValueStorage(app, scope)
+                }
+            }
     }
     private lateinit var store: Store
     private lateinit var user: StatsigUser
@@ -1102,10 +1132,7 @@ class StatsigClient : LifecycleEventListener {
         this.application = application
         val storageScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
 
-        // val storage = LegacyKeyValueStorage(application)
-
-        val storage = PreferencesDataStoreKeyValueStorage(application, storageScope)
-        storage.initialize()
+        val storage = createKeyValueStorage(application, storageScope)
 
         this.keyValueStorage = storage
         this.sdkKey = sdkKey

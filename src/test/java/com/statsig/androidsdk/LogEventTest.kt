@@ -2,7 +2,6 @@ package com.statsig.androidsdk
 
 import android.app.Activity
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -24,7 +23,6 @@ class LogEventTest {
     private val loggingEnabled = StatsigRuntimeMutableOptions(loggingEnabled = true)
     private val loggingDisabled = StatsigRuntimeMutableOptions(loggingEnabled = false)
     private val app: Application = RuntimeEnvironment.getApplication()
-    private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var testKeyValueStorage: KeyValueStorage<String>
     private lateinit var activity: Activity
     private lateinit var statsigLifecycleListener: Application.ActivityLifecycleCallbacks
@@ -39,7 +37,6 @@ class LogEventTest {
             val dispatcher = TestUtil.mockDispatchers()
             coroutineScope = TestScope(dispatcher)
             activity = mockk()
-            testSharedPrefs = TestUtil.getTestSharedPrefs(app)
             testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
             Statsig.client = StatsigClient()
             network = TestUtil.mockNetwork(onLog = {
@@ -73,7 +70,10 @@ class LogEventTest {
             Thread.sleep(500)
             assert(logEventRequests.size == 1)
             assert(
-                testSharedPrefs.getString("StatsigNetwork.OFFLINE_LOGS", null)!!.isNotEmpty()
+                testKeyValueStorage.readValue(
+                    "offlinelogs",
+                    "StatsigNetwork.OFFLINE_LOGS"
+                )!!.isNotEmpty()
             )
             assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
             assert(logEventRequests[0].events[1].eventName == "viewCartIcon")
@@ -224,12 +224,13 @@ class LogEventTest {
         coEvery {
             network.addFailedLogRequest(any())
         } coAnswers {
-            testSharedPrefs.edit().putString(
+            testKeyValueStorage.writeValue(
+                "offlinelogs",
                 "StatsigNetwork.OFFLINE_LOGS",
                 StatsigUtil.getOrBuildGson().toJson(
                     StatsigPendingRequests(listOf(firstArg()))
                 )
-            ).apply()
+            )
         }
         mockNetwork(network)
         statsigLifecycleListener.onActivityPaused(activity)

@@ -30,15 +30,19 @@ class InitializationRetryFailedLogsTest {
         TestUtil.mockDispatchers()
 
         url = mockWebServer.url("/v1").toString()
-        val sharedPrefs = TestUtil.getTestSharedPrefs(app)
+        val keyValueStorage = TestUtil.getTestKeyValueStore(app)
 
         val failedLogsJson = this::class.java.classLoader!!
             .getResource("sample_failed_logs.json")
             .readText()
 
-        sharedPrefs.edit()
-            .putString("StatsigNetwork.OFFLINE_LOGS:client-key", failedLogsJson)
-            .commit()
+        runBlocking {
+            keyValueStorage.writeValue(
+                "offlinelogs",
+                "StatsigNetwork.OFFLINE_LOGS:client-key",
+                failedLogsJson
+            )
+        }
 
         val dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse = when {

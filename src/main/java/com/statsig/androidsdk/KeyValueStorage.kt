@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.os.Build
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import androidx.annotation.VisibleForTesting.Companion.PACKAGE_PRIVATE
 import androidx.core.content.edit
 import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
@@ -23,16 +24,16 @@ import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.ConcurrentHashMap
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import java.util.zip.ZipException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
-// TODO: Maybe rework typing here - would we prefer this interface to provide stores
-//  of distinct types?  E.g. if we want stores to take/give our internal types
 internal interface KeyValueStorage<T> {
 
     /**
@@ -150,9 +151,10 @@ internal class LegacyKeyValueStorage(val context: Context) : KeyValueStorage<Str
 
 /**
  * [KeyValueStorage] with each substore backed by a [Preferences] [DataStore].
- * Each [DataStore] is shared across instances of [StatsigClient] for efficient multi-client usage
+ * Each [DataStore] is shared across instances of [StatsigClient] for multi-client efficiency
  */
-internal class PreferencesDataStoreKeyValueStorage(
+@VisibleForTesting(otherwise = PACKAGE_PRIVATE)
+class PreferencesDataStoreKeyValueStorage(
     val application: Application,
     val coroutineScope: CoroutineScope
 ) : KeyValueStorage<String> {
@@ -160,7 +162,8 @@ internal class PreferencesDataStoreKeyValueStorage(
         private const val TAG = "statsig::PrefsDataStore"
 
         // Stores each active DataStore
-        private val storeMap: MutableMap<String, DataStore<Preferences>> = mutableMapOf()
+        private val storeMap: ConcurrentHashMap<String, DataStore<Preferences>> =
+            ConcurrentHashMap()
 
         private val dispatcherProvider by lazy { CoroutineDispatcherProvider() }
 
@@ -196,8 +199,9 @@ internal class PreferencesDataStoreKeyValueStorage(
 
             override suspend fun writeTo(t: Preferences, output: OutputStream) {
                 val compressedStream = GZIPOutputStream(output, BUFFER_SIZE)
+                // BufferedPreferencesSerializer will flush/close the gzip stream (safe with
+                // DataStore's UncloseableOutputStream).
                 BufferedPreferencesSerializer.writeTo(t, compressedStream)
-                compressedStream.finish()
             }
         }
 
@@ -209,13 +213,32 @@ internal class PreferencesDataStoreKeyValueStorage(
                 PreferencesFileSerializer.readFrom(BufferedInputStream(input, BUFFER_SIZE))
 
             override suspend fun writeTo(t: Preferences, output: OutputStream) {
-                PreferencesFileSerializer.writeTo(t, BufferedOutputStream(output, BUFFER_SIZE))
+                BufferedOutputStream(output, BUFFER_SIZE).use { buffered ->
+                    PreferencesFileSerializer.writeTo(t, buffered)
+                    buffered.flush()
+                }
+            }
+        }
+
+        @VisibleForTesting
+        internal suspend fun clearAllStoresForTesting() {
+            withContext(Dispatchers.IO) {
+                val storeNames = storeMap.keys.toList()
+                storeNames.forEach { storeName ->
+                    storeMap[storeName]?.edit { it.clear() }
+                }
+            }
+        }
+
+        @VisibleForTesting
+        fun resetForTesting() {
+            runBlocking {
+                clearAllStoresForTesting()
             }
         }
     }
 
     private fun getCorruptionHandler(storeName: String) = ReplaceFileCorruptionHandler {
-        // TODO: Maybe also fire a diagnostics event
         Log.e(TAG, "on-disk storage for $storeName is corrupted, replacing with empty file")
         emptyPreferences()
     }
@@ -231,10 +254,10 @@ internal class PreferencesDataStoreKeyValueStorage(
 
     override suspend fun writeValues(storeName: String, entries: Map<String, String>) {
         withContext(dispatcherProvider.io) {
+            getData(storeName).data.first().asMap()
+            val pairs = entries.map { stringPreferencesKey(it.key) to it.value }.toTypedArray()
             getData(storeName).edit { prefs ->
-                entries.forEach { entry ->
-                    prefs[stringPreferencesKey(entry.key)] = entry.value
-                }
+                prefs.putAll(*pairs)
             }
         }
     }
@@ -273,37 +296,42 @@ internal class PreferencesDataStoreKeyValueStorage(
         maybeBuildStore(storeName)
         val data = storeMap[storeName]
         if (data == null) {
-            Log.wtf(TAG, "getData failed to find!")
+            // This should never happen. (tm)
+            Log.e(TAG, "getData failed to find!")
         }
         return data!!
     }
 
-    internal fun initialize() {
-        // TODO: maybe pre-warm some storage instances? Or a store index?
-        //  Could also accept some options here (multiproc, compression, etc)
-    }
-
     private fun maybeBuildStore(storeName: String) {
-        // TODO: is this actually safe enough to ensure we don't accidentally build a dupe instance?
-        if (storeMap.contains(storeName)) {
+        if (storeMap.containsKey(storeName)) {
             return
         }
 
         // TODO: Decide on multiprocess here or not - base decision on sdkFlags or StatsigOptions?
+        //   False for v1 - allow configuration in future releases
         val multiprocess = false
 
-        // TODO: Decide on compression here: Measure impact of Gzip / non-Gzip on performance, potentially offer as a configurable option?
+        // TODO: Compression hasn't shown much performance benefit, but could be useful for
+        //  customers who are conscious about storage usage? Offer as an option in later release
         val compressed = false
 
+        val store = buildStore(storeName, multiprocess, compressed)
+        storeMap.putIfAbsent(storeName, store)
+    }
+
+    private fun buildStore(
+        storeName: String,
+        multiprocess: Boolean,
+        compressed: Boolean
+    ): DataStore<Preferences> {
         val serializer =
             if (compressed) GzipPreferencesSerializer else BufferedPreferencesSerializer
         val append = if (compressed) "_gz" else "_unc"
         val produceFileLambda = {
             application.dataStoreFile("$DATA_STORE_FILE_PATH/$storeName$append")
         }
-
-        if (multiprocess) {
-            storeMap[storeName] = MultiProcessDataStoreFactory.create(
+        return if (multiprocess) {
+            MultiProcessDataStoreFactory.create(
                 scope = coroutineScope,
                 produceFile = produceFileLambda,
                 serializer = serializer,
@@ -311,7 +339,7 @@ internal class PreferencesDataStoreKeyValueStorage(
                 migrations = mutableListOf()
             )
         } else {
-            storeMap[storeName] = DataStoreFactory.create(
+            DataStoreFactory.create(
                 scope = coroutineScope,
                 serializer = serializer,
                 corruptionHandler = getCorruptionHandler(storeName),

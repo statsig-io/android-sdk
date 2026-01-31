@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -13,7 +12,7 @@ import org.robolectric.RuntimeEnvironment
 @RunWith(RobolectricTestRunner::class)
 class CacheKeyWithSDKKeyTest {
     private lateinit var app: Application
-    private lateinit var testSharedPrefs: SharedPreferences
+    private lateinit var testKeyValueStorage: KeyValueStorage<String>
 
     private var user = StatsigUser("testUser")
 
@@ -29,11 +28,12 @@ class CacheKeyWithSDKKeyTest {
         values["stickyUserExperiments"] = sticky
         var cacheById: MutableMap<String, Any> = HashMap()
         // Write a cached by original key
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
-        testSharedPrefs.edit().putString(
+        testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
+        testKeyValueStorage.writeValue(
+            "ondiskvaluecache",
             "Statsig.CACHE_BY_USER",
             StatsigUtil.getOrBuildGson().toJson(cacheById)
-        ).apply()
+        )
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockBrokenNetwork())
 
         return@runBlocking
@@ -43,10 +43,11 @@ class CacheKeyWithSDKKeyTest {
     fun testWriteToCacheWithNewKey() = runBlocking {
         Statsig.client.shutdown()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())
-        val cacheById = StatsigUtil.getOrBuildGson().fromJson(
-            testSharedPrefs.getString("Statsig.CACHE_BY_USER", ""),
-            Map::class.java
-        )
+        val cacheJson = testKeyValueStorage.readValue(
+            "ondiskvaluecache",
+            "Statsig.CACHE_BY_USER"
+        ) ?: ""
+        val cacheById = StatsigUtil.getOrBuildGson().fromJson(cacheJson, Map::class.java)
         assertThat(
             cacheById.keys
         ).contains("${user.toHashString(gson = StatsigUtil.getOrBuildGson())}:client-apikey")

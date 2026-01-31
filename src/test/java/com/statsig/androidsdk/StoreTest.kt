@@ -33,6 +33,7 @@ class StoreTest {
 
     @After
     internal fun tearDown() {
+        TestUtil.reset()
         unmockkAll()
     }
 

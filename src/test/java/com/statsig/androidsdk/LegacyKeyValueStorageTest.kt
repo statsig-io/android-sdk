@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -13,7 +12,6 @@ import org.robolectric.RuntimeEnvironment
 @RunWith(RobolectricTestRunner::class)
 class LegacyKeyValueStorageTest {
     private lateinit var app: Application
-    private lateinit var sharedPrefs: SharedPreferences
     private lateinit var storage: KeyValueStorage<String>
 
     private val storeName = "This value is ignored by the Legacy implementation"
@@ -23,16 +21,16 @@ class LegacyKeyValueStorageTest {
     @Before
     fun setup() {
         app = RuntimeEnvironment.getApplication()
-        sharedPrefs = TestUtil.getTestSharedPrefs(app)
         storage = LegacyKeyValueStorage(app)
     }
 
     @Test
-    fun writeValue_writesToBackingSharedPrefs() = runTest {
+    fun writeValue_writesToBackingStorage() = runTest {
         storage.writeValue(storeName, keyName, value)
 
         assertThat(storage.readValue(storeName, keyName)).isEqualTo(value)
-        assertThat(sharedPrefs.getString(keyName, "")).isEqualTo(value)
+        val newStorage = LegacyKeyValueStorage(app)
+        assertThat(newStorage.readValue(storeName, keyName)).isEqualTo(value)
     }
 
     @Test
@@ -50,8 +48,9 @@ class LegacyKeyValueStorageTest {
     }
 
     @Test
-    fun readValue_pullsPreExistingValueFromSharedPrefs() = runTest {
-        sharedPrefs.edit().putString(keyName, value).apply()
+    fun readValue_pullsPreExistingValueFromStorage() = runTest {
+        val preExistingStorage = LegacyKeyValueStorage(app)
+        preExistingStorage.writeValue(storeName, keyName, value)
 
         assertThat(
             storage.readValue(storeName, keyName)
@@ -65,7 +64,10 @@ class LegacyKeyValueStorageTest {
 
     @Test
     fun readAll_returnsAll() = runTest {
-        sharedPrefs.edit().putString(keyName, value).putString("extra key", "extra value").apply()
+        storage.writeValues(
+            storeName,
+            mapOf(keyName to value, "extra key" to "extra value")
+        )
 
         assertThat(storage.readAll(storeName)).hasSize(2)
         assertThat(storage.readAll(storeName)[keyName]).isEqualTo(value)
@@ -73,11 +75,13 @@ class LegacyKeyValueStorageTest {
 
     @Test
     fun clear_clearsStorage() = runTest {
-        sharedPrefs.edit().putString(keyName, value).putString("extra key", "extra value").apply()
+        storage.writeValues(
+            storeName,
+            mapOf(keyName to value, "extra key" to "extra value")
+        )
 
-        assertThat(sharedPrefs.all).isNotEmpty()
+        assertThat(storage.readAll(storeName)).isNotEmpty()
         storage.clearAll()
-        assertThat(sharedPrefs.all).isEmpty()
         assertThat(storage.readAll(storeName)).isEmpty()
     }
 }

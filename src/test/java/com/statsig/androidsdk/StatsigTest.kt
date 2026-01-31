@@ -5,6 +5,7 @@ import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.unmockkAll
@@ -18,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -542,7 +544,7 @@ class StatsigTest {
 
     @Suppress("UnusedFlow")
     @Test
-    fun testAutoValueUpdateEnabled_callsPoll() = runTest {
+    fun testAutoValueUpdateEnabled_callsPoll() = runTest(dispatcher) {
         val user = StatsigUser("test_user")
         TestUtil.startStatsigAndWait(
             app,
@@ -592,14 +594,12 @@ class StatsigTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun testAutoValueUpdate_triggersCallback_onlyWithUpdates() = runTest {
+    fun testAutoValueUpdate_triggersCallback_onlyWithUpdates() = runTest(dispatcher) {
         val user = StatsigUser("test_user")
         val testFlow = MutableSharedFlow<InitializeResponse.SuccessfulInitializeResponse?>()
-        coEvery {
+        every {
             network.pollForChanges(any(), any(), any(), any(), any())
-        } coAnswers {
-            testFlow
-        }
+        } returns testFlow
         val mockPersistentCallback = mockk<IStatsigLifetimeCallback>()
         TestUtil.startStatsigAndWait(
             app,
@@ -612,6 +612,8 @@ class StatsigTest {
         )
         client = Statsig.client
 
+        testFlow.subscriptionCount.first { it > 0 }
+
         // Expect one call from startup.
         coVerify(exactly = 1) {
             mockPersistentCallback.onValuesUpdated()
@@ -619,13 +621,15 @@ class StatsigTest {
 
         // Callback should not trigger if polling response has no updates
         testFlow.emit(TestUtil.makeInitializeResponse(hasUpdates = false))
+        testScheduler.advanceUntilIdle()
 
         coVerify(exactly = 1) { mockPersistentCallback.onValuesUpdated() }
 
         // Expect callback to trigger when polling response has updates
         testFlow.emit(TestUtil.makeInitializeResponse(hasUpdates = true))
+        testScheduler.advanceUntilIdle()
 
-        coVerify(exactly = 2) { mockPersistentCallback.onValuesUpdated() }
+        coVerify(timeout = 1000, exactly = 2) { mockPersistentCallback.onValuesUpdated() }
         client.shutdown()
     }
 

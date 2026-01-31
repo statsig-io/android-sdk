@@ -1,5 +1,3 @@
-import android.app.Application
-import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import com.statsig.androidsdk.DEFAULT_INIT_API
 import com.statsig.androidsdk.Endpoint
@@ -10,11 +8,11 @@ import com.statsig.androidsdk.TestUtil
 import com.statsig.androidsdk.UrlConfig
 import com.statsig.androidsdk.isDomainFailure
 import kotlin.time.Duration.Companion.days
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.currentTime
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertFalse
@@ -24,18 +22,43 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
 
 @RunWith(RobolectricTestRunner::class)
 class NetworkFallbackResolverTest {
-
-    private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var testKeyValueStorage: KeyValueStorage<String>
     private lateinit var resolver: NetworkFallbackResolver
-    private var app: Application = RuntimeEnvironment.getApplication()
-
     private lateinit var dispatcher: TestDispatcher
     private lateinit var coroutineScope: TestScope
+
+    private class InMemoryKeyValueStorage : KeyValueStorage<String> {
+        private val stores: MutableMap<String, MutableMap<String, String>> = mutableMapOf()
+
+        override suspend fun writeValue(storeName: String, key: String, value: String) {
+            stores.getOrPut(storeName) { mutableMapOf() }[key] = value
+        }
+
+        override suspend fun writeValues(storeName: String, entries: Map<String, String>) {
+            stores.getOrPut(storeName) { mutableMapOf() }.putAll(entries)
+        }
+
+        override suspend fun readValue(storeName: String, key: String): String? =
+            stores[storeName]?.get(key)
+
+        override suspend fun removeValue(storeName: String, key: String) {
+            stores[storeName]?.remove(key)
+        }
+
+        override suspend fun clearStore(storeName: String) {
+            stores.remove(storeName)
+        }
+
+        override suspend fun clearAll() {
+            stores.clear()
+        }
+
+        override suspend fun readAll(storeName: String): Map<String, String> =
+            stores[storeName]?.toMap() ?: emptyMap()
+    }
 
     companion object {
         const val SDK_KEY = "client-test-sdk-key"
@@ -60,11 +83,9 @@ class NetworkFallbackResolverTest {
     @Before
     internal fun setup() {
         TestUtil.mockHashing()
-        dispatcher = TestUtil.mockDispatchers(StandardTestDispatcher())
+        dispatcher = TestUtil.mockDispatchers(UnconfinedTestDispatcher())
         coroutineScope = TestScope(dispatcher)
-        app = RuntimeEnvironment.getApplication()
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
-        testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
+        testKeyValueStorage = InMemoryKeyValueStorage()
         resolver =
             NetworkFallbackResolver(
                 testKeyValueStorage,
@@ -80,7 +101,6 @@ class NetworkFallbackResolverTest {
 
     @Test
     fun getsFallbackInfo() = runTest {
-        val editor = testSharedPrefs.edit()
         val json = """
             {
                 "initialize": {
@@ -90,26 +110,17 @@ class NetworkFallbackResolverTest {
                 }
             }
         """.trimIndent()
-        editor.putString(STORAGE_KEY, json)
-        editor.apply()
+        testKeyValueStorage.writeValue("networkfallback", STORAGE_KEY, json)
 
         resolver.initializeFallbackInfo()
         val activeUrl = resolver.getActiveFallbackUrlFromMemory(DEFAULT_INIT_URL_CONFIG)
         assertTrue("gets the cached url", activeUrl == "fallback.example.com")
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun wipesFallbackInfoWhenExpired() = runTest {
-        // Synchronize watches!
-        // The test scheduler has a distinct system time that starts at 0.
-        val now = System.currentTimeMillis()
-        val expiryTime = now - 7.days.inWholeMilliseconds
-        testScheduler.advanceTimeBy(now)
-        assertThat(testScheduler.currentTime).isEqualTo(now)
-        assertThat(currentTime).isEqualTo(now)
+    fun wipesFallbackInfoWhenExpired() = runBlocking {
+        val expiryTime = System.currentTimeMillis() - 7.days.inWholeMilliseconds
 
-        val editor = testSharedPrefs.edit()
         val json = """
             {
                 "initialize": {
@@ -119,9 +130,8 @@ class NetworkFallbackResolverTest {
                 }
             }
         """.trimIndent()
-        editor.putString(STORAGE_KEY, json)
-        editor.commit()
-        assertThat(testSharedPrefs.all).isNotEmpty()
+        testKeyValueStorage.writeValue("networkfallback", STORAGE_KEY, json)
+        assertThat(testKeyValueStorage.readAll("networkfallback")).isNotEmpty()
 
         // Make sure resolver has info in-memory
         resolver.initializeFallbackInfo()
@@ -130,13 +140,17 @@ class NetworkFallbackResolverTest {
         val result = resolver.getActiveFallbackUrlFromMemory(DEFAULT_INIT_URL_CONFIG)
 
         assertThat(result).isNull()
-        testScheduler.advanceUntilIdle()
+        repeat(25) {
+            if (resolver.readFallbackInfoFromCache() == null) {
+                return@runBlocking
+            }
+            delay(10)
+        }
         assertThat(resolver.readFallbackInfoFromCache()).isNull()
     }
 
     @Test
     fun bumpsExpiryTimeWhenUrlIsSuccessfullyUsed() = runTest {
-        val editor = testSharedPrefs.edit()
         val json = """
             {
                 "initialize": {
@@ -146,8 +160,7 @@ class NetworkFallbackResolverTest {
                 }
             }
         """.trimIndent()
-        editor.putString(STORAGE_KEY, json)
-        editor.commit()
+        testKeyValueStorage.writeValue("networkfallback", STORAGE_KEY, json)
 
         resolver.initializeFallbackInfo()
         resolver.tryBumpExpiryTime(DEFAULT_INIT_URL_CONFIG)

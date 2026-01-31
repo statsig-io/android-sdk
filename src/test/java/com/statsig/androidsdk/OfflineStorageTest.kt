@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
 import io.mockk.mockk
@@ -17,7 +16,6 @@ import org.robolectric.RuntimeEnvironment
 class OfflineStorageTest {
 
     private val app: Application = RuntimeEnvironment.getApplication()
-    private lateinit var testSharedPrefs: SharedPreferences
     private lateinit var testKeyValueStorage: KeyValueStorage<String>
     private val gson = StatsigUtil.getOrBuildGson()
     private lateinit var network: StatsigNetwork
@@ -26,7 +24,6 @@ class OfflineStorageTest {
 
     @Before
     fun setUp() {
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
         testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
 
         network = StatsigNetwork(
@@ -54,7 +51,11 @@ class OfflineStorageTest {
         )
 
         val json = gson.toJson(StatsigPendingRequests(logs))
-        testSharedPrefs.edit().putString("StatsigNetwork.OFFLINE_LOGS:client-key", json).commit()
+        testKeyValueStorage.writeValue(
+            "offlinelogs",
+            "StatsigNetwork.OFFLINE_LOGS:client-key",
+            json
+        )
 
         val result = network.getSavedLogs()
 
@@ -93,7 +94,11 @@ class OfflineStorageTest {
         }
 
         val json = gson.toJson(StatsigPendingRequests(logs))
-        testSharedPrefs.edit().putString("StatsigNetwork.OFFLINE_LOGS:client-key", json).apply()
+        testKeyValueStorage.writeValue(
+            "offlinelogs",
+            "StatsigNetwork.OFFLINE_LOGS:client-key",
+            json
+        )
 
         val result = network.getSavedLogs()
 
@@ -104,7 +109,10 @@ class OfflineStorageTest {
         }
         // Add one more log and check again
         network.addFailedLogRequest(StatsigOfflineRequest(now, "log 11"))
-        val savedJson = testSharedPrefs.getString("StatsigNetwork.OFFLINE_LOGS:client-key", null)
+        val savedJson = testKeyValueStorage.readValue(
+            "offlinelogs",
+            "StatsigNetwork.OFFLINE_LOGS:client-key"
+        )
         val saved = gson.fromJson(savedJson, StatsigPendingRequests::class.java)
 
         // See MAX_LOG_REQUESTS_TO_CACHE

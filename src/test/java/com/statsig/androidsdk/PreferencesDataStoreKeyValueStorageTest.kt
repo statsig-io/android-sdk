@@ -1,12 +1,14 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,7 +27,7 @@ class PreferencesDataStoreKeyValueStorageTest {
     val otherStore = "otherStore"
     val otherValue = "OTHER VALUE"
 
-    private val dispatcher = StandardTestDispatcher()
+    private val dispatcher = UnconfinedTestDispatcher()
     private val coroutineScope = CoroutineScope(SupervisorJob() + dispatcher)
 
     @Before
@@ -33,6 +35,13 @@ class PreferencesDataStoreKeyValueStorageTest {
         TestUtil.mockDispatchers(dispatcher)
         app = RuntimeEnvironment.getApplication()
         storage = PreferencesDataStoreKeyValueStorage(app, coroutineScope)
+    }
+
+    @After
+    fun tearDown() {
+        runBlocking {
+            storage.clearAll()
+        }
     }
 
     @Test

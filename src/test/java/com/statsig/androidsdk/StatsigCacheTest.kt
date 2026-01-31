@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.gson.Gson
 import io.mockk.*
 import kotlinx.coroutines.runBlocking
@@ -18,7 +17,7 @@ class StatsigCacheTest {
 
     private lateinit var app: Application
     private lateinit var client: StatsigClient
-    private lateinit var testSharedPrefs: SharedPreferences
+    private lateinit var testKeyValueStorage: KeyValueStorage<String>
     private val gson = Gson()
 
     @Before
@@ -26,7 +25,7 @@ class StatsigCacheTest {
         TestUtil.mockDispatchers()
 
         app = RuntimeEnvironment.getApplication()
-        testSharedPrefs = TestUtil.getTestSharedPrefs(app)
+        testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
         TestUtil.mockHashing()
     }
 
@@ -47,7 +46,13 @@ class StatsigCacheTest {
         values.put("stickyUserExperiments", sticky)
         cacheByUser.put("${user.getCacheKey()}:client-test", values)
 
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheByUser)).apply()
+        runBlocking {
+            testKeyValueStorage.writeValue(
+                "ondiskvaluecache",
+                "Statsig.CACHE_BY_USER",
+                gson.toJson(cacheByUser)
+            )
+        }
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
@@ -78,7 +83,13 @@ class StatsigCacheTest {
         values.put("stickyUserExperiments", sticky)
         cacheByUser.put("${user.getCacheKey()}:client-test", values)
 
-        testSharedPrefs.edit().putString("Statsig.CACHE_BY_USER", gson.toJson(cacheByUser)).apply()
+        runBlocking {
+            testKeyValueStorage.writeValue(
+                "ondiskvaluecache",
+                "Statsig.CACHE_BY_USER",
+                gson.toJson(cacheByUser)
+            )
+        }
 
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions(loadCacheAsync = true))
         client = Statsig.client

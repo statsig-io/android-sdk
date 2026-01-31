@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import junit.framework.TestCase.assertEquals
@@ -15,7 +14,6 @@ import org.robolectric.RuntimeEnvironment
 @RunWith(RobolectricTestRunner::class)
 class DiagnosticsTest {
     private lateinit var app: Application
-    private lateinit var sharedPrefs: SharedPreferences
     private lateinit var network: StatsigNetwork
     private var client: StatsigClient = StatsigClient()
     private val user: StatsigUser = StatsigUser("testUser")
@@ -24,7 +22,6 @@ class DiagnosticsTest {
     @Before
     fun setup() = runBlocking {
         app = RuntimeEnvironment.getApplication()
-        sharedPrefs = TestUtil.getTestSharedPrefs(app)
         TestUtil.mockHashing()
         TestUtil.mockDispatchers()
         client = StatsigClient()
