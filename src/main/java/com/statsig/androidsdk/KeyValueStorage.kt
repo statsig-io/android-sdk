@@ -29,7 +29,6 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import java.util.zip.ZipException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -70,6 +69,137 @@ internal interface KeyValueStorage<T> {
      * Write multiple values to storage in a single transaction
      */
     suspend fun writeValues(storeName: String, entries: Map<String, T>)
+}
+
+/**
+ * Wrapper which migrates reads from an old [KeyValueStorage] into a primary one.
+ * Primary is treated as the source of truth, with legacy used only as a fallback.
+ */
+internal class MigratingKeyValueStorage<T>(
+    private val primary: KeyValueStorage<T>,
+    private val source: KeyValueStorage<T>,
+    private val markerStorage: KeyValueStorage<String>
+) : KeyValueStorage<T> {
+    companion object {
+        private const val MIGRATION_META_STORE = "statsig.kv_migration"
+        private const val MIGRATION_MARKER_VALUE = "1" // to be modified each time we migrate
+
+        private fun markerKey(storeName: String): String = "migrated:$storeName"
+    }
+
+    private val legacyFallbackDisabledStores = ConcurrentHashMap.newKeySet<String>()
+    private val migratedStores = ConcurrentHashMap.newKeySet<String>()
+    private val sourceIsLegacy = source is LegacyKeyValueStorage
+
+    private suspend fun isSourceFallbackEnabled(storeName: String): Boolean {
+        if (legacyFallbackDisabledStores.contains(storeName)) {
+            return false
+        }
+        if (migratedStores.contains(storeName)) {
+            return false
+        }
+
+        val marker = markerStorage.readValue(MIGRATION_META_STORE, markerKey(storeName))
+        return if (marker == MIGRATION_MARKER_VALUE) {
+            migratedStores.add(storeName)
+            false
+        } else {
+            true
+        }
+    }
+
+    private suspend fun markMigrated(storeName: String) {
+        if (migratedStores.contains(storeName)) {
+            return
+        }
+        markerStorage.writeValue(
+            MIGRATION_META_STORE,
+            markerKey(storeName),
+            MIGRATION_MARKER_VALUE
+        )
+        migratedStores.add(storeName)
+    }
+
+    override suspend fun clearAll() {
+        primary.clearAll()
+        source.clearAll()
+        legacyFallbackDisabledStores.clear()
+        migratedStores.clear()
+        try {
+            if (markerStorage !== primary) {
+                markerStorage.clearStore(MIGRATION_META_STORE)
+            }
+        } catch (_: NotImplementedError) {
+            // Ignore if the primary store doesn't support clearStore.
+        }
+    }
+
+    override suspend fun clearStore(storeName: String) {
+        primary.clearStore(storeName)
+        legacyFallbackDisabledStores.add(storeName)
+        markMigrated(storeName)
+        // Legacy impl does not support clearStore()
+        if (!sourceIsLegacy) {
+            source.clearStore(storeName)
+        }
+    }
+
+    override suspend fun readAll(storeName: String): Map<String, T> {
+        val primaryValues = primary.readAll(storeName)
+        if (!isSourceFallbackEnabled(storeName)) {
+            return primaryValues
+        }
+
+        val legacyValues = source.readAll(storeName)
+        if (legacyValues.isEmpty()) {
+            if (!sourceIsLegacy) {
+                markMigrated(storeName)
+            }
+            return primaryValues
+        }
+
+        val merged = primaryValues.toMutableMap()
+        legacyValues.forEach { (key, value) ->
+            if (!merged.containsKey(key)) {
+                primary.writeValue(storeName, key, value)
+                merged[key] = value
+            }
+            source.removeValue(storeName, key)
+        }
+        if (!sourceIsLegacy) {
+            markMigrated(storeName)
+        }
+        return merged
+    }
+
+    override suspend fun readValue(storeName: String, key: String): T? {
+        val primaryValue = primary.readValue(storeName, key)
+        if (primaryValue != null || !isSourceFallbackEnabled(storeName)) {
+            return primaryValue
+        }
+
+        val legacyValue = source.readValue(storeName, key) ?: return null
+        primary.writeValue(storeName, key, legacyValue)
+        source.removeValue(storeName, key)
+        if (sourceIsLegacy) {
+            // Legacy impl has a 1:1 relationship between stores and keys
+            markMigrated(storeName)
+        }
+        return legacyValue
+    }
+
+    override suspend fun removeValue(storeName: String, key: String) {
+        primary.removeValue(storeName, key)
+        source.removeValue(storeName, key)
+    }
+
+    override suspend fun writeValue(storeName: String, key: String, value: T) {
+        primary.writeValue(storeName, key, value)
+    }
+
+    override suspend fun writeValues(storeName: String, entries: Map<String, T>) {
+        primary.writeValues(storeName, entries)
+    }
 }
 
 /**
@@ -142,6 +272,8 @@ internal class LegacyKeyValueStorage(val context: Context) : KeyValueStorage<Str
     }
 
     @Suppress("UNCHECKED_CAST")
+    // WARNING: this is NOT isolated to a single store,
+    // since there's only one backing file in the old world
     override suspend fun readAll(storeName: String): Map<String, String> =
         withContext(dispatcherProvider.io) {
             // Cast should be safe given that we're excluding anything that isn't a String
@@ -222,7 +354,7 @@ class PreferencesDataStoreKeyValueStorage(
 
         @VisibleForTesting
         internal suspend fun clearAllStoresForTesting() {
-            withContext(Dispatchers.IO) {
+            withContext(CoroutineDispatcherProvider().io) {
                 val storeNames = storeMap.keys.toList()
                 storeNames.forEach { storeName ->
                     storeMap[storeName]?.edit { it.clear() }

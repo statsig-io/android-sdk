@@ -1,9 +1,6 @@
 package com.statsig.androidsdk
 
 import android.app.Application
-import android.content.Context
-import android.content.Context.MODE_PRIVATE
-import android.content.SharedPreferences
 import com.google.gson.Gson
 import io.mockk.*
 import java.io.IOException
@@ -21,6 +18,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import okhttp3.Dns
 import org.junit.Assert
+import org.robolectric.RuntimeEnvironment
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestUtil {
@@ -302,8 +300,6 @@ class TestUtil {
             client.initialize(app, sdkKey, user, options)
         }
 
-        fun getMockApp(): Application = mockk()
-
         @JvmName("captureLogs")
         internal fun captureLogs(network: StatsigNetwork, onLog: ((LogEventData) -> Unit)? = null) {
             coEvery {
@@ -313,14 +309,12 @@ class TestUtil {
             }
         }
 
-        fun getTestSharedPrefs(context: Context): SharedPreferences =
-            context.getSharedPreferences(LegacyKeyValueStorage.SHARED_PREFERENCES_KEY, MODE_PRIVATE)
-
         internal fun getTestKeyValueStore(
             app: Application,
             coroutineScope: CoroutineScope? = null
         ): KeyValueStorage<String> {
-            val scope = coroutineScope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
+            val scope =
+                coroutineScope ?: CoroutineScope(SupervisorJob() + CoroutineDispatcherProvider().io)
             return StatsigClient.createKeyValueStorage(app, scope)
         }
 
@@ -424,7 +418,9 @@ class TestUtil {
             HttpUtils.okHttpClient?.dispatcher?.executorService?.shutdown()
             HttpUtils.okHttpClient = null
             runBlocking {
+                val app = RuntimeEnvironment.getApplication()
                 PreferencesDataStoreKeyValueStorage.resetForTesting()
+                LegacyKeyValueStorage(app).clearAll()
             }
         }
 

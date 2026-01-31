@@ -17,7 +17,9 @@ import okhttp3.Response
 internal class ExternalException(message: String? = null) : Exception(message)
 
 internal class ErrorBoundary(
-    private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val coroutineScope: CoroutineScope = CoroutineScope(
+        SupervisorJob() + CoroutineDispatcherProvider().io
+    )
 ) {
     private companion object {
         private const val TAG: String = "statsig::ErrorBoundary"

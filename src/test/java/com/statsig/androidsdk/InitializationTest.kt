@@ -25,7 +25,6 @@ class InitializationTest {
     internal fun setup() {
         app = RuntimeEnvironment.getApplication()
         TestUtil.mockDispatchers()
-        TestUtil.setupHttp(app)
         mockWebServer = MockWebServer()
         TestUtil.mockHashing()
 
@@ -42,12 +41,13 @@ class InitializationTest {
         }
         mockWebServer.dispatcher = dispatcher
         mockWebServer.start()
+        TestUtil.setupHttp(app)
     }
 
     @After
     fun tearDown() {
-        TestUtil.reset()
         mockWebServer.shutdown()
+        TestUtil.reset()
     }
 
     @Test

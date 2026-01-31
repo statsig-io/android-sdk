@@ -1,6 +1,7 @@
 import com.google.common.truth.Truth.assertThat
 import com.statsig.androidsdk.DEFAULT_INIT_API
 import com.statsig.androidsdk.Endpoint
+import com.statsig.androidsdk.InMemoryKeyValueStorage
 import com.statsig.androidsdk.KeyValueStorage
 import com.statsig.androidsdk.NetworkFallbackResolver
 import com.statsig.androidsdk.StatsigUtil
@@ -29,36 +30,6 @@ class NetworkFallbackResolverTest {
     private lateinit var resolver: NetworkFallbackResolver
     private lateinit var dispatcher: TestDispatcher
     private lateinit var coroutineScope: TestScope
-
-    private class InMemoryKeyValueStorage : KeyValueStorage<String> {
-        private val stores: MutableMap<String, MutableMap<String, String>> = mutableMapOf()
-
-        override suspend fun writeValue(storeName: String, key: String, value: String) {
-            stores.getOrPut(storeName) { mutableMapOf() }[key] = value
-        }
-
-        override suspend fun writeValues(storeName: String, entries: Map<String, String>) {
-            stores.getOrPut(storeName) { mutableMapOf() }.putAll(entries)
-        }
-
-        override suspend fun readValue(storeName: String, key: String): String? =
-            stores[storeName]?.get(key)
-
-        override suspend fun removeValue(storeName: String, key: String) {
-            stores[storeName]?.remove(key)
-        }
-
-        override suspend fun clearStore(storeName: String) {
-            stores.remove(storeName)
-        }
-
-        override suspend fun clearAll() {
-            stores.clear()
-        }
-
-        override suspend fun readAll(storeName: String): Map<String, String> =
-            stores[storeName]?.toMap() ?: emptyMap()
-    }
 
     companion object {
         const val SDK_KEY = "client-test-sdk-key"

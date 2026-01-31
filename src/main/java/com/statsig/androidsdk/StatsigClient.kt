@@ -36,7 +36,7 @@ class StatsigClient : LifecycleEventListener {
         @VisibleForTesting
         @JvmSynthetic
         internal var keyValueStorageImplementationOverride: KeyValueStorageImplementation? =
-            KeyValueStorageImplementation.PREFERENCES_DATASTORE
+            null // null is "default" - currently migrate from legacy to preferences.
 
         @VisibleForTesting
         @JvmSynthetic
@@ -53,7 +53,12 @@ class StatsigClient : LifecycleEventListener {
                 KeyValueStorageImplementation.LEGACY -> { app, _ -> LegacyKeyValueStorage(app) }
                 KeyValueStorageImplementation.PREFERENCES_DATASTORE,
                 null -> { app, scope ->
-                    PreferencesDataStoreKeyValueStorage(app, scope)
+                    val primary = PreferencesDataStoreKeyValueStorage(app, scope)
+                    MigratingKeyValueStorage(
+                        primary,
+                        LegacyKeyValueStorage(app),
+                        markerStorage = primary
+                    )
                 }
             }
     }
