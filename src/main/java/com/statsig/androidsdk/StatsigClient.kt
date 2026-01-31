@@ -1100,7 +1100,14 @@ class StatsigClient : LifecycleEventListener {
         this.diagnostics = Diagnostics(options.getLoggingCopy())
         diagnostics.markStart(KeyType.OVERALL)
         this.application = application
-        this.keyValueStorage = LegacyKeyValueStorage(application)
+        val storageScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
+
+        // val storage = LegacyKeyValueStorage(application)
+
+        val storage = PreferencesDataStoreKeyValueStorage(application, storageScope)
+        storage.initialize()
+
+        this.keyValueStorage = storage
         this.sdkKey = sdkKey
         this.options = options
         val normalizedUser = normalizeUser(user)

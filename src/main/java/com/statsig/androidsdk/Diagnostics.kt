@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.util.Log
 import java.util.Queue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue

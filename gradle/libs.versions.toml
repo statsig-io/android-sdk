@@ -15,6 +15,8 @@ slf4jSimple = "2.0.17"
 truth = "1.4.5"
 wiremock = "3.0.1"
 ktor = "3.0.0"
+annotationExperimental = "1.5.1"
+datastore = "1.2.0"
 
 [libraries]
 appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appCompat" }
@@ -34,6 +36,9 @@ robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectr
 slf4j-simple = { module = "org.slf4j:slf4j-simple", version.ref = "slf4jSimple" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
 wiremock = { module = "com.github.tomakehurst:wiremock", version.ref = "wiremock" }
+annotation-experimental = { group = "androidx.annotation", name = "annotation-experimental", version.ref = "annotationExperimental" }
+datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+datastore-core = { group = "androidx.datastore", name = "datastore-core", version.ref = "datastore" }
 
 [plugins]
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin"}

@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
@@ -66,6 +67,8 @@ internal class Store(
     }
 
     fun syncLoadFromLocalStorage() {
+        // TODO: it might be more disk-efficient to have each user cache
+        //  map to a distinct backing store, and only load those that are needed
         val cachedResponse = keyValueStorage.readValueSync(STORE_NAME, CACHE_BY_USER_KEY)
         val cachedDeviceValues = keyValueStorage.readValueSync(
             STORE_NAME,
