@@ -2,8 +2,8 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.common.truth.Truth.assertThat
-import io.mockk.*
-import kotlinx.coroutines.*
+import io.mockk.unmockkAll
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before

@@ -1,7 +1,5 @@
 package com.statsig.androidsdk
 
-import java.lang.Exception
-
 object BootstrapValidator {
     fun isValid(initializeValues: Map<String, Any>, user: StatsigUser): Boolean {
         try {

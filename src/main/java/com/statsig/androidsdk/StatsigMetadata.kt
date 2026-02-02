@@ -2,7 +2,8 @@ package com.statsig.androidsdk
 
 import android.os.Build
 import com.google.gson.annotations.SerializedName
-import java.util.*
+import java.util.Locale
+import java.util.UUID
 
 data class StatsigMetadata(
     @SerializedName("stableID") var stableID: String? = null,

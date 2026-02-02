@@ -1,13 +1,11 @@
 package com.statsig.androidsdk
 
-import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.net.URL
 import java.util.Date
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class FallbackInfoEntry(
     var url: String? = null,

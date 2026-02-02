@@ -2,7 +2,10 @@ package com.statsig.androidsdk
 
 import com.google.common.truth.Truth.assertThat
 import java.util.Collections
-import org.junit.Assert.*
+import org.junit.Assert.assertArrayEquals
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 

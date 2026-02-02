@@ -2,7 +2,6 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.common.truth.Truth.assertThat
-import com.google.gson.Gson
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals

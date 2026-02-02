@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.util.Log
-import com.google.gson.Gson
 import com.statsig.androidsdk.evaluator.Evaluator
 import com.statsig.androidsdk.evaluator.SpecStore
 import com.statsig.androidsdk.evaluator.SpecsResponse

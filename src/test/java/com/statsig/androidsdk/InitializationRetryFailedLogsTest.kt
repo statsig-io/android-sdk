@@ -3,7 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
-import kotlinx.coroutines.*
+import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

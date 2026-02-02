@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.config.JvmDefaultMode
-
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
