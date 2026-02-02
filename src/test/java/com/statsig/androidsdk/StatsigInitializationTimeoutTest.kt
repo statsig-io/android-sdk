@@ -7,6 +7,7 @@ import io.mockk.every
 import io.mockk.spyk
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.*
 import okhttp3.mockwebserver.Dispatcher
@@ -29,8 +30,8 @@ class StatsigInitializationTimeoutTest {
     private lateinit var errorBoundary: ErrorBoundary
     private lateinit var mockWebServer: MockWebServer
     private val hitErrorBoundary = CountDownLatch(1)
-
-    private val errorBoundaryDelay = 2000L
+    private val allowErrorBoundaryResponse = CountDownLatch(1)
+    private val errorBoundaryResponseReleased = AtomicBoolean(false)
 
     @Before
     fun setup() {
@@ -41,9 +42,8 @@ class StatsigInitializationTimeoutTest {
             override fun dispatch(request: RecordedRequest): MockResponse =
                 if (request.path!!.contains("sdk_exception")) {
                     hitErrorBoundary.countDown()
-                    runBlocking {
-                        delay(errorBoundaryDelay.milliseconds)
-                    }
+                    allowErrorBoundaryResponse.await(5, TimeUnit.SECONDS)
+                    errorBoundaryResponseReleased.set(true)
                     MockResponse()
                         .setBody("{\"result\":\"error logged\"}")
                         .setResponseCode(200)
@@ -78,8 +78,8 @@ class StatsigInitializationTimeoutTest {
 
     @After
     fun tearDown() {
-        TestUtil.reset()
         mockWebServer.shutdown()
+        TestUtil.reset()
     }
 
     @Test
@@ -94,9 +94,10 @@ class StatsigInitializationTimeoutTest {
         assert(initializationDetails != null)
         assert(client.isInitialized())
 
-        // error boundary was hit, but has not completed at this point,
+        // error boundary was hit, but response is still blocked at this point,
         // so it did not block initialize()
         assertThat(hitErrorBoundary.await(2, TimeUnit.SECONDS)).isTrue()
-        assertThat(initializationDetails!!.duration).isLessThan(errorBoundaryDelay)
+        assertThat(errorBoundaryResponseReleased.get()).isFalse()
+        allowErrorBoundaryResponse.countDown()
     }
 }
