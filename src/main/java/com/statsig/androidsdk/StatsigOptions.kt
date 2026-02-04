@@ -160,8 +160,18 @@ class StatsigOptions(
 
     private var environment: MutableMap<String, String>? = null
 
+    /**
+     * Set the "tier" environment parameter one of Statsig's default tiers, defined in [Tier]
+     */
     fun setTier(tier: Tier) {
-        setEnvironmentParameter(TIER_KEY, tier.toString().lowercase())
+        setTier(tier.toString())
+    }
+
+    /**
+     * Set the "tier" environment parameter to a custom value.
+     */
+    fun setTier(tierName: String) {
+        setEnvironmentParameter(TIER_KEY, tierName.lowercase())
     }
 
     fun setEnvironmentParameter(key: String, value: String) {

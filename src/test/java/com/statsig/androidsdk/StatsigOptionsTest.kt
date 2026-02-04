@@ -23,5 +23,20 @@ class StatsigOptionsTest {
         assertThat(options.getEnvironment()?.values).contains(
             Tier.PRODUCTION.toString().lowercase()
         )
+        assertThat(
+            options.getLoggingCopy()["environment"] as Map<String, String>
+        ).containsEntry("tier", Tier.PRODUCTION.toString().lowercase())
+    }
+
+    @Test
+    fun setTierString_writesLowerCaseEnvironmentVariable() {
+        val customTier = "CUSTOMER-DEFINED-TIER"
+        val options = StatsigOptions()
+        options.setTier(customTier)
+
+        assertThat(options.getEnvironment()?.values).contains(customTier.lowercase())
+        assertThat(
+            options.getLoggingCopy()["environment"] as Map<String, String>
+        ).containsEntry("tier", customTier.lowercase())
     }
 }
