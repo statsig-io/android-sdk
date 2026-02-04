@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.runTest
+import okhttp3.Interceptor
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -648,5 +649,21 @@ class StatsigTest {
         assertThat(metadata).isNotSameInstanceAs(client.statsigClientMetadata)
         assertThat(metadata.stableID).isEqualTo(customID)
         assertThat(metadata.sdkVersion).isEqualTo(BuildConfig.VERSION_NAME)
+    }
+
+    @Test
+    fun initialize_injectsOkHttpInterceptorFromOptions() {
+        val interceptor = Interceptor { chain -> chain.proceed(chain.request()) }
+        val options = StatsigOptions()
+        options.interceptors = listOf(interceptor)
+
+        TestUtil.startStatsigAndWait(
+            app,
+            user= StatsigUser(),
+            options= options,
+            network= network
+        )
+
+        assertThat(HttpUtils.okHttpClient!!.interceptors).contains(interceptor)
     }
 }

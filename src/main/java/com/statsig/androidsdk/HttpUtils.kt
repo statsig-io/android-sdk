@@ -103,7 +103,7 @@ class HttpUtils {
 
         @JvmSynthetic
         @VisibleForTesting(otherwise = PACKAGE_PRIVATE)
-        fun maybeInitializeHttpClient(app: Application? = null) {
+        fun maybeInitializeHttpClient(app: Application?) {
             if (okHttpClient == null) {
                 okHttpClient = buildHttpClient(app)
             }
@@ -131,6 +131,18 @@ class HttpUtils {
                 .dns(dns)
                 .retryOnConnectionFailure(false)
                 .build()
+        }
+
+        internal fun addInterceptors(interceptors: List<Interceptor>) {
+            if (interceptors.isEmpty()) {
+                // No interceptors provided - ignore
+                return
+            }
+            okHttpClient?.let {
+                val builder = okHttpClient!!.newBuilder()
+                interceptors.forEach { builder.addInterceptor(it) }
+                okHttpClient = builder.build()
+            }
         }
     }
 }

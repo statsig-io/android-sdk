@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import androidx.annotation.VisibleForTesting
 import com.google.gson.annotations.SerializedName
+import okhttp3.Interceptor
 
 enum class Tier {
     PRODUCTION,
@@ -159,6 +160,18 @@ class StatsigOptions(
         autoValueUpdateIntervalMinutes.coerceAtLeast(AUTO_VALUE_UPDATE_INTERVAL_MINIMUM_VALUE)
 
     private var environment: MutableMap<String, String>? = null
+
+    /**
+     * A collection of [Interceptor] instances to apply to Statsig's networking layer, for
+     * deeper visibility into the SDK's network requests.
+     * Recommended only for use in internal or debug builds.
+     *
+     * WARNING: modifying outgoing requests and/or incoming responses is likely to cause failures.
+     * Also, multiple instances of [StatsigClient] share their okHttp client, so mind that you don't
+     * append duplicate [Interceptor] instances when initializing multiple clients.
+     */
+    @Transient
+    var interceptors: List<Interceptor>? = null
 
     /**
      * Set the "tier" environment parameter one of Statsig's default tiers, defined in [Tier]
