@@ -353,19 +353,18 @@ class PreferencesDataStoreKeyValueStorage(
         }
 
         @VisibleForTesting
-        internal suspend fun clearAllStoresForTesting() {
+        fun resetForTesting() {
+            runBlocking {
+                clearAllStoresForTesting()
+            }
+        }
+
+        private suspend fun clearAllStoresForTesting() {
             withContext(CoroutineDispatcherProvider().io) {
                 val storeNames = storeMap.keys.toList()
                 storeNames.forEach { storeName ->
                     storeMap[storeName]?.edit { it.clear() }
                 }
-            }
-        }
-
-        @VisibleForTesting
-        fun resetForTesting() {
-            runBlocking {
-                clearAllStoresForTesting()
             }
         }
     }

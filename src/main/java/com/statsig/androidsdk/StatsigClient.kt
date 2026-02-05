@@ -24,19 +24,20 @@ private const val STABLE_ID_KEY: String = "STABLE_ID"
 private const val STABLE_ID_STORE_NAME: String = "stableidstore"
 
 class StatsigClient : LifecycleEventListener {
-    internal companion object {
+    companion object {
         private const val TAG: String = "statsig::StatsigClient"
 
         @VisibleForTesting
-        internal enum class KeyValueStorageImplementation {
+        enum class KeyValueStorageImplementation {
             LEGACY,
-            PREFERENCES_DATASTORE
+            PREFERENCES_DATASTORE,
+            MIGRATION
         }
 
         @VisibleForTesting
         @JvmSynthetic
-        internal var keyValueStorageImplementationOverride: KeyValueStorageImplementation? =
-            null // null is "default" - currently migrate from legacy to preferences.
+        var keyValueStorageImplementationOverride: KeyValueStorageImplementation =
+            KeyValueStorageImplementation.LEGACY
 
         @VisibleForTesting
         @JvmSynthetic
@@ -51,8 +52,10 @@ class StatsigClient : LifecycleEventListener {
         ) -> KeyValueStorage<String> =
             when (keyValueStorageImplementationOverride) {
                 KeyValueStorageImplementation.LEGACY -> { app, _ -> LegacyKeyValueStorage(app) }
-                KeyValueStorageImplementation.PREFERENCES_DATASTORE,
-                null -> { app, scope ->
+                KeyValueStorageImplementation.PREFERENCES_DATASTORE -> { app, scope ->
+                    PreferencesDataStoreKeyValueStorage(app, scope)
+                }
+                KeyValueStorageImplementation.MIGRATION -> { app, scope ->
                     val primary = PreferencesDataStoreKeyValueStorage(app, scope)
                     MigratingKeyValueStorage(
                         primary,
