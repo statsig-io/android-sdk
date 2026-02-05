@@ -1132,7 +1132,7 @@ class StatsigClient : LifecycleEventListener {
         }
         initTime = System.currentTimeMillis()
         HttpUtils.maybeInitializeHttpClient(application)
-        HttpUtils.addInterceptors(options.interceptors?: emptyList())
+        HttpUtils.addInterceptors(options.interceptors ?: emptyList())
         this.diagnostics = Diagnostics(options.getLoggingCopy())
         diagnostics.markStart(KeyType.OVERALL)
         this.application = application

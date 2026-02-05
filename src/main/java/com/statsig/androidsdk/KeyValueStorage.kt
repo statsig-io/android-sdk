@@ -87,21 +87,21 @@ internal class MigratingKeyValueStorage<T>(
         private fun markerKey(storeName: String): String = "migrated:$storeName"
     }
 
-    private val legacyFallbackDisabledStores = ConcurrentHashMap.newKeySet<String>()
-    private val migratedStores = ConcurrentHashMap.newKeySet<String>()
+    private val legacyFallbackDisabledStores = ConcurrentHashMap<String, Boolean>()
+    private val migratedStores = ConcurrentHashMap<String, Boolean>()
     private val sourceIsLegacy = source is LegacyKeyValueStorage
 
     private suspend fun isSourceFallbackEnabled(storeName: String): Boolean {
-        if (legacyFallbackDisabledStores.contains(storeName)) {
+        if (legacyFallbackDisabledStores.containsKey(storeName)) {
             return false
         }
-        if (migratedStores.contains(storeName)) {
+        if (migratedStores.containsKey(storeName)) {
             return false
         }
 
         val marker = markerStorage.readValue(MIGRATION_META_STORE, markerKey(storeName))
         return if (marker == MIGRATION_MARKER_VALUE) {
-            migratedStores.add(storeName)
+            migratedStores[storeName] = true
             false
         } else {
             true
@@ -109,7 +109,7 @@ internal class MigratingKeyValueStorage<T>(
     }
 
     private suspend fun markMigrated(storeName: String) {
-        if (migratedStores.contains(storeName)) {
+        if (migratedStores.containsKey(storeName)) {
             return
         }
         markerStorage.writeValue(
@@ -117,7 +117,7 @@ internal class MigratingKeyValueStorage<T>(
             markerKey(storeName),
             MIGRATION_MARKER_VALUE
         )
-        migratedStores.add(storeName)
+        migratedStores[storeName] = true
     }
 
     override suspend fun clearAll() {
@@ -136,7 +136,7 @@ internal class MigratingKeyValueStorage<T>(
 
     override suspend fun clearStore(storeName: String) {
         primary.clearStore(storeName)
-        legacyFallbackDisabledStores.add(storeName)
+        legacyFallbackDisabledStores[storeName] = true
         markMigrated(storeName)
         // Legacy impl does not support clearStore()
         if (!sourceIsLegacy) {

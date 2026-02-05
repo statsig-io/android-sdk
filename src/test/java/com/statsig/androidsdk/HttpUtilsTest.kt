@@ -64,7 +64,9 @@ class HttpUtilsTest {
 
         // new interceptor included, no interceptors dropped
         assertThat(HttpUtils.okHttpClient!!.interceptors).contains(bogusInterceptor)
-        assertThat(HttpUtils.okHttpClient!!.interceptors).containsAtLeastElementsIn(previousInterceptors)
+        assertThat(
+            HttpUtils.okHttpClient!!.interceptors
+        ).containsAtLeastElementsIn(previousInterceptors)
     }
 
     private class TestInterceptor : Interceptor {

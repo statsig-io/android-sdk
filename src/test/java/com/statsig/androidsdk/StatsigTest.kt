@@ -659,9 +659,9 @@ class StatsigTest {
 
         TestUtil.startStatsigAndWait(
             app,
-            user= StatsigUser(),
-            options= options,
-            network= network
+            user = StatsigUser(),
+            options = options,
+            network = network
         )
 
         assertThat(HttpUtils.okHttpClient!!.interceptors).contains(interceptor)
