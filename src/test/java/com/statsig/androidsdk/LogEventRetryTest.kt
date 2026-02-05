@@ -4,7 +4,7 @@ import android.app.Application
 import com.google.common.truth.Truth.assertThat
 import com.google.gson.Gson
 import java.io.IOException
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import okhttp3.Interceptor
 import okhttp3.Response
 import okhttp3.mockwebserver.Dispatcher
@@ -63,31 +63,33 @@ class LogEventRetryTest {
     }
 
     @Test
-    fun testRetryOnRetryCode() = runBlocking {
-        val url = mockWebServer.url("/v1").toString()
-        Statsig.initialize(
+    fun testRetryOnRetryCode() = runTest {
+        val url = mockWebServer.url("/v1/").toString()
+        val client = StatsigClient()
+        client.initialize(
             app,
             "client-key",
             StatsigUser("test"),
             StatsigOptions(api = url, eventLoggingAPI = url)
         )
-        Statsig.logEvent("test-event1")
-        Statsig.shutdown()
+        client.logEvent("test-event1")
+        client.shutdown()
         assertThat(logEventHits).isEqualTo(2)
     }
 
     @Test
-    fun testNoRetryOnException() = runBlocking {
-        val url = mockWebServer.url("/v1").toString()
-        Statsig.initialize(
+    fun testNoRetryOnException() = runTest {
+        val url = mockWebServer.url("/v1/").toString()
+        val client = StatsigClient()
+        client.initialize(
             app,
             "client-key",
             StatsigUser("test"),
             StatsigOptions(api = url, eventLoggingAPI = url)
         )
         enforceLogEventException = true
-        Statsig.logEvent("test-event1")
-        Statsig.shutdown()
+        client.logEvent("test-event1")
+        client.shutdown()
         assertThat(logEventHits).isEqualTo(1)
     }
 

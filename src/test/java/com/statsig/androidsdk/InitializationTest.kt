@@ -28,11 +28,10 @@ class InitializationTest {
         mockWebServer = MockWebServer()
         TestUtil.mockHashing()
 
-        initializationHits = 0
         val dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
                 return if (request.path!!.contains("initialize")) {
-                    ++initializationHits
+                    initializationHits++
                     return MockResponse().setResponseCode(408)
                 } else {
                     MockResponse().setResponseCode(200)

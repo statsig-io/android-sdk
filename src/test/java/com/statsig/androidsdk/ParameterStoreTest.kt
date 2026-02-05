@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
@@ -95,6 +96,11 @@ class ParameterStoreTest {
         )
 
         return@runBlocking
+    }
+
+    @After
+    fun teardown() {
+        TestUtil.reset()
     }
 
     @Test

@@ -32,7 +32,7 @@ class StatsigStickyExperimentTest {
 
     @After
     internal fun tearDown() {
-        unmockkAll()
+        TestUtil.reset()
     }
 
     private fun copyConfig(

@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,6 +38,11 @@ class CacheKeyWithSDKKeyTest {
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockBrokenNetwork())
 
         return@runBlocking
+    }
+
+    @After
+    internal fun teardown() {
+        TestUtil.reset()
     }
 
     @Test

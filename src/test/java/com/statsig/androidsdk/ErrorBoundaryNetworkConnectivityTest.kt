@@ -19,6 +19,7 @@ import junit.framework.TestCase.assertFalse
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -88,6 +89,11 @@ class ErrorBoundaryNetworkConnectivityTest {
                 store,
                 gson = gson
             )
+    }
+
+    @After
+    fun teardown() {
+        TestUtil.reset()
     }
 
     @Config(sdk = [Build.VERSION_CODES.M])

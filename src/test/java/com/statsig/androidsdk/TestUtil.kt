@@ -16,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.MainCoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -419,10 +421,22 @@ class TestUtil {
         }
 
         fun reset() {
+            // Close any lingering coroutines and scopes
+            CoroutineDispatcherProvider().main.cancel()
+            CoroutineDispatcherProvider().io.cancel()
+            CoroutineDispatcherProvider().default.cancel()
+
+            // Reset dispatchers
             clearMockDispatchers()
+
+            // Get rid of any injected mocks
             clearAllMocks()
+
+            // Reset okHttp status
             HttpUtils.okHttpClient?.dispatcher?.executorService?.shutdown()
             HttpUtils.okHttpClient = null
+
+            // Clear static storage
             runBlocking {
                 val app = RuntimeEnvironment.getApplication()
                 PreferencesDataStoreKeyValueStorage.resetForTesting()

@@ -5,6 +5,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import junit.framework.TestCase.assertEquals
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,6 +30,11 @@ class DiagnosticsTest {
             logEvents.add(it)
         })
         client.statsigNetwork = network
+    }
+
+    @After
+    fun teardown() {
+        TestUtil.reset()
     }
 
     private fun enforceDiagnosticsSample() {

@@ -2,6 +2,7 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.gson.Gson
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -22,6 +23,11 @@ class LayerExposureTest {
         TestUtil.mockDispatchers()
         app = RuntimeEnvironment.getApplication()
         TestUtil.mockHashing()
+    }
+
+    @After
+    fun teardown() {
+        TestUtil.reset()
     }
 
     @Test

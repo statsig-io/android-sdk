@@ -57,7 +57,7 @@ class StatsigInitializationFailureTest {
     fun cleanup() {
         initDetails = null
         logEventRequests = mutableListOf()
-        unmockkAll()
+        TestUtil.reset()
         initializationCountdown = CountDownLatch(1)
         logEventCountdown = CountDownLatch(1)
     }

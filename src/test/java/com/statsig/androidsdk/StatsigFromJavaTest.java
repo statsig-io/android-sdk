@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 import android.app.Application;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,6 +55,11 @@ public class StatsigFromJavaTest {
 
         app = RuntimeEnvironment.getApplication();
         TestUtil.Companion.mockHashing();
+    }
+
+    @After
+    public void teardown() {
+        TestUtil.Companion.reset();
     }
 
     @Test

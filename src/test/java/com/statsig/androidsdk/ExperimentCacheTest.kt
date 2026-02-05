@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -66,6 +67,11 @@ class ExperimentCacheTest {
 
         Statsig.client = spyk()
         Statsig.client.statsigNetwork = network
+    }
+
+    @After
+    fun teardown() {
+        TestUtil.reset()
     }
 
     private fun StatsigUser.getTestCustomCacheKey(sdkKey: String): String {
