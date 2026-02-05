@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -165,5 +166,19 @@ class ParameterStoreTest {
     @Test
     fun testWrongGateType() {
         assertEquals("DEFAULT", paramStore.getString("static_bool", "DEFAULT"))
+    }
+
+    @Test
+    fun getKeys_returnsKeys() {
+        assertThat(paramStore.getKeys()).containsExactly(
+            "static_value",
+            "static_bool",
+            "gate_value",
+            "gate_bool",
+            "gate_number",
+            "layer_value",
+            "experiment_value",
+            "dynamic_config_value"
+        )
     }
 }

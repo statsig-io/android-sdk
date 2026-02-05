@@ -63,6 +63,8 @@ class ParameterStore(
     fun getArray(paramName: String, fallback: Array<*>?): Array<*>? =
         getValueFromRef(paramName, fallback, Layer::getArray, DynamicConfig::getArray)
 
+    fun getKeys(): List<String> = paramStore.keys.toList()
+
     // --------evaluation--------
 
     private inline fun <reified T> getValueFromRef(
