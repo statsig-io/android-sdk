@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.annotation.VisibleForTesting.Companion.PACKAGE_PRIVATE
 import androidx.annotation.VisibleForTesting.Companion.PRIVATE
@@ -13,8 +14,12 @@ import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_CLIENT_TIME_HEADER_KEY
 import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_SDK_TYPE_KEY
 import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_SDK_VERSION_KEY
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.InetAddress
+import java.net.UnknownHostException
 import okhttp3.Cache
+import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.MediaType
@@ -33,6 +38,8 @@ import okio.gzip
 class HttpUtils {
     @VisibleForTesting(otherwise = PACKAGE_PRIVATE)
     companion object {
+        internal const val TAG = "statsig::Http"
+
         @JvmSynthetic // hide from Java
         internal val RETRY_CODES: IntArray = intArrayOf(
             HttpURLConnection.HTTP_CLIENT_TIMEOUT,
@@ -124,11 +131,11 @@ class HttpUtils {
 
             // DNS over HTTPS to avoid system-level DNS configurations from causing issues
             val bootStrapClient = OkHttpClient.Builder().cache(appCache).build()
-            val dns = DnsOverHttps.Builder().client(bootStrapClient)
+            val dohDns = DnsOverHttps.Builder().client(bootStrapClient)
                 .url(DNS_QUERY_ENDPOINT.toHttpUrl()).build()
 
             return bootStrapClient.newBuilder()
-                .dns(dns)
+                .dns(DohDnsWithSystemFallback(dohDns))
                 .retryOnConnectionFailure(false)
                 .build()
         }
@@ -143,6 +150,19 @@ class HttpUtils {
                 interceptors.forEach { builder.addInterceptor(it) }
                 okHttpClient = builder.build()
             }
+        }
+    }
+}
+
+internal class DohDnsWithSystemFallback(val doh: DnsOverHttps, val systemDns: Dns = Dns.SYSTEM) :
+    Dns {
+    override fun lookup(hostname: String): List<InetAddress> {
+        try {
+            return doh.lookup(hostname)
+        } catch (e: IOException) {
+            // IOException covers the majority of network exceptions OkHttp would expose here.
+            Log.e(HttpUtils.TAG, "DoH failed, attempting fallback to system DNS", e)
+            return systemDns.lookup(hostname)
         }
     }
 }

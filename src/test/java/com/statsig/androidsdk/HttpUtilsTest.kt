@@ -2,9 +2,16 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
+import java.lang.RuntimeException
+import java.net.UnknownHostException
+import junit.framework.TestFailure
 import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.Response
+import okhttp3.dnsoverhttps.DnsOverHttps
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -23,7 +30,7 @@ class HttpUtilsTest {
 
     @After
     fun tearDown() {
-        HttpUtils.okHttpClient = null
+        TestUtil.reset()
     }
 
     @Test
@@ -67,6 +74,34 @@ class HttpUtilsTest {
         assertThat(
             HttpUtils.okHttpClient!!.interceptors
         ).containsAtLeastElementsIn(previousInterceptors)
+    }
+
+    @Test
+    fun dohFallbackDns_error_fallsBackToSystem() {
+        val mockDoh = mockk<DnsOverHttps>()
+        val mockSysDns = mockk<Dns>()
+        val dohDnsWithFallback = DohDnsWithSystemFallback(mockDoh, mockSysDns)
+        val fakeHostName = "www.fake.com"
+        every { mockDoh.lookup(any()) } throws UnknownHostException()
+        every { mockSysDns.lookup(any()) } answers { Dns.SYSTEM.lookup(fakeHostName) }
+
+        dohDnsWithFallback.lookup(fakeHostName)
+
+        verify { mockSysDns.lookup(fakeHostName) }
+    }
+
+    @Test
+    fun dohFallbackDns_noError_doesNotTouchSystemDns() {
+        val mockDoh = mockk<DnsOverHttps>()
+        val mockSysDns = mockk<Dns>()
+        val dohDnsWithFallback = DohDnsWithSystemFallback(mockDoh, mockSysDns)
+        val fakeHostName = "www.fake.com"
+        every { mockDoh.lookup(any()) } answers { Dns.SYSTEM.lookup(fakeHostName) }
+        every { mockSysDns.lookup(any()) } throws RuntimeException("No interaction expected")
+
+        dohDnsWithFallback.lookup(fakeHostName)
+
+        verify(exactly = 0) { mockSysDns.lookup(fakeHostName) }
     }
 
     private class TestInterceptor : Interceptor {

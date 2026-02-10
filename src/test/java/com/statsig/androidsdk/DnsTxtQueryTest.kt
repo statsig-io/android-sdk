@@ -1,7 +1,9 @@
+import com.statsig.androidsdk.HttpUtils
 import com.statsig.androidsdk.TestUtil
 import com.statsig.androidsdk.fetchTxtRecords
 import java.io.IOException
 import kotlinx.coroutines.runBlocking
+import okhttp3.Dns
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -18,6 +20,8 @@ class DnsTxtQueryTest {
     fun setUp() {
         val app = RuntimeEnvironment.getApplication()
         TestUtil.setupHttp(app)
+        // Can't use the custom DNS for this one
+        HttpUtils.okHttpClient = HttpUtils.okHttpClient!!.newBuilder().dns(Dns.SYSTEM).build()
     }
 
     @After

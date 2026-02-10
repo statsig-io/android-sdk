@@ -414,10 +414,7 @@ class TestUtil {
         }
 
         fun setupHttp(app: Application) {
-            // Tests need an OkHttpClient without the custom DNS resolution or cache
             HttpUtils.maybeInitializeHttpClient(app)
-            HttpUtils.okHttpClient =
-                HttpUtils.getHttpClient().newBuilder().dns(Dns.SYSTEM).cache(null).build()
         }
 
         fun reset() {

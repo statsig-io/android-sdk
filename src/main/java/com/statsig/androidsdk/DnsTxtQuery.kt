@@ -21,7 +21,7 @@ private val coroutineDispatcherProvider by lazy {
     CoroutineDispatcherProvider()
 }
 
-private val TAG = "statsig::DnsTxtQuery"
+private const val TAG = "statsig::DnsTxtQuery"
 
 suspend fun fetchTxtRecords(): List<String> = withContext(coroutineDispatcherProvider.io) {
     val request =
