@@ -69,6 +69,7 @@ class StatsigClient : LifecycleEventListener {
     private lateinit var user: StatsigUser
     private lateinit var application: Application
     private lateinit var keyValueStorage: KeyValueStorage<String>
+    private val integratedSdkExperiments = IntegratedSdkExperiments()
     private lateinit var sdkKey: String
     private lateinit var lifecycleListener: StatsigActivityLifecycleListener
     private lateinit var logger: StatsigLogger
@@ -1062,6 +1063,10 @@ class StatsigClient : LifecycleEventListener {
                             StepType.PROCESS
                         )
                         this@StatsigClient.store.save(initResponse, user)
+                        integratedSdkExperiments.processSdkConfigs(
+                            store.getSDKConfigs() ?: emptyMap(),
+                            this@StatsigClient
+                        )
                         if (initResponse.hasUpdates) {
                             statsigScope.launch(dispatcherProvider.main) {
                                 lifetimeCallback?.onValuesUpdated()
@@ -1139,8 +1144,18 @@ class StatsigClient : LifecycleEventListener {
         this.diagnostics = Diagnostics(options.getLoggingCopy())
         diagnostics.markStart(KeyType.OVERALL)
         this.application = application
+
         val storageScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
 
+        // Rely on legacy for migration hint, which should eventually be the only bit left there.
+        val bootstrapStorage = LegacyKeyValueStorage(application)
+        integratedSdkExperiments.initialize(bootstrapStorage)
+
+        // Prevent replacing existing test overrides
+        if (keyValueStorageImplementationOverride == KeyValueStorageImplementation.LEGACY) {
+            keyValueStorageImplementationOverride =
+                integratedSdkExperiments.getStorageImplementation()
+        }
         val storage = createKeyValueStorage(application, storageScope)
 
         this.keyValueStorage = storage
@@ -1265,6 +1280,10 @@ class StatsigClient : LifecycleEventListener {
                             overrideContext = ContextType.UPDATE_USER
                         )
                         store.save(initResponse, this@StatsigClient.user)
+                        integratedSdkExperiments.processSdkConfigs(
+                            store.getSDKConfigs() ?: emptyMap(),
+                            this@StatsigClient
+                        )
                         if (initResponse.hasUpdates) {
                             statsigScope.launch(dispatcherProvider.main) {
                                 lifetimeCallback?.onValuesUpdated()
@@ -1413,6 +1432,10 @@ class StatsigClient : LifecycleEventListener {
                 .onEach {
                     if (it != null) {
                         store.save(it, user)
+                        integratedSdkExperiments.processSdkConfigs(
+                            store.getSDKConfigs() ?: emptyMap(),
+                            this
+                        )
                         if (it.hasUpdates) {
                             Log.i(TAG, "enableAutoValueUpdate: values changed")
                             withContext(dispatcherProvider.main) {

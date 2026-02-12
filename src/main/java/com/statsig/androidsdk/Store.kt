@@ -499,6 +499,8 @@ internal class Store(
 
     fun getSDKFlags(): Map<String, Any>? = currentCache.values.sdkFlags
 
+    fun getSDKConfigs(): Map<String, Any>? = currentCache.values.sdkConfigs
+
     fun getCurrentCacheValuesAndEvaluationReason(): ExternalInitializeResponse =
         ExternalInitializeResponse(gson.toJson(currentCache.values), getEvaluationDetails(true))
 

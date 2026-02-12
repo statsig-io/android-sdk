@@ -28,7 +28,8 @@ sealed class InitializeResponse {
         ) val paramStores: Map<String, Map<String, Map<String, Any>>>? =
             null,
         @SerializedName("full_checksum") val fullChecksum: String? = null,
-        @SerializedName("sdk_flags") val sdkFlags: Map<String, Any>? = null
+        @SerializedName("sdk_flags") val sdkFlags: Map<String, Any>? = null,
+        @SerializedName("sdk_configs") val sdkConfigs: Map<String, Any>? = null
     ) : InitializeResponse()
 }
 

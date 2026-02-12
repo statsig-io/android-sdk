@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.common.truth.Truth.assertThat
 import io.mockk.coVerify
 import io.mockk.unmockkAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,7 +43,9 @@ class StoreTest {
         value: String,
         inExperiment: Boolean = false,
         active: Boolean = false,
-        hasUpdates: Boolean = true
+        hasUpdates: Boolean = true,
+        hasSdkFlags: Boolean = false,
+        hasSdkConfigs: Boolean = false
     ): InitializeResponse.SuccessfulInitializeResponse =
         InitializeResponse.SuccessfulInitializeResponse(
             featureGates =
@@ -103,7 +106,16 @@ class StoreTest {
             layerConfigs = null,
             hasUpdates = hasUpdates,
             time = 1621637839,
-            derivedFields = mapOf()
+            derivedFields = mapOf(),
+            sdkFlags = if (hasSdkFlags) mutableMapOf("sdk_flag" to true) else null,
+            sdkConfigs = if (hasSdkConfigs) {
+                mutableMapOf(
+                    "sdk_config_string" to "expectedConfig",
+                    "sdk_config_number" to 100
+                )
+            } else {
+                null
+            }
         )
 
     @Test
@@ -625,6 +637,50 @@ class StoreTest {
         }
         assertEquals(networkTime + 1, Statsig.client.getStore().getLastUpdateTime(user))
         assertEquals("second", Statsig.getConfig("test_config").getString("key", ""))
+    }
+
+    @Test
+    fun getSdkFlags_returnsFlags() {
+        runBlocking {
+            val store =
+                Store(
+                    coroutineScope,
+                    TestUtil.getTestKeyValueStore(app),
+                    userJkw,
+                    "client-apikey",
+                    StatsigOptions(),
+                    StatsigUtil.getOrBuildGson()
+                )
+            val data = getInitValue("v0", inExperiment = true, active = true, hasSdkFlags = true)
+
+            store.save(data, userJkw)
+
+            val sdkFlags: Map<String, Any?> = store.getSDKFlags() ?: emptyMap()
+            assertThat(sdkFlags).isNotEmpty()
+            assertThat(sdkFlags).isEqualTo(data.sdkFlags)
+        }
+    }
+
+    @Test
+    fun getSdkConfigs_returnsConfigs() {
+        runBlocking {
+            val store =
+                Store(
+                    coroutineScope,
+                    TestUtil.getTestKeyValueStore(app),
+                    userJkw,
+                    "client-apikey",
+                    StatsigOptions(),
+                    StatsigUtil.getOrBuildGson()
+                )
+            val data = getInitValue("v0", inExperiment = true, active = true, hasSdkConfigs = true)
+
+            store.save(data, userJkw)
+
+            val sdkConfigs: Map<String, Any?> = store.getSDKConfigs() ?: emptyMap()
+            assertThat(sdkConfigs).isNotEmpty()
+            assertThat(sdkConfigs).isEqualTo(data.sdkConfigs)
+        }
     }
 
     private fun newConfigUpdatingValue(
