@@ -7,7 +7,6 @@ import io.mockk.mockk
 import io.mockk.verify
 import java.lang.RuntimeException
 import java.net.UnknownHostException
-import junit.framework.TestFailure
 import okhttp3.Dns
 import okhttp3.Interceptor
 import okhttp3.Response

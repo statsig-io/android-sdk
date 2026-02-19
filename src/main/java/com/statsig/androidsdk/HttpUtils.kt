@@ -17,7 +17,9 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.InetAddress
-import java.net.UnknownHostException
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 import okhttp3.Cache
 import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -116,6 +118,10 @@ class HttpUtils {
             }
         }
 
+        @JvmSynthetic
+        @VisibleForTesting
+        var dohEndpointOverride: String? = null
+
         private fun buildHttpClient(app: Application? = null): OkHttpClient {
             var appCache: Cache? = null
             if (app != null) {
@@ -129,14 +135,23 @@ class HttpUtils {
                 )
             }
 
-            // DNS over HTTPS to avoid system-level DNS configurations from causing issues
-            val bootStrapClient = OkHttpClient.Builder().cache(appCache).build()
-            val dohDns = DnsOverHttps.Builder().client(bootStrapClient)
-                .url(DNS_QUERY_ENDPOINT.toHttpUrl()).build()
+            // Attempt DNS over HTTPS to avoid system-level DNS configurations from causing issues
+            // DoH attempt times out after 500ms to engage the System DNS fallback
+            val bootStrapClient = OkHttpClient.Builder().cache(appCache)
+                .connectTimeout(500.milliseconds.toJavaDuration())
+                .retryOnConnectionFailure(false)
+                .build()
 
+            val dohEndpoint = dohEndpointOverride ?: DNS_QUERY_ENDPOINT
+
+            val dohDns = DnsOverHttps.Builder().client(bootStrapClient)
+                .url(dohEndpoint.toHttpUrl())
+                .build()
+
+            // The actual client uses the default OkHttp connection timeout
             return bootStrapClient.newBuilder()
                 .dns(DohDnsWithSystemFallback(dohDns))
-                .retryOnConnectionFailure(false)
+                .connectTimeout(10.seconds.toJavaDuration())
                 .build()
         }
 
@@ -161,9 +176,10 @@ internal class DohDnsWithSystemFallback(val doh: DnsOverHttps, val systemDns: Dn
             return doh.lookup(hostname)
         } catch (e: IOException) {
             // IOException covers the majority of network exceptions OkHttp would expose here.
-            Log.e(HttpUtils.TAG, "DoH failed, attempting fallback to system DNS", e)
-            return systemDns.lookup(hostname)
+            Log.w(HttpUtils.TAG, "DoH lookup failed, attempting fallback to system DNS.", e)
+            Log.w(HttpUtils.TAG, "${e.cause}")
         }
+        return systemDns.lookup(hostname)
     }
 }
 
