@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
@@ -255,7 +256,7 @@ internal class StatsigLogger(
     }
 
     private fun shouldLogExposure(key: ExposureKey): Boolean {
-        val now = System.currentTimeMillis()
+        val now = SystemClock.elapsedRealtime()
         val lastTime = loggedExposures[key]
 
         return if (lastTime != null && now - lastTime < EXPOSURE_DEDUPE_INTERVAL) {

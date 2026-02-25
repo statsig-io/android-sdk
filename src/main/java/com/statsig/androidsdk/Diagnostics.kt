@@ -1,5 +1,6 @@
 package com.statsig.androidsdk
 
+import android.os.SystemClock
 import java.util.Queue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -46,7 +47,7 @@ internal class Diagnostics(val statsigOptionsLoggingCopy: Map<String, Any?>) {
             key = key,
             action = ActionType.START,
             timestamp =
-            System.nanoTime() / NANO_IN_MS,
+            SystemClock.elapsedRealtimeNanos() / NANO_IN_MS,
             step = step
         )
         when (context) {
@@ -75,7 +76,7 @@ internal class Diagnostics(val statsigOptionsLoggingCopy: Map<String, Any?>) {
             key = key,
             action = ActionType.END,
             timestamp =
-            System.nanoTime() / NANO_IN_MS,
+            SystemClock.elapsedRealtimeNanos() / NANO_IN_MS,
             success = success,
             step = step
         )

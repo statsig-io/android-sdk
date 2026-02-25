@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import java.util.UUID
@@ -83,7 +84,7 @@ class StatsigClient : LifecycleEventListener {
 
     private lateinit var diagnostics: Diagnostics
 
-    private var initTime: Long = System.currentTimeMillis()
+    private var initTime: Long = SystemClock.elapsedRealtime()
 
     private var dispatcherProvider = CoroutineDispatcherProvider()
     private val errorScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
@@ -144,7 +145,7 @@ class StatsigClient : LifecycleEventListener {
                 val normalizedUser = setup(application, sdkKey, user, options)
                 statsigScope.launch {
                     val initDetails = setupAsync(normalizedUser)
-                    initDetails.duration = System.currentTimeMillis() - initTime
+                    initDetails.duration = SystemClock.elapsedRealtime() - initTime
                     // The scope's dispatcher may change in the future.
                     // This "withContext" will ensure that initialization is complete when the
                     // callback is invoked
@@ -173,7 +174,7 @@ class StatsigClient : LifecycleEventListener {
                 try {
                     val initDetails =
                         InitializationDetails(
-                            System.currentTimeMillis() - initTime,
+                            SystemClock.elapsedRealtime() - initTime,
                             false,
                             InitializeResponse.FailedInitializeResponse(
                                 InitializeFailReason.InternalError,
@@ -221,7 +222,7 @@ class StatsigClient : LifecycleEventListener {
             {
                 val normalizedUser = setup(application, sdkKey, user, options)
                 val response = setupAsync(normalizedUser)
-                response.duration = System.currentTimeMillis() - initTime
+                response.duration = SystemClock.elapsedRealtime() - initTime
                 Log.v(TAG, "initialize completed. Success: ${response.success}")
                 val failure = response.failureDetails
                 failure?.let {
@@ -235,7 +236,7 @@ class StatsigClient : LifecycleEventListener {
             {
                 logEndDiagnosticsWhenException(ContextType.INITIALIZE, it)
                 return@captureAsync InitializationDetails(
-                    System.currentTimeMillis() - initTime,
+                    SystemClock.elapsedRealtime() - initTime,
                     false,
                     InitializeResponse.FailedInitializeResponse(
                         InitializeFailReason.InternalError,
@@ -1155,7 +1156,7 @@ class StatsigClient : LifecycleEventListener {
                 "Invalid SDK Key provided.  You must provide a client SDK Key from the API Key page of your Statsig console"
             )
         }
-        initTime = System.currentTimeMillis()
+        initTime = SystemClock.elapsedRealtime()
         HttpUtils.maybeInitializeHttpClient(application)
         HttpUtils.addInterceptors(options.interceptors ?: emptyList())
         this.diagnostics = Diagnostics(options.getLoggingCopy())

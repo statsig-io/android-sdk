@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
 import com.statsig.androidsdk.HttpUtils.Companion.RETRY_CODES
@@ -534,7 +535,7 @@ internal class StatsigNetworkImpl(
         return withContext(dispatcherProvider.io) {
             // Perform network calls in IO thread
             var errorMessage: String? = null
-            val start = System.nanoTime()
+            val start = SystemClock.elapsedRealtimeNanos()
             var end: Long
             var call: Call? = null
             try {
@@ -630,7 +631,7 @@ internal class StatsigNetworkImpl(
                 if (call != null && call.isExecuted()) {
                     call.cancel()
                 }
-                end = System.nanoTime()
+                end = SystemClock.elapsedRealtimeNanos()
                 coroutineScope.launch(dispatcherProvider.io) {
                     val timedOut = (end - start) / 1_000_000_000 > (timeout ?: 0)
                     val fallbackUpdated = networkResolver.tryFetchUpdatedFallbackInfo(
