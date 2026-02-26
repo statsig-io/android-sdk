@@ -316,7 +316,7 @@ object Statsig {
      */
     @JvmOverloads
     @JvmStatic
-    fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
+    fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, Any>? = null) {
         client.logEvent(eventName, value, metadata)
     }
 
@@ -329,7 +329,7 @@ object Statsig {
      */
     @JvmOverloads
     @JvmStatic
-    fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
+    fun logEvent(eventName: String, value: String, metadata: Map<String, Any>? = null) {
         client.logEvent(eventName, value, metadata)
     }
 
@@ -340,7 +340,7 @@ object Statsig {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmStatic
-    fun logEvent(eventName: String, metadata: Map<String, String>) {
+    fun logEvent(eventName: String, metadata: Map<String, Any>) {
         client.logEvent(eventName, null, metadata)
     }
 

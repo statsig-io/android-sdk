@@ -7,7 +7,7 @@ internal data class LogEvent(@SerializedName("eventName") val eventName: String)
     var value: Any? = null
 
     @SerializedName("metadata")
-    var metadata: Map<String, String?>? = null
+    var metadata: Map<String, Any?>? = null
 
     @SerializedName("user")
     var user: StatsigUser? = null
