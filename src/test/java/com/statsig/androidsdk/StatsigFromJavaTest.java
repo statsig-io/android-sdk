@@ -170,6 +170,20 @@ public class StatsigFromJavaTest {
         assertEquals("test-event", logs.getEvents().get(1).getEventName());
     }
 
+    @Test
+    public void testLoggingWithStringMetadataMap() {
+        start();
+
+        HashMap<String, String> metadata = new HashMap<>();
+        metadata.put("key", "value");
+
+        Statsig.logEvent("test-event", metadata);
+        Statsig.shutdown();
+
+        assertEquals("test-event", logs.getEvents().get(1).getEventName());
+        assertEquals("value", logs.getEvents().get(1).getMetadata().get("key"));
+    }
+
     private void start() {
         StatsigNetwork network = TestUtil.Companion.mockNetwork(
                 gates,

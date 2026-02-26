@@ -310,26 +310,52 @@ object Statsig {
     /**
      * Log an event to Statsig for the current user
      * @param eventName the name of the event to track
-     * @param value an optional value assocaited with the event, for aggregations/analysis
+     * @param value an optional value associated with the event, for aggregations/analysis
      * @param metadata an optional map of metadata associated with the event
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmOverloads
     @JvmStatic
-    fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, Any>? = null) {
+    fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
         client.logEvent(eventName, value, metadata)
     }
 
     /**
      * Log an event to Statsig for the current user
      * @param eventName the name of the event to track
-     * @param value an optional value assocaited with the event
+     * @param value an optional value associated with the event, for aggregations/analysis
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmName("logEventWithAnyMetadata")
+    @JvmStatic
+    fun logEvent(eventName: String, value: Double?, metadata: Map<String, Any>?) {
+        client.logEvent(eventName, value, metadata)
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param value an optional value associated with the event
      * @param metadata an optional map of metadata associated with the event
      * @throws IllegalStateException if the SDK has not been initialized
      */
     @JvmOverloads
     @JvmStatic
-    fun logEvent(eventName: String, value: String, metadata: Map<String, Any>? = null) {
+    fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
+        client.logEvent(eventName, value, metadata)
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param value an optional value associated with the event
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmName("logEventWithAnyMetadata")
+    @JvmStatic
+    fun logEvent(eventName: String, value: String, metadata: Map<String, Any>?) {
         client.logEvent(eventName, value, metadata)
     }
 
@@ -339,6 +365,18 @@ object Statsig {
      * @param metadata an optional map of metadata associated with the event
      * @throws IllegalStateException if the SDK has not been initialized
      */
+    @JvmStatic
+    fun logEvent(eventName: String, metadata: Map<String, String>) {
+        client.logEvent(eventName, metadata)
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmName("logEventWithAnyMetadata")
     @JvmStatic
     fun logEvent(eventName: String, metadata: Map<String, Any>) {
         client.logEvent(eventName, null, metadata)

@@ -2,7 +2,6 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.common.truth.Truth.assertThat
-import com.google.gson.Gson
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -42,6 +41,7 @@ class StatsigTest {
     private var initUser: StatsigUser? = null
     private var client: StatsigClient = StatsigClient()
     private lateinit var network: StatsigNetwork
+    private val gson = StatsigUtil.getOrBuildGson()
 
     private lateinit var dispatcher: TestDispatcher
 
@@ -84,8 +84,8 @@ class StatsigTest {
         client = Statsig.client
 
         assertEquals(
-            Gson().toJson(initUser?.customIDs),
-            Gson().toJson(mapOf("random_id" to "abcde"))
+            gson.toJson(initUser?.customIDs),
+            gson.toJson(mapOf("random_id" to "abcde"))
         )
         assertTrue(client.checkGate("always_on"))
         assertTrue(client.checkGateWithExposureLoggingDisabled("always_on_v2"))
@@ -121,9 +121,12 @@ class StatsigTest {
         assertEquals("exp_other", expNoExposure.getName())
         assertEquals(0, expNoExposure.getInt("number", 0))
 
-        client.logEvent("test_event1", 1.toDouble(), mapOf("key" to "value"))
+        val stringMetadata: Map<String, String> = mapOf("key" to "value")
+        val anyMetadata: Map<String, Any> = mapOf("key" to "value2", "count" to 1)
+        client.logEvent("test_event1", 1.toDouble(), stringMetadata)
         client.logEvent("test_event2", mapOf("key" to "value2"))
         client.logEvent("test_event3", "1")
+        client.logEvent("test_event4", 2.toDouble(), anyMetadata)
 
         // check a few previously checked gate and config; they should not result in exposure logs due to deduping logic
         client.checkGate("always_on")
@@ -143,8 +146,8 @@ class StatsigTest {
 
         client.shutdown()
 
-        var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
-        assertEquals(15, parsedLogs.events.count())
+        var parsedLogs = gson.fromJson(flushedLogs, LogEventData::class.java)
+        assertEquals(16, parsedLogs.events.count())
         // first 2 are exposures pre initialize() completion
         assertEquals("custom_stable_id", parsedLogs.statsigMetadata.stableID)
         assertEquals("Android", parsedLogs.statsigMetadata.systemName)
@@ -171,11 +174,11 @@ class StatsigTest {
         assertEquals(parsedLogs.events[0].metadata!!["reason"], "Network")
         assertEquals(parsedLogs.events[0].metadata!!["isManualExposure"], null)
 
-        var evalTime = parsedLogs.events[1].metadata!!["time"]!!.toLong()
+        var evalTime = (parsedLogs.events[1].metadata!!["time"] as String).toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(
-            Gson().toJson(parsedLogs.events[0].secondaryExposures),
-            Gson().toJson(
+            gson.toJson(parsedLogs.events[0].secondaryExposures),
+            gson.toJson(
                 arrayOf(
                     mapOf(
                         "gate" to "dependent_gate",
@@ -201,11 +204,11 @@ class StatsigTest {
         assertEquals(parsedLogs.events[3].metadata!!["ruleID"], "default")
         assertEquals(parsedLogs.events[3].metadata!!["reason"], "Network")
         assertEquals(parsedLogs.events[3].metadata!!["isManualExposure"], null)
-        evalTime = parsedLogs.events[3].metadata!!["time"]!!.toLong()
+        evalTime = (parsedLogs.events[3].metadata!!["time"] as String).toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(
-            Gson().toJson(parsedLogs.events[3].secondaryExposures),
-            Gson().toJson(
+            gson.toJson(parsedLogs.events[3].secondaryExposures),
+            gson.toJson(
                 arrayOf(
                     mapOf(
                         "gate" to "dependent_gate",
@@ -223,7 +226,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[5].metadata!!["ruleID"], "exp_rule")
         assertEquals(parsedLogs.events[5].metadata!!["reason"], "Network")
         assertEquals(parsedLogs.events[5].metadata!!["isManualExposure"], null)
-        evalTime = parsedLogs.events[5].metadata!!["time"]!!.toLong()
+        evalTime = (parsedLogs.events[5].metadata!!["time"] as String).toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
         assertEquals(parsedLogs.events[5].secondaryExposures?.count() ?: 1, 0)
 
@@ -232,8 +235,8 @@ class StatsigTest {
         assertEquals(parsedLogs.events[6].user!!.userID, "123")
         assertEquals(parsedLogs.events[6].value, 1.0)
         assertEquals(
-            Gson().toJson(parsedLogs.events[6].metadata),
-            Gson().toJson(mapOf("key" to "value"))
+            gson.toJson(parsedLogs.events[6].metadata),
+            gson.toJson(mapOf("key" to "value"))
         )
         assertNull(parsedLogs.events[6].secondaryExposures)
 
@@ -241,8 +244,8 @@ class StatsigTest {
         assertEquals(parsedLogs.events[7].user!!.userID, "123")
         assertEquals(parsedLogs.events[7].value, null)
         assertEquals(
-            Gson().toJson(parsedLogs.events[7].metadata),
-            Gson().toJson(mapOf("key" to "value2"))
+            gson.toJson(parsedLogs.events[7].metadata),
+            gson.toJson(mapOf("key" to "value2"))
         )
         assertNull(parsedLogs.events[7].secondaryExposures)
 
@@ -252,14 +255,23 @@ class StatsigTest {
         assertNull(parsedLogs.events[8].metadata)
         assertNull(parsedLogs.events[8].secondaryExposures)
 
-        assertEquals(parsedLogs.events[9].eventName, "statsig::gate_exposure")
-        assertEquals(parsedLogs.events[9].metadata!!["isManualExposure"], "true")
-        assertEquals(parsedLogs.events[10].eventName, "statsig::config_exposure")
+        assertEquals(parsedLogs.events[9].eventName, "test_event4")
+        assertEquals(parsedLogs.events[9].user!!.userID, "123")
+        assertEquals(parsedLogs.events[9].value, 2.0)
+        assertEquals(
+            gson.toJson(parsedLogs.events[9].metadata),
+            gson.toJson(mapOf("key" to "value2", "count" to 1))
+        )
+        assertNull(parsedLogs.events[9].secondaryExposures)
+
+        assertEquals(parsedLogs.events[10].eventName, "statsig::gate_exposure")
         assertEquals(parsedLogs.events[10].metadata!!["isManualExposure"], "true")
         assertEquals(parsedLogs.events[11].eventName, "statsig::config_exposure")
         assertEquals(parsedLogs.events[11].metadata!!["isManualExposure"], "true")
-        assertEquals(parsedLogs.events[12].eventName, "statsig::layer_exposure")
+        assertEquals(parsedLogs.events[12].eventName, "statsig::config_exposure")
         assertEquals(parsedLogs.events[12].metadata!!["isManualExposure"], "true")
+        assertEquals(parsedLogs.events[13].eventName, "statsig::layer_exposure")
+        assertEquals(parsedLogs.events[13].metadata!!["isManualExposure"], "true")
     }
 
     @Test
@@ -279,7 +291,7 @@ class StatsigTest {
 
         client.shutdown()
 
-        var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+        var parsedLogs = gson.fromJson(flushedLogs, LogEventData::class.java)
         assertNull(parsedLogs.statsigMetadata.appIdentifier)
         assertNull(parsedLogs.statsigMetadata.appVersion)
         assertNull(parsedLogs.statsigMetadata.deviceModel)
@@ -347,7 +359,7 @@ class StatsigTest {
         Statsig.logEvent("event_1")
         Statsig.shutdown()
         assertEquals(userValidatorCalled, 3)
-        var parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+        var parsedLogs = gson.fromJson(flushedLogs, LogEventData::class.java)
         assertEquals(parsedLogs.events[0].user?.custom, mapOf("hey" to "hey"))
         assertEquals(parsedLogs.events[1].user?.custom, mapOf("hey" to "hey"))
         assertEquals(parsedLogs.events[2].user?.custom, mapOf("hey" to "hey"))
@@ -446,7 +458,7 @@ class StatsigTest {
 
         client.shutdown()
 
-        val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+        val parsedLogs = gson.fromJson(flushedLogs, LogEventData::class.java)
 
         val manualExposureLogs = parsedLogs.events.filter {
             it.metadata?.get("isManualExposure") == "true"
@@ -504,7 +516,7 @@ class StatsigTest {
 
         client.shutdown()
 
-        val parsedLogs = Gson().fromJson(flushedLogs, LogEventData::class.java)
+        val parsedLogs = gson.fromJson(flushedLogs, LogEventData::class.java)
 
         val manualExposureLogs = parsedLogs.events.filter {
             it.metadata?.get("isManualExposure") == "true"

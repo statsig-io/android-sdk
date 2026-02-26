@@ -67,7 +67,7 @@ class StatsigOfflineInitializationTest {
         assert(logs[0].events[0].eventName == "statsig::diagnostics")
         var diagnosticMarkers = (
             gson.fromJson(
-                logs[0].events[0].metadata!!["markers"],
+                logs[0].events[0].metadata!!["markers"] as String,
                 Collection::class.java
             )
             ).map {
@@ -82,7 +82,12 @@ class StatsigOfflineInitializationTest {
         assert(diagnosticMarkers[3].success == true)
 
         diagnosticMarkers =
-            (gson.fromJson(logs[1].events[0].metadata!!["markers"], Collection::class.java)).map {
+            (
+                gson.fromJson(
+                    logs[1].events[0].metadata!!["markers"] as String,
+                    Collection::class.java
+                )
+                ).map {
                 gson.fromJson(gson.toJson(it), Marker::class.java)
             }
         println(diagnosticMarkers.size)

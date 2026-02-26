@@ -90,7 +90,7 @@ class StatsigInitializationFailureTest {
             eb.logException(any())
         }
         val markers = Gson().fromJson(
-            logEventRequests[0].events[0].metadata?.get("markers") ?: "",
+            logEventRequests[0].events[0].metadata?.get("markers") as String,
             Array<Marker>::class.java
         )
         assert(markers.size == 4)
@@ -153,7 +153,7 @@ class StatsigInitializationFailureTest {
             eb.logException(any())
         }
         var markers = Gson().fromJson(
-            logEventRequests[0].events[0].metadata?.get("markers") ?: "",
+            logEventRequests[0].events[0].metadata?.get("markers") as String,
             Array<Marker>::class.java
         )
         assert(markers.size == 4)
@@ -186,7 +186,7 @@ class StatsigInitializationFailureTest {
             eb.logException(any())
         }
         val markers = Gson().fromJson(
-            logEventRequests[0].events[0].metadata?.get("markers") ?: "",
+            logEventRequests[0].events[0].metadata?.get("markers") as String,
             Array<Marker>::class.java
         )
         assert(markers.size == 4)
@@ -286,7 +286,7 @@ class StatsigInitializationFailureTest {
             eb.logException(any())
         }
         val markers = Gson().fromJson(
-            logEventRequests[0].events[0].metadata?.get("markers") ?: "",
+            logEventRequests[0].events[0].metadata?.get("markers") as String,
             Array<Marker>::class.java
         )
         assert(markers.size == 4)

@@ -101,7 +101,7 @@ class LayerExposureTest {
             Gson().toJson(TestUtil.dummyUndelegatedSecondaryExposures),
             Gson().toJson(logs.events[0].secondaryExposures)
         )
-        val time = logs.events[0].metadata?.get("time")!!.toLong()
+        val time = (logs.events[0].metadata?.get("time") as String).toLong()
         assertTrue(time >= initTime && time < initTime + 2000)
         assertEquals(
             Gson().toJson(
@@ -148,7 +148,7 @@ class LayerExposureTest {
             Gson().toJson(TestUtil.dummySecondaryExposures),
             Gson().toJson(logs.events[0].secondaryExposures)
         )
-        var time = logs.events[0].metadata?.get("time")!!.toLong()
+        var time = (logs.events[0].metadata?.get("time") as String).toLong()
         assertTrue(time >= initTime && time < initTime + 2000)
         assertEquals(
             Gson().toJson(
@@ -170,7 +170,7 @@ class LayerExposureTest {
             Gson().toJson(TestUtil.dummyUndelegatedSecondaryExposures),
             Gson().toJson(logs.events[1].secondaryExposures)
         )
-        time = logs.events[1].metadata?.get("time")!!.toLong()
+        time = (logs.events[1].metadata?.get("time") as String).toLong()
         assertTrue(time >= initTime && time < initTime + 2000)
         assertEquals(
             Gson().toJson(

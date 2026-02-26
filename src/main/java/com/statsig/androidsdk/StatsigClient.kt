@@ -526,11 +526,24 @@ class StatsigClient : LifecycleEventListener {
     /**
      * Log an event to Statsig for the current user
      * @param eventName the name of the event to track
-     * @param value an optional value assocaited with the event, for aggregations/analysis
+     * @param value an optional value associated with the event, for aggregations/analysis
      * @param metadata an optional map of metadata associated with the event
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, Any>? = null) {
+    @JvmOverloads
+    fun logEvent(eventName: String, value: Double? = null, metadata: Map<String, String>? = null) {
+        logEvent(eventName, value, widenStringMetadata(metadata))
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param value an optional value associated with the event, for aggregations/analysis
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmName("logEventWithAnyMetadata")
+    fun logEvent(eventName: String, value: Double?, metadata: Map<String, Any>?) {
         val functionName = "logEvent"
         enforceInitialized(functionName)
         errorBoundary.capture(
@@ -555,11 +568,24 @@ class StatsigClient : LifecycleEventListener {
     /**
      * Log an event to Statsig for the current user
      * @param eventName the name of the event to track
-     * @param value an optional value assocaited with the event
+     * @param value an optional value associated with the event
      * @param metadata an optional map of metadata associated with the event
      * @throws IllegalStateException if the SDK has not been initialized
      */
-    fun logEvent(eventName: String, value: String, metadata: Map<String, Any>? = null) {
+    @JvmOverloads
+    fun logEvent(eventName: String, value: String, metadata: Map<String, String>? = null) {
+        logEvent(eventName, value, widenStringMetadata(metadata))
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param value an optional value associated with the event
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmName("logEventWithAnyMetadata")
+    fun logEvent(eventName: String, value: String, metadata: Map<String, Any>?) {
         val functionName = "logEvent"
         enforceInitialized(functionName)
         errorBoundary.capture(
@@ -580,6 +606,17 @@ class StatsigClient : LifecycleEventListener {
      * @param metadata an optional map of metadata associated with the event
      * @throws IllegalStateException if the SDK has not been initialized
      */
+    fun logEvent(eventName: String, metadata: Map<String, String>) {
+        logEvent(eventName, widenStringMetadata(metadata)!!)
+    }
+
+    /**
+     * Log an event to Statsig for the current user
+     * @param eventName the name of the event to track
+     * @param metadata an optional map of metadata associated with the event
+     * @throws IllegalStateException if the SDK has not been initialized
+     */
+    @JvmName("logEventWithAnyMetadata")
     fun logEvent(eventName: String, metadata: Map<String, Any>) {
         val functionName = "logEvent"
         enforceInitialized(functionName)
@@ -594,6 +631,10 @@ class StatsigClient : LifecycleEventListener {
             tag = functionName
         )
     }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun widenStringMetadata(metadata: Map<String, String>?): Map<String, Any>? =
+        metadata as Map<String, Any>?
 
     /**
      * Update the Statsig SDK with the given runtime-mutable options

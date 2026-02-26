@@ -47,7 +47,7 @@ class DiagnosticsTest {
 
     private fun getMarkers(log: LogEvent): List<Marker> {
         val listType = object : TypeToken<List<Marker>>() {}.type
-        return Gson().fromJson(log.metadata?.get("markers") ?: "", listType)
+        return Gson().fromJson(log.metadata?.get("markers") as String, listType)
     }
 
     @Test
@@ -62,7 +62,7 @@ class DiagnosticsTest {
             client.shutdown()
         }
         val optionsLoggingCopy: Map<String, Any> = Gson().fromJson(
-            logEvents[0].events[0].metadata?.get("statsigOptions"),
+            logEvents[0].events[0].metadata?.get("statsigOptions") as String,
             object : TypeToken<Map<String, Any>>() {}.type
         )
         assertEquals(optionsLoggingCopy["api"], "http://statsig.api")
