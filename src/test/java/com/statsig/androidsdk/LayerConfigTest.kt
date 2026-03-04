@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import com.google.common.truth.Truth.assertThat
 import java.util.Collections
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -63,6 +64,13 @@ class LayerConfigTest {
         assertNull(dummyConfig.getString("testnodefault", null))
         assertNull(dummyConfig.getArray("testnodefault", null))
         assertNull(dummyConfig.getDictionary("testnodefault", null))
+        assertNull(dummyConfig.getStringIfPresent("test"))
+        assertNull(dummyConfig.getBooleanIfPresent("test"))
+        assertNull(dummyConfig.getIntIfPresent("test"))
+        assertNull(dummyConfig.getLongIfPresent("test"))
+        assertNull(dummyConfig.getDoubleIfPresent("test"))
+        assertNull(dummyConfig.getArrayIfPresent("test"))
+        assertNull(dummyConfig.getDictionaryIfPresent("test"))
         assertEquals(dummyConfig.getEvaluationDetails().reason, EvaluationReason.Unrecognized)
     }
 
@@ -89,6 +97,13 @@ class LayerConfigTest {
         assertNull(emptyConfig.getString("testnodefault", null))
         assertNull(emptyConfig.getArray("testnodefault", null))
         assertNull(emptyConfig.getDictionary("testnodefault", null))
+        assertNull(emptyConfig.getStringIfPresent("test_config"))
+        assertNull(emptyConfig.getBooleanIfPresent("test_config"))
+        assertNull(emptyConfig.getIntIfPresent("test_config"))
+        assertNull(emptyConfig.getLongIfPresent("test_config"))
+        assertNull(emptyConfig.getDoubleIfPresent("test_config"))
+        assertNull(emptyConfig.getArrayIfPresent("test_config"))
+        assertNull(emptyConfig.getDictionaryIfPresent("test_config"))
 
         assertEquals(emptyConfig.getEvaluationDetails().reason, EvaluationReason.Uninitialized)
     }
@@ -100,6 +115,12 @@ class LayerConfigTest {
         assertEquals(12, layer.getInt("testInt", 13))
         assertEquals(42.3, layer.getDouble("testDouble", 13.0), 0.0)
         assertEquals(9223372036854775806, layer.getLong("testLong", 1))
+        assertEquals("test", layer.getStringIfPresent("testString"))
+        assertEquals(true, layer.getBooleanIfPresent("testBoolean"))
+        assertEquals(12, layer.getIntIfPresent("testInt"))
+        assertEquals(9223372036854775806, layer.getLongIfPresent("testLong"))
+        assertThat(layer.getDoubleIfPresent("testDouble")).isEqualTo(42.3)
+        assertNull(layer.getBooleanIfPresent("testString"))
     }
 
     @Test
@@ -111,6 +132,18 @@ class LayerConfigTest {
             arrayOf(true, false),
             layer.getArray("testBooleanArray", arrayOf(1, "one"))
         )
+        assertArrayEquals(arrayOf("one", "two"), layer.getArrayIfPresent("testArray"))
+        assertEquals(
+            mapOf(
+                "nestedString" to "nested",
+                "nestedBoolean" to true,
+                "nestedDouble" to 13.74,
+                "nestedLong" to 13L,
+                "nestedEmptyDict" to Collections.EMPTY_MAP
+            ),
+            layer.getDictionaryIfPresent("testNested")
+        )
+        assertNull(layer.getDictionaryIfPresent("testString"))
     }
 
     @Test

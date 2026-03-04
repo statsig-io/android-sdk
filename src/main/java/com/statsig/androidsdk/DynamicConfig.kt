@@ -69,6 +69,17 @@ class DynamicConfig(
     }
 
     /**
+     * Gets a string value from the config if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getStringIfPresent(key: String): String? = getStringWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getStringWithOptionalDefault(key: String, default: String? = null): String? =
+        getString(key, default)
+
+    /**
      * Gets a value from the config, falling back to the provided default value
      * @param key the index within the DynamicConfig to fetch a value from
      * @param default the default value to return if the expected key does not exist in the config
@@ -78,6 +89,20 @@ class DynamicConfig(
         is Boolean -> this.jsonValue[key] as Boolean
         else -> default
     }
+
+    /**
+     * Gets a boolean value from the config if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getBooleanIfPresent(key: String): Boolean? = getBooleanWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getBooleanWithOptionalDefault(key: String, default: Boolean? = null): Boolean? =
+        when (this.jsonValue[key]) {
+            is Boolean -> this.jsonValue[key] as Boolean
+            else -> default
+        }
 
     /**
      * Gets a value from the config, falling back to the provided default value
@@ -91,6 +116,20 @@ class DynamicConfig(
     }
 
     /**
+     * Gets a numeric value from the config as a Double if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getDoubleIfPresent(key: String): Double? = getDoubleWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getDoubleWithOptionalDefault(key: String, default: Double? = null): Double? =
+        when (val value = this.jsonValue[key]) {
+            is Number -> value.toDouble()
+            else -> default
+        }
+
+    /**
      * Gets a value from the config, falling back to the provided default value
      * @param key the index within the DynamicConfig to fetch a value from
      * @param default the default value to return if the expected key does not exist in the config
@@ -100,6 +139,20 @@ class DynamicConfig(
         is Number -> value.toInt()
         else -> default
     }
+
+    /**
+     * Gets a numeric value from the config as an Int if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getIntIfPresent(key: String): Int? = getIntWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getIntWithOptionalDefault(key: String, default: Int? = null): Int? =
+        when (val value = this.jsonValue[key]) {
+            is Number -> value.toInt()
+            else -> default
+        }
 
     /**
      * Gets a value from the config, falling back to the provided default value
@@ -113,6 +166,20 @@ class DynamicConfig(
     }
 
     /**
+     * Gets a numeric value from the config as a Long if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getLongIfPresent(key: String): Long? = getLongWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getLongWithOptionalDefault(key: String, default: Long? = null): Long? =
+        when (val value = this.jsonValue[key]) {
+            is Number -> value.toLong()
+            else -> default
+        }
+
+    /**
      * Gets a value from the config, falling back to the provided default value
      * @param key the index within the DynamicConfig to fetch a value from
      * @param default the default value to return if the expected key does not exist in the config
@@ -124,6 +191,17 @@ class DynamicConfig(
             is ArrayList<*> -> value.toTypedArray()
             else -> default
         }
+
+    /**
+     * Gets an array value from the config if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getArrayIfPresent(key: String): Array<*>? = getArrayWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getArrayWithOptionalDefault(key: String, default: Array<*>? = null): Array<*>? =
+        getArray(key, default)
 
     private inline fun <reified A, reified B> List<*>.asListOfPairs(): List<Pair<A, B>>? =
         this.mapNotNull {
@@ -154,6 +232,20 @@ class DynamicConfig(
             is Map<*, *> -> value.asMapOf()
             else -> default
         }
+
+    /**
+     * Gets a dictionary value from the config if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the DynamicConfig to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getDictionaryIfPresent(key: String): Map<String, Any>? =
+        getDictionaryWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getDictionaryWithOptionalDefault(
+        key: String,
+        default: Map<String, Any>? = null
+    ): Map<String, Any>? = getDictionary(key, default)
 
     /**
      * Gets a value from the config as a new DynamicConfig, or null if not found

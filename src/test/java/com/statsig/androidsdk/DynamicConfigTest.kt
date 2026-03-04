@@ -39,6 +39,13 @@ class DynamicConfigTest {
         assertNull(dummyConfig.getString("testnodefault", null))
         assertNull(dummyConfig.getArray("testnodefault", null))
         assertNull(dummyConfig.getDictionary("testnodefault", null))
+        assertNull(dummyConfig.getStringIfPresent("test"))
+        assertNull(dummyConfig.getBooleanIfPresent("test"))
+        assertNull(dummyConfig.getIntIfPresent("test"))
+        assertNull(dummyConfig.getLongIfPresent("test"))
+        assertNull(dummyConfig.getDoubleIfPresent("test"))
+        assertNull(dummyConfig.getArrayIfPresent("test"))
+        assertNull(dummyConfig.getDictionaryIfPresent("test"))
         assertEquals(dummyConfig.getEvaluationDetails().reason, EvaluationReason.Unrecognized)
     }
 
@@ -64,6 +71,13 @@ class DynamicConfigTest {
         assertNull(emptyConfig.getString("testnodefault", null))
         assertNull(emptyConfig.getArray("testnodefault", null))
         assertNull(emptyConfig.getDictionary("testnodefault", null))
+        assertNull(emptyConfig.getStringIfPresent("test_config"))
+        assertNull(emptyConfig.getBooleanIfPresent("test_config"))
+        assertNull(emptyConfig.getIntIfPresent("test_config"))
+        assertNull(emptyConfig.getLongIfPresent("test_config"))
+        assertNull(emptyConfig.getDoubleIfPresent("test_config"))
+        assertNull(emptyConfig.getArrayIfPresent("test_config"))
+        assertNull(emptyConfig.getDictionaryIfPresent("test_config"))
 
         assertEquals(emptyConfig.getEvaluationDetails().reason, EvaluationReason.Uninitialized)
     }
@@ -77,6 +91,12 @@ class DynamicConfigTest {
         assertEquals(9223372036854775806, dc.getLong("testLong", 1))
         assertEquals(12.0, dc.getDouble("testInt", 13.0), 0.0)
         assertEquals(41, dc.getInt("testAnotherDouble", 44))
+        assertEquals("test", dc.getStringIfPresent("testString"))
+        assertEquals(true, dc.getBooleanIfPresent("testBoolean"))
+        assertEquals(12, dc.getIntIfPresent("testInt"))
+        assertEquals(9223372036854775806, dc.getLongIfPresent("testLong"))
+        assertThat(dc.getDoubleIfPresent("testDouble")).isEqualTo(42.3)
+        assertNull(dc.getBooleanIfPresent("testString"))
     }
 
     @Test
@@ -85,6 +105,18 @@ class DynamicConfigTest {
         assertArrayEquals(arrayOf(3L, 2L), dc.getArray("testIntArray", arrayOf(1, 2)))
         assertArrayEquals(arrayOf(3.1, 2.1), dc.getArray("testDoubleArray", arrayOf(1, "one")))
         assertArrayEquals(arrayOf(true, false), dc.getArray("testBooleanArray", arrayOf(1, "one")))
+        assertArrayEquals(arrayOf("one", "two"), dc.getArrayIfPresent("testArray"))
+        assertEquals(
+            mapOf(
+                "nestedString" to "nested",
+                "nestedBoolean" to true,
+                "nestedDouble" to 13.74,
+                "nestedLong" to 13L,
+                "nestedEmptyDict" to Collections.EMPTY_MAP
+            ),
+            dc.getDictionaryIfPresent("testNested")
+        )
+        assertNull(dc.getDictionaryIfPresent("testString"))
     }
 
     @Test

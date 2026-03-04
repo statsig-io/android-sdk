@@ -48,70 +48,217 @@ class ParameterStore(
     public val evaluationDetails: EvaluationDetails,
     public val options: ParameterStoreEvaluationOptions?
 ) {
-    fun getBoolean(paramName: String, fallback: Boolean): Boolean =
-        getValueFromRef(paramName, fallback, Layer::getBoolean, DynamicConfig::getBoolean)
+    /**
+     * Gets a boolean parameter, falling back to the provided value if the parameter is missing or has a different type.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @param fallback the default value to return if the parameter is missing or has a different type
+     * @return the parameter value, or the provided fallback
+     */
+    fun getBoolean(paramName: String, fallback: Boolean): Boolean = getValueFromRef(
+        paramName,
+        ParamType.BOOLEAN,
+        fallback,
+        { param -> param["value"] as? Boolean },
+        Layer::getBooleanWithOptionalDefault,
+        DynamicConfig::getBooleanWithOptionalDefault
+    ) ?: fallback
 
-    fun getString(paramName: String, fallback: String?): String? =
-        getValueFromRef(paramName, fallback, Layer::getString, DynamicConfig::getString)
+    /**
+     * Gets a boolean parameter if it is present and typed as expected, otherwise returns null.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @return the parameter value, or null if the parameter is missing or has a different type
+     */
+    fun getBooleanIfPresent(paramName: String): Boolean? = getValueFromRef(
+        topLevelParamName = paramName,
+        expectedParamType = ParamType.BOOLEAN,
+        getStaticValue = { param -> param["value"] as? Boolean },
+        getLayerValue = Layer::getBooleanWithOptionalDefault,
+        getDynamicConfigValue = DynamicConfig::getBooleanWithOptionalDefault
+    )
 
-    fun getDouble(paramName: String, fallback: Double): Double =
-        getValueFromRef(paramName, fallback, Layer::getDouble, DynamicConfig::getDouble)
+    /**
+     * Gets a string parameter, falling back to the provided value if the parameter is missing or has a different type.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @param fallback the default value to return if the parameter is missing or has a different type
+     * @return the parameter value, or the provided fallback
+     */
+    fun getString(paramName: String, fallback: String?): String? = getValueFromRef(
+        paramName,
+        ParamType.STRING,
+        fallback,
+        { param -> param["value"] as? String },
+        Layer::getStringWithOptionalDefault,
+        DynamicConfig::getStringWithOptionalDefault
+    )
 
+    /**
+     * Gets a string parameter if it is present and typed as expected, otherwise returns null.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @return the parameter value, or null if the parameter is missing or has a different type
+     */
+    fun getStringIfPresent(paramName: String): String? = getValueFromRef(
+        topLevelParamName = paramName,
+        expectedParamType = ParamType.STRING,
+        getStaticValue = { param -> param["value"] as? String },
+        getLayerValue = Layer::getStringWithOptionalDefault,
+        getDynamicConfigValue = DynamicConfig::getStringWithOptionalDefault
+    )
+
+    /**
+     * Gets a numeric parameter as a Double, falling back to the provided value if the parameter is missing or has a different type.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @param fallback the default value to return if the parameter is missing or has a different type
+     * @return the parameter value, or the provided fallback
+     */
+    fun getDouble(paramName: String, fallback: Double): Double = getValueFromRef(
+        paramName,
+        ParamType.NUMBER,
+        fallback,
+        { param -> (param["value"] as? Number)?.toDouble() },
+        Layer::getDoubleWithOptionalDefault,
+        DynamicConfig::getDoubleWithOptionalDefault
+    ) ?: fallback
+
+    /**
+     * Gets a numeric parameter as a Double if it is present and typed as expected, otherwise returns null.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @return the parameter value, or null if the parameter is missing or has a different type
+     */
+    fun getDoubleIfPresent(paramName: String): Double? = getValueFromRef(
+        topLevelParamName = paramName,
+        expectedParamType = ParamType.NUMBER,
+        getStaticValue = { param -> (param["value"] as? Number)?.toDouble() },
+        getLayerValue = Layer::getDoubleWithOptionalDefault,
+        getDynamicConfigValue = DynamicConfig::getDoubleWithOptionalDefault
+    )
+
+    /**
+     * Gets a dictionary parameter, falling back to the provided value if the parameter is missing or has a different type.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @param fallback the default value to return if the parameter is missing or has a different type
+     * @return the parameter value, or the provided fallback
+     */
     fun getDictionary(paramName: String, fallback: Map<String, Any>?): Map<String, Any>? =
-        getValueFromRef(paramName, fallback, Layer::getDictionary, DynamicConfig::getDictionary)
+        getValueFromRef(
+            paramName,
+            ParamType.OBJECT,
+            fallback,
+            { param -> param["value"] as? Map<String, Any> },
+            Layer::getDictionaryWithOptionalDefault,
+            DynamicConfig::getDictionaryWithOptionalDefault
+        )
 
-    fun getArray(paramName: String, fallback: Array<*>?): Array<*>? =
-        getValueFromRef(paramName, fallback, Layer::getArray, DynamicConfig::getArray)
+    /**
+     * Gets a dictionary parameter if it is present and typed as expected, otherwise returns null.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @return the parameter value, or null if the parameter is missing or has a different type
+     */
+    fun getDictionaryIfPresent(paramName: String): Map<String, Any>? = getValueFromRef(
+        topLevelParamName = paramName,
+        expectedParamType = ParamType.OBJECT,
+        getStaticValue = { param -> param["value"] as? Map<String, Any> },
+        getLayerValue = Layer::getDictionaryWithOptionalDefault,
+        getDynamicConfigValue = DynamicConfig::getDictionaryWithOptionalDefault
+    )
 
+    /**
+     * Gets an array parameter, falling back to the provided value if the parameter is missing or has a different type.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @param fallback the default value to return if the parameter is missing or has a different type
+     * @return the parameter value, or the provided fallback
+     */
+    fun getArray(paramName: String, fallback: Array<*>?): Array<*>? = getValueFromRef(
+        paramName,
+        ParamType.ARRAY,
+        fallback,
+        { param ->
+            when (val value = param["value"]) {
+                is Array<*> -> value
+                is ArrayList<*> -> value.toTypedArray()
+                else -> null
+            }
+        },
+        Layer::getArrayWithOptionalDefault,
+        DynamicConfig::getArrayWithOptionalDefault
+    )
+
+    /**
+     * Gets an array parameter if it is present and typed as expected, otherwise returns null.
+     * @param paramName the parameter name to fetch from the ParameterStore
+     * @return the parameter value, or null if the parameter is missing or has a different type
+     */
+    fun getArrayIfPresent(paramName: String): Array<*>? = getValueFromRef(
+        topLevelParamName = paramName,
+        expectedParamType = ParamType.ARRAY,
+        getStaticValue = { param ->
+            when (val value = param["value"]) {
+                is Array<*> -> value
+                is ArrayList<*> -> value.toTypedArray()
+                else -> null
+            }
+        },
+        getLayerValue = Layer::getArrayWithOptionalDefault,
+        getDynamicConfigValue = DynamicConfig::getArrayWithOptionalDefault
+    )
+
+    /**
+     * Gets all top-level parameter names available on this ParameterStore.
+     * @return the list of parameter names in this store
+     */
     fun getKeys(): List<String> = paramStore.keys.toList()
 
     // --------evaluation--------
 
     private inline fun <reified T> getValueFromRef(
         topLevelParamName: String,
-        fallback: T,
-        getLayerValue: Layer.(String, T) -> T,
-        getDynamicConfigValue: DynamicConfig.(String, T) -> T
-    ): T {
-        val param = paramStore[topLevelParamName] ?: return fallback
-        val referenceTypeString = param["ref_type"] as? String ?: return fallback
-        val paramTypeString = param["param_type"] as? String ?: return fallback
+        expectedParamType: ParamType,
+        defaultValue: T? = null,
+        getStaticValue: (Map<String, Any>) -> T?,
+        getLayerValue: Layer.(String, T?) -> T?,
+        getDynamicConfigValue: DynamicConfig.(String, T?) -> T?
+    ): T? {
+        val param = paramStore[topLevelParamName] ?: return defaultValue
+        val referenceTypeString = param["ref_type"] as? String ?: return defaultValue
+        val paramTypeString = param["param_type"] as? String ?: return defaultValue
         val refType = RefType.fromString(referenceTypeString)
         val paramType = ParamType.fromString(paramTypeString)
 
+        if (paramType != expectedParamType) {
+            return defaultValue
+        }
+
         return when (refType) {
-            RefType.GATE -> evaluateFeatureGate(paramType, param, fallback)
-            RefType.STATIC -> evaluateStaticValue(paramType, param, fallback)
-            RefType.LAYER -> evaluateLayerParameter(param, fallback) { layer, paramName ->
-                var v = layer.getLayerValue(paramName, fallback)
-                return v
+            RefType.GATE -> evaluateFeatureGate(paramType, param, defaultValue)
+            RefType.STATIC -> getStaticValue(param)
+            RefType.LAYER -> evaluateLayerParameter(param, defaultValue) { layer, paramName ->
+                layer.getLayerValue(paramName, defaultValue)
             }
-            RefType.DYNAMIC_CONFIG -> evaluateDynamicConfigParameter(param, fallback) {
+            RefType.DYNAMIC_CONFIG -> evaluateDynamicConfigParameter(param, defaultValue) {
                     config,
                     paramName
                 ->
-                config.getDynamicConfigValue(paramName, fallback)
+                config.getDynamicConfigValue(paramName, defaultValue)
             }
-            RefType.EXPERIMENT -> evaluateExperimentParameter(param, fallback) {
+            RefType.EXPERIMENT -> evaluateExperimentParameter(param, defaultValue) {
                     experiment,
                     paramName
                 ->
-                experiment.getDynamicConfigValue(paramName, fallback)
+                experiment.getDynamicConfigValue(paramName, defaultValue)
             }
-            else -> fallback
+            else -> defaultValue
         }
     }
 
     private inline fun <reified T> evaluateFeatureGate(
         paramType: ParamType,
         param: Map<String, Any>,
-        fallback: T
-    ): T {
+        defaultValue: T? = null
+    ): T? {
         val passValue = param["pass_value"]
         val failValue = param["fail_value"]
         val gateName = param["gate_name"] as? String
         if (passValue == null || failValue == null || gateName == null) {
-            return fallback
+            return defaultValue
         }
         val passes = if (options?.disableExposureLog == true) {
             statsigClient.checkGateWithExposureLoggingDisabled(gateName)
@@ -120,45 +267,26 @@ class ParameterStore(
         }
         val retVal = if (passes) passValue else failValue
         if (paramType == ParamType.NUMBER) {
-            return (retVal as? Number)?.toDouble() as? T ?: fallback
+            return (retVal as? Number)?.toDouble() as? T ?: defaultValue
         } else if (paramType == ParamType.ARRAY) {
             return when (retVal) {
-                is Array<*> -> return retVal as? T ?: fallback
-                is ArrayList<*> -> return retVal.toTypedArray() as? T ?: fallback
-                else -> fallback
+                is Array<*> -> retVal as? T ?: defaultValue
+                is ArrayList<*> -> retVal.toTypedArray() as? T ?: defaultValue
+                else -> defaultValue
             }
         }
-        return retVal as? T ?: fallback
-    }
-
-    private inline fun <reified T> evaluateStaticValue(
-        paramType: ParamType,
-        param: Map<String, Any>,
-        fallback: T
-    ): T = when (paramType) {
-        ParamType.BOOLEAN -> param["value"] as? T ?: fallback
-        ParamType.STRING -> param["value"] as? T ?: fallback
-        ParamType.NUMBER -> (param["value"] as? Number)?.toDouble() as? T ?: fallback
-        ParamType.OBJECT -> param["value"] as? T ?: fallback
-        ParamType.ARRAY -> {
-            when (val returnValue = param["value"]) {
-                is Array<*> -> returnValue as? T ?: fallback
-                is ArrayList<*> -> (returnValue.toTypedArray()) as? T ?: fallback
-                else -> fallback
-            }
-        }
-        else -> fallback
+        return retVal as? T ?: defaultValue
     }
 
     private inline fun <reified T> evaluateLayerParameter(
         param: Map<String, Any>,
-        fallback: T,
-        getValue: (Layer, String) -> T
-    ): T {
+        defaultValue: T? = null,
+        getValue: (Layer, String) -> T?
+    ): T? {
         val layerName = param["layer_name"] as? String
         val paramName = param["param_name"] as? String
         if (layerName == null || paramName == null) {
-            return fallback
+            return defaultValue
         }
         val layer = if (options?.disableExposureLog == true) {
             statsigClient.getLayerWithExposureLoggingDisabled(layerName)
@@ -170,13 +298,13 @@ class ParameterStore(
 
     private inline fun <reified T> evaluateDynamicConfigParameter(
         param: Map<String, Any>,
-        fallback: T,
-        getValue: (DynamicConfig, String) -> T
-    ): T {
+        defaultValue: T? = null,
+        getValue: (DynamicConfig, String) -> T?
+    ): T? {
         val configName = param["config_name"] as? String
         val paramName = param["param_name"] as? String
         if (configName == null || paramName == null) {
-            return fallback
+            return defaultValue
         }
         val config = if (options?.disableExposureLog == true) {
             statsigClient.getConfigWithExposureLoggingDisabled(configName)
@@ -188,13 +316,13 @@ class ParameterStore(
 
     private inline fun <reified T> evaluateExperimentParameter(
         param: Map<String, Any>,
-        fallback: T,
-        getValue: (DynamicConfig, String) -> T
-    ): T {
+        defaultValue: T? = null,
+        getValue: (DynamicConfig, String) -> T?
+    ): T? {
         val experimentName = param["experiment_name"] as? String
         val paramName = param["param_name"] as? String
         if (experimentName == null || paramName == null) {
-            return fallback
+            return defaultValue
         }
         val experiment = if (options?.disableExposureLog == true) {
             statsigClient.getExperimentWithExposureLoggingDisabled(experimentName)

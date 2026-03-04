@@ -78,12 +78,34 @@ class Layer internal constructor(
     fun getString(key: String, default: String?): String? = get(key, default, jsonValue)
 
     /**
+     * Gets a string value from the Layer if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the Layer to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getStringIfPresent(key: String): String? = getStringWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getStringWithOptionalDefault(key: String, default: String? = null): String? =
+        get(key, default, jsonValue)
+
+    /**
      * Gets a value from the Layer, falling back to the provided default value
      * @param key the index within the Layer to fetch a value from
      * @param default the default value to return if the expected key does not exist in the Layer
      * @return the value at the given key, or the default value if not found
      */
     fun getBoolean(key: String, default: Boolean): Boolean = get(key, default, jsonValue)
+
+    /**
+     * Gets a boolean value from the Layer if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the Layer to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getBooleanIfPresent(key: String): Boolean? = getBooleanWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getBooleanWithOptionalDefault(key: String, default: Boolean? = null): Boolean? =
+        get(key, default, jsonValue)
 
     /**
      * Gets a value from the Layer, falling back to the provided default value
@@ -95,6 +117,17 @@ class Layer internal constructor(
         get<Number>(key, default, jsonValue).toDouble()
 
     /**
+     * Gets a numeric value from the Layer as a Double if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the Layer to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getDoubleIfPresent(key: String): Double? = getDoubleWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getDoubleWithOptionalDefault(key: String, default: Double? = null): Double? =
+        get<Number?>(key, default, jsonValue)?.toDouble()
+
+    /**
      * Gets a value from the Layer, falling back to the provided default value
      * @param key the index within the Layer to fetch a value from
      * @param default the default value to return if the expected key does not exist in the Layer
@@ -103,12 +136,34 @@ class Layer internal constructor(
     fun getInt(key: String, default: Int): Int = get<Number>(key, default, jsonValue).toInt()
 
     /**
+     * Gets a numeric value from the Layer as an Int if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the Layer to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getIntIfPresent(key: String): Int? = getIntWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getIntWithOptionalDefault(key: String, default: Int? = null): Int? =
+        get<Number?>(key, default, jsonValue)?.toInt()
+
+    /**
      * Gets a value from the Layer, falling back to the provided default value
      * @param key the index within the Layer to fetch a value from
      * @param default the default value to return if the expected key does not exist in the Layer
      * @return the value at the given key, or the default value if not found
      */
     fun getLong(key: String, default: Long): Long = get<Number>(key, default, jsonValue).toLong()
+
+    /**
+     * Gets a numeric value from the Layer as a Long if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the Layer to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getLongIfPresent(key: String): Long? = getLongWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getLongWithOptionalDefault(key: String, default: Long? = null): Long? =
+        get<Number?>(key, default, jsonValue)?.toLong()
 
     /**
      * Gets a value from the Layer, falling back to the provided default value
@@ -130,6 +185,17 @@ class Layer internal constructor(
     }
 
     /**
+     * Gets an array value from the Layer if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the Layer to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getArrayIfPresent(key: String): Array<*>? = getArrayWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getArrayWithOptionalDefault(key: String, default: Array<*>? = null): Array<*>? =
+        getArray(key, default)
+
+    /**
      * Gets a dictionary from the Layer, falling back to the provided default value
      * @param key the index within the Layer to fetch a dictionary from
      * @param default the default value to return if the expected key does not exist in the Layer
@@ -137,6 +203,20 @@ class Layer internal constructor(
      */
     fun getDictionary(key: String, default: Map<String, Any>?): Map<String, Any>? =
         get(key, default, jsonValue)
+
+    /**
+     * Gets a dictionary value from the Layer if it is present and typed as expected, otherwise returns null.
+     * @param key the index within the Layer to fetch a value from
+     * @return the value at the given key, or null if not found
+     */
+    fun getDictionaryIfPresent(key: String): Map<String, Any>? =
+        getDictionaryWithOptionalDefault(key)
+
+    @JvmSynthetic
+    internal fun getDictionaryWithOptionalDefault(
+        key: String,
+        default: Map<String, Any>? = null
+    ): Map<String, Any>? = get(key, default, jsonValue)
 
     /**
      * Gets a value from the Layer as a DynamicConfig, or null if not found

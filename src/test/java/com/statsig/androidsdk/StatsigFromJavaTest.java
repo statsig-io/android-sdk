@@ -88,16 +88,27 @@ public class StatsigFromJavaTest {
         DynamicConfig config = Statsig.getConfig("config");
 
         assertTrue(config.getBoolean("a_bool", false));
+        assertTrue(config.getBooleanIfPresent("a_bool"));
         assertEquals(1, config.getInt("an_int", 0));
+        assertEquals(Integer.valueOf(1), config.getIntIfPresent("an_int"));
         assertEquals(1.0, config.getDouble("a_double", 0.0), 0.1);
+        assertEquals(Double.valueOf(1.0), config.getDoubleIfPresent("a_double"));
         assertEquals(1L, config.getLong("a_long", 0L));
+        assertEquals(Long.valueOf(1L), config.getLongIfPresent("a_long"));
         assertEquals("val", config.getString("a_string", "err"));
+        assertEquals("val", config.getStringIfPresent("a_string"));
         assertArrayEquals(new String[] { "a", "b" }, config.getArray("an_array", new String[0]));
+        assertArrayEquals(new String[] { "a", "b" }, (String[]) config.getArrayIfPresent("an_array"));
         assertEquals(new HashMap<String, String>() {
             {
                 put("a_key", "val");
             }
         }, config.getDictionary("an_object", new HashMap<String, Object>()));
+        assertEquals(new HashMap<String, String>() {
+            {
+                put("a_key", "val");
+            }
+        }, config.getDictionaryIfPresent("an_object"));
 
         DynamicConfig another = config.getConfig("another_object");
         assertNotNull(another);
@@ -144,16 +155,27 @@ public class StatsigFromJavaTest {
         Layer layer = Statsig.getLayer("layer");
 
         assertTrue(layer.getBoolean("a_bool", false));
+        assertTrue(layer.getBooleanIfPresent("a_bool"));
         assertEquals(1, layer.getInt("an_int", 0));
+        assertEquals(Integer.valueOf(1), layer.getIntIfPresent("an_int"));
         assertEquals(1.0, layer.getDouble("a_double", 0.0), 0.1);
+        assertEquals(Double.valueOf(1.0), layer.getDoubleIfPresent("a_double"));
         assertEquals(1L, layer.getLong("a_long", 0L));
+        assertEquals(Long.valueOf(1L), layer.getLongIfPresent("a_long"));
         assertEquals("val", layer.getString("a_string", "err"));
+        assertEquals("val", layer.getStringIfPresent("a_string"));
         assertArrayEquals(new String[] { "a", "b" }, layer.getArray("an_array", new String[0]));
+        assertArrayEquals(new String[] { "a", "b" }, (String[]) layer.getArrayIfPresent("an_array"));
         assertEquals(new HashMap<String, String>() {
             {
                 put("a_key", "val");
             }
         }, layer.getDictionary("an_object", new HashMap<String, Object>()));
+        assertEquals(new HashMap<String, String>() {
+            {
+                put("a_key", "val");
+            }
+        }, layer.getDictionaryIfPresent("an_object"));
 
         DynamicConfig config = layer.getConfig("another_object");
         assertNotNull(config);
