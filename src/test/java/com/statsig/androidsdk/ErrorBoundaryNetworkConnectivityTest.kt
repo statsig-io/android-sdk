@@ -80,7 +80,7 @@ class ErrorBoundaryNetworkConnectivityTest {
             )
         network =
             StatsigNetworkImpl(
-                app,
+                StatsigNetworkConnectivityListener(app),
                 "client-key",
                 TestUtil.getTestKeyValueStore(app),
                 StatsigOptions(),
@@ -93,6 +93,7 @@ class ErrorBoundaryNetworkConnectivityTest {
 
     @After
     fun teardown() {
+        ShadowConnectivityManager.reset()
         TestUtil.reset()
     }
 

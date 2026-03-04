@@ -84,7 +84,7 @@ class StatsigNetworkTest {
         }
         network =
             StatsigNetworkImpl(
-                app,
+                StatsigNetworkConnectivityListener(app),
                 "client-key",
                 TestUtil.getTestKeyValueStore(app),
                 options,
@@ -146,7 +146,7 @@ class StatsigNetworkTest {
                 ContextType.INITIALIZE,
                 null,
                 1,
-                50,
+                500,
                 HashAlgorithm.NONE,
                 mapOf(),
                 null

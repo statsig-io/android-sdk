@@ -152,6 +152,11 @@ class StatsigOptions(
      */
     var lifetimeCallback: IStatsigLifetimeCallback? = null,
 
+    /**
+     * Controls whether the SDK should add network status metadata to individual log events
+     */
+    var logNetworkMetadata: Boolean = false,
+
     loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED
 ) : StatsigRuntimeMutableOptions(loggingEnabled) {
 

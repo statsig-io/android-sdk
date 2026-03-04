@@ -39,7 +39,7 @@ class LogEventCompressionTest {
     private fun setupNetwork(store: Store, options: StatsigOptions): StatsigNetworkImpl {
         val network =
             StatsigNetworkImpl(
-                app,
+                StatsigNetworkConnectivityListener(app),
                 "sdk-key",
                 testStorage,
                 options,

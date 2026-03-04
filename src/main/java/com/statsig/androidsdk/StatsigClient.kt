@@ -109,6 +109,8 @@ class StatsigClient : LifecycleEventListener {
     @VisibleForTesting
     internal lateinit var options: StatsigOptions
 
+    private lateinit var connectivityListener: StatsigNetworkConnectivityListener
+
     /**
      * Initializes the SDK for the given user. Initialization is complete when the callback is
      * invoked
@@ -553,12 +555,18 @@ class StatsigClient : LifecycleEventListener {
                 event.metadata = metadata
                 event.user = user
 
+                val eventStatsigMetadata = mutableMapOf<String, String>()
                 if (!options.disableCurrentActivityLogging) {
                     lifecycleListener.getCurrentActivity()?.let {
-                        event.statsigMetadata = mapOf("currentPage" to it.javaClass.simpleName)
+                        eventStatsigMetadata.put("currentPage", it.javaClass.simpleName)
                     }
                 }
-
+                if (options.logNetworkMetadata) {
+                    eventStatsigMetadata.putAll(connectivityListener.getLogEventNetworkMetadata())
+                }
+                if (eventStatsigMetadata.isNotEmpty()) {
+                    event.statsigMetadata = eventStatsigMetadata.toMap()
+                }
                 statsigScope.launch { logger.log(event) }
             },
             tag = functionName
@@ -1233,11 +1241,13 @@ class StatsigClient : LifecycleEventListener {
                 gson
             )
         store = Store(statsigScope, keyValueStorage, normalizedUser, sdkKey, options, gson)
+
+        this.connectivityListener = StatsigNetworkConnectivityListener(application)
         // Prevent overwriting mocked network in tests
         if (!this::statsigNetwork.isInitialized) {
             statsigNetwork =
                 StatsigNetwork(
-                    application,
+                    connectivityListener,
                     sdkKey,
                     keyValueStorage,
                     options,

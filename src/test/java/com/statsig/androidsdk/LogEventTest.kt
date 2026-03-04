@@ -202,7 +202,7 @@ class LogEventTest {
         )
         val network = spyk(
             StatsigNetwork(
-                app,
+                StatsigNetworkConnectivityListener(app),
                 "client-apikey",
                 testKeyValueStorage,
                 StatsigOptions(),

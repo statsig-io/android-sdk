@@ -1,6 +1,4 @@
 package com.statsig.androidsdk
-
-import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
@@ -94,7 +92,7 @@ internal interface StatsigNetwork {
 }
 
 internal fun StatsigNetwork(
-    context: Context,
+    connectivityListener: StatsigNetworkConnectivityListener,
     sdkKey: String,
     keyValueStorage: KeyValueStorage<String>,
     options: StatsigOptions,
@@ -103,7 +101,7 @@ internal fun StatsigNetwork(
     store: Store,
     gson: Gson
 ): StatsigNetwork = StatsigNetworkImpl(
-    context,
+    connectivityListener,
     sdkKey,
     keyValueStorage,
     options,
@@ -114,7 +112,7 @@ internal fun StatsigNetwork(
 )
 
 internal class StatsigNetworkImpl(
-    context: Context,
+    private val connectivityListener: StatsigNetworkConnectivityListener,
     private val sdkKey: String,
     private val keyValueStorage: KeyValueStorage<String>,
     private val options: StatsigOptions,
@@ -129,7 +127,6 @@ internal class StatsigNetworkImpl(
     }
 
     private val dispatcherProvider = CoroutineDispatcherProvider()
-    private val connectivityListener = StatsigNetworkConnectivityListener(context)
     private val offlineLogsKeyV2 = "$OFFLINE_LOGS_KEY_V1:$sdkKey"
     private var initializeRequestsMap = Collections.synchronizedMap(
         mutableMapOf<String, Call>()

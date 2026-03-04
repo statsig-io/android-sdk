@@ -26,7 +26,7 @@ class OfflineStorageTest {
         testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
 
         network = StatsigNetwork(
-            app,
+            StatsigNetworkConnectivityListener(app),
             "client-key",
             testKeyValueStorage,
             StatsigOptions(),

@@ -366,6 +366,65 @@ class StatsigTest {
     }
 
     @Test
+    fun testLogEventIncludesNetworkMetadataWhenEnabled() = runBlocking {
+        TestUtil.startStatsigAndWait(
+            app,
+            StatsigUser("123"),
+            StatsigOptions(logNetworkMetadata = true),
+            network = network
+        )
+        client = Statsig.client
+
+        val mockedConnectivityListener = mockk<StatsigNetworkConnectivityListener>()
+        every {
+            mockedConnectivityListener.getLogEventNetworkMetadata()
+        } returns mapOf("netType" to "wifi", "hasInternet" to "true")
+
+        val connectivityListenerField =
+            StatsigClient::class.java.getDeclaredField("connectivityListener")
+        connectivityListenerField.isAccessible = true
+        connectivityListenerField.set(client, mockedConnectivityListener)
+
+        client.logEvent("network_event")
+        client.shutdown()
+
+        val parsedLogs = gson.fromJson(flushedLogs, LogEventData::class.java)
+        val networkEvent = parsedLogs.events.first { it.eventName == "network_event" }
+        assertThat(networkEvent.statsigMetadata).isEqualTo(
+            mapOf("netType" to "wifi", "hasInternet" to "true")
+        )
+    }
+
+    @Test
+    fun testLogEventDoesNotIncludeNetworkMetadataWhenDisabled() = runBlocking {
+        TestUtil.startStatsigAndWait(
+            app,
+            StatsigUser("123"),
+            StatsigOptions(logNetworkMetadata = false),
+            network = network
+        )
+        client = Statsig.client
+
+        val mockedConnectivityListener = mockk<StatsigNetworkConnectivityListener>()
+        every {
+            mockedConnectivityListener.getLogEventNetworkMetadata()
+        } returns mapOf("netType" to "wifi", "hasInternet" to "true")
+
+        val connectivityListenerField =
+            StatsigClient::class.java.getDeclaredField("connectivityListener")
+        connectivityListenerField.isAccessible = true
+        connectivityListenerField.set(client, mockedConnectivityListener)
+
+        client.logEvent("network_event")
+        client.shutdown()
+
+        val parsedLogs = gson.fromJson(flushedLogs, LogEventData::class.java)
+        val networkEvent = parsedLogs.events.first { it.eventName == "network_event" }
+        assertNull(networkEvent.statsigMetadata)
+        verify(exactly = 0) { mockedConnectivityListener.getLogEventNetworkMetadata() }
+    }
+
+    @Test
     fun testInitializationTimeout() = runBlocking {
         val user = StatsigUser("test-user")
         val timeout = 800L
