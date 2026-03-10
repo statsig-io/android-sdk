@@ -42,24 +42,17 @@ internal class IntegratedSdkExperiments {
     internal suspend fun processSdkConfigs(sdkConfigs: Map<String, Any>, client: StatsigClient) {
         if (sdkConfigs.containsKey(STORAGE_MIGRATION_SDK_CONFIG_KEY)) {
             val gateToCheck = sdkConfigs[STORAGE_MIGRATION_SDK_CONFIG_KEY] as String
-            val priorWrittenValue = storage.readValue(STORE_NAME, STORAGE_MIGRATION_KEY)
-            val shouldMigrate = client.checkGateWithExposureLoggingDisabled(gateToCheck)
+            val shouldMigrate = client.checkGate(gateToCheck)
             val implToWrite = if (shouldMigrate) {
                 MIGRATION.name
             } else {
                 LEGACY.name
             }
-            if (priorWrittenValue == implToWrite) {
-                // Only log an exposure if the values are consistent - we don't want to log
-                // for sessions that didn't start and load storage with the appropriate value
-                client.manuallyLogGateExposure(gateToCheck)
-            } else {
-                storage.writeValue(
-                    STORE_NAME,
-                    STORAGE_MIGRATION_KEY,
-                    implToWrite
-                )
-            }
+            storage.writeValue(
+                STORE_NAME,
+                STORAGE_MIGRATION_KEY,
+                implToWrite
+            )
         } else {
             storage.removeValue(STORE_NAME, STORAGE_MIGRATION_KEY)
         }

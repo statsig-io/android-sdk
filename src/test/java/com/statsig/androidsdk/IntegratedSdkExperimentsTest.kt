@@ -66,10 +66,9 @@ class IntegratedSdkExperimentsTest {
     fun checkForMigration_configPresentAndGatePass_storesHint() = runTest {
         val mockClient = mockk<StatsigClient>()
         coEvery { mockClient.checkGate(gateName) } answers { true }
-        coEvery { mockClient.checkGateWithExposureLoggingDisabled(gateName) } answers { true }
 
         experiments.processSdkConfigs(sdkConfigs, mockClient)
-        coVerify(exactly = 1) { mockClient.checkGateWithExposureLoggingDisabled(gateName) }
+        coVerify(exactly = 1) { mockClient.checkGate(gateName) }
         assertThat(
             storage.readValue(storeName, keyName)
         ).isEqualTo(StatsigClient.Companion.KeyValueStorageImplementation.MIGRATION.name)
@@ -83,11 +82,11 @@ class IntegratedSdkExperimentsTest {
             keyName,
             StatsigClient.Companion.KeyValueStorageImplementation.MIGRATION.name
         )
-        coEvery { mockClient.checkGateWithExposureLoggingDisabled(gateName) } answers { false }
+        coEvery { mockClient.checkGate(gateName) } answers { false }
 
         experiments.processSdkConfigs(sdkConfigs, mockClient)
 
-        coVerify(exactly = 1) { mockClient.checkGateWithExposureLoggingDisabled(gateName) }
+        coVerify(exactly = 1) { mockClient.checkGate(gateName) }
         assertThat(
             storage.readValue(storeName, keyName)
         ).isEqualTo(StatsigClient.Companion.KeyValueStorageImplementation.LEGACY.name)
