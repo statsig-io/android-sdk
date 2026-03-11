@@ -310,7 +310,7 @@ class TestUtil {
         @JvmName("captureLogs")
         internal fun captureLogs(network: StatsigNetwork, onLog: ((LogEventData) -> Unit)? = null) {
             coEvery {
-                network.apiPostLogs(any(), any(), any())
+                network.apiPostLogs(any(), any(), any(), any(), any())
             } answers {
                 onLog?.invoke(Gson().fromJson(secondArg<String>(), LogEventData::class.java))
             }
@@ -338,7 +338,7 @@ class TestUtil {
         internal fun mockBrokenNetwork(onLog: ((LogEventData) -> Unit)? = null): StatsigNetwork {
             val statsigNetwork = mockk<StatsigNetwork>()
             coEvery {
-                statsigNetwork.apiRetryFailedLogs(any())
+                statsigNetwork.apiRetryFailedLogs(any(), any(), any())
             } answers {
                 throw IOException("Example exception in StatsigNetwork apiRetryFailedLogs")
             }
@@ -357,7 +357,7 @@ class TestUtil {
             } answers {}
 
             coEvery {
-                statsigNetwork.apiPostLogs(any(), any(), any())
+                statsigNetwork.apiPostLogs(any(), any(), any(), any(), any())
             } answers {
                 onLog?.invoke(
                     StatsigUtil.getOrBuildGson().fromJson(
@@ -383,7 +383,7 @@ class TestUtil {
             val statsigNetwork = mockk<StatsigNetwork>()
 
             coEvery {
-                statsigNetwork.apiRetryFailedLogs(any())
+                statsigNetwork.apiRetryFailedLogs(any(), any(), any())
             } answers {}
 
             coEvery {
@@ -400,7 +400,7 @@ class TestUtil {
             } coAnswers {}
 
             coEvery {
-                statsigNetwork.apiPostLogs(any(), any(), any())
+                statsigNetwork.apiPostLogs(any(), any(), any(), any(), any())
             } answers {
                 onLog?.invoke(
                     StatsigUtil.getOrBuildGson().fromJson(

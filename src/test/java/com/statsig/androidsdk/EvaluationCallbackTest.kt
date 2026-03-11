@@ -40,7 +40,7 @@ class EvaluationCallbackTest {
         })
 
         coEvery {
-            network.apiPostLogs(any(), any(), any())
+            network.apiPostLogs(any(), any(), any(), any(), any())
         } answers {
             flushedLogs = secondArg()
         }

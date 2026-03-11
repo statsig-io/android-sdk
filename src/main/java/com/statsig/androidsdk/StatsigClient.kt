@@ -1153,7 +1153,8 @@ class StatsigClient : LifecycleEventListener {
                             try {
                                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(
                                     this@StatsigClient.options.eventLoggingAPI,
-                                    this@StatsigClient.options.logEventFallbackUrls
+                                    this@StatsigClient.options.logEventFallbackUrls,
+                                    statsigClientMetadata
                                 )
                             } catch (e: Exception) {
                                 // best effort attempt to capture failed log events
@@ -1598,7 +1599,8 @@ class StatsigClient : LifecycleEventListener {
         retryScope.launch(dispatcherProvider.io) {
             statsigNetwork.apiRetryFailedLogs(
                 this@StatsigClient.options.eventLoggingAPI,
-                this@StatsigClient.options.logEventFallbackUrls
+                this@StatsigClient.options.logEventFallbackUrls,
+                statsigClientMetadata
             )
         }
     }

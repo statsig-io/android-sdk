@@ -3,6 +3,7 @@ package com.statsig.androidsdk
 import android.app.Application
 import com.github.tomakehurst.wiremock.client.WireMock.aResponse
 import com.github.tomakehurst.wiremock.client.WireMock.equalTo
+import com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath
 import com.github.tomakehurst.wiremock.client.WireMock.post
 import com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor
 import com.github.tomakehurst.wiremock.client.WireMock.stubFor
@@ -12,6 +13,8 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule
 import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_STABLE_ID_HEADER_KEY
 import io.mockk.every
 import io.mockk.spyk
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -49,6 +52,7 @@ class StatsigNetworkTest {
         TestUtil.mockHashing()
         keyValueStorage = TestUtil.getTestKeyValueStore(app)
         TestUtil.setupHttp(app)
+        HttpUtils.exceptionUrlString = "${wireMockRule.baseUrl()}/rgstr_e"
 
         stubFor(
             post(urlMatching("/initialize"))
@@ -57,6 +61,11 @@ class StatsigNetworkTest {
 
         stubFor(
             post(urlMatching("/log_event"))
+                .willReturn(aResponse().withStatus(202))
+        )
+
+        stubFor(
+            post(urlMatching("/rgstr_e"))
                 .willReturn(aResponse().withStatus(202))
         )
 
@@ -97,6 +106,7 @@ class StatsigNetworkTest {
 
     @After
     fun teardown() {
+        HttpUtils.exceptionUrlString = "https://prodregistryv2.org/v1/rgstr_e"
         TestUtil.reset()
     }
 
@@ -136,6 +146,49 @@ class StatsigNetworkTest {
         )
     }
 
+    @Test
+    fun retryFailedLogs_reportsDiagnosticEvent_whenRetryBudgetExceeded() = runTest {
+        val savedLogs = StatsigPendingRequests(
+            listOf(
+                StatsigOfflineRequest(
+                    timestamp = System.currentTimeMillis(),
+                    requestBody = "{\"events\":[]}",
+                    retryCount = 2,
+                    eventCount = "7"
+                )
+            )
+        )
+        keyValueStorage.writeValue(
+            "offlinelogs",
+            "StatsigNetwork.OFFLINE_LOGS:client-key",
+            gson.toJson(savedLogs)
+        )
+
+        val httpDispatcher = HttpUtils.getHttpClient().dispatcher
+        val idleLatch = CountDownLatch(1)
+        httpDispatcher.idleCallback = Runnable { idleLatch.countDown() }
+        try {
+            network.apiRetryFailedLogs(
+                api = "://invalid-url",
+                fallbackUrls = null,
+                statsigMetadata = metadata
+            )
+            if (!idleLatch.await(2, TimeUnit.SECONDS)) {
+                throw AssertionError("Timed out waiting for exception logging request to complete")
+            }
+        } finally {
+            httpDispatcher.idleCallback = null
+        }
+
+        wireMockRule.verify(
+            postRequestedFor(urlMatching("/rgstr_e"))
+                .withHeader(HttpUtils.STATSIG_EVENT_COUNT, equalTo("7"))
+                .withRequestBody(matchingJsonPath("$.tag", equalTo(LOG_EVENT_FAILED)))
+                .withRequestBody(matchingJsonPath("$.eventCount", equalTo("7")))
+                .withRequestBody(matchingJsonPath("$.offlineRetries", equalTo("2")))
+        )
+    }
+
     private suspend fun makeInitializeRequest() {
         try {
             network.initializeImpl(
@@ -163,7 +216,8 @@ class StatsigNetworkTest {
                 api = wireMockRule.baseUrl(),
                 bodyString = gson.toJson(logEventBody),
                 eventsCount = "1",
-                fallbackUrls = null
+                fallbackUrls = null,
+                statsigMetadata = metadata
             )
         } catch (e: Exception) {
             throw e

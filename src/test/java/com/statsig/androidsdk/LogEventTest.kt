@@ -80,7 +80,7 @@ class LogEventTest {
             assert(logEventRequests[0].events[3].eventName == "viewCart")
             mockAppOnResume()
             Thread.sleep(500)
-            coVerify { network.apiRetryFailedLogs("https://fake.statsig.com/v1") }
+            coVerify { network.apiRetryFailedLogs("https://fake.statsig.com/v1", any(), any()) }
         }
     }
 
@@ -186,7 +186,7 @@ class LogEventTest {
                 any()
             )
         }
-        coVerify { network.apiPostLogs(expectedLogEventApi, any(), any()) }
+        coVerify { network.apiPostLogs(expectedLogEventApi, any(), any(), any(), any()) }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -213,7 +213,7 @@ class LogEventTest {
             )
         )
         coEvery {
-            network.apiPostLogs(any(), any(), any())
+            network.apiPostLogs(any(), any(), any(), any(), any())
         } answers {
             logEventRequests.add(
                 StatsigUtil.getOrBuildGson().fromJson(secondArg<String>(), LogEventData::class.java)

@@ -23,7 +23,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.Request
+import okhttp3.Response
 
 // Constants
 private val MAX_LOG_PERIOD = TimeUnit.DAYS.toMillis(3)
@@ -76,10 +78,15 @@ internal interface StatsigNetwork {
         api: String,
         bodyString: String,
         eventsCount: String? = null,
-        fallbackUrls: List<String>? = null
+        fallbackUrls: List<String>? = null,
+        statsigMetadata: StatsigMetadata
     )
 
-    suspend fun apiRetryFailedLogs(api: String, fallbackUrls: List<String>? = null)
+    suspend fun apiRetryFailedLogs(
+        api: String,
+        fallbackUrls: List<String>? = null,
+        statsigMetadata: StatsigMetadata
+    )
 
     suspend fun addFailedLogRequest(request: StatsigOfflineRequest)
 
@@ -384,14 +391,16 @@ internal class StatsigNetworkImpl(
         api: String,
         bodyString: String,
         eventsCount: String?,
-        fallbackUrls: List<String>?
+        fallbackUrls: List<String>?,
+        statsigMetadata: StatsigMetadata
     ) {
         val timestamp = System.currentTimeMillis()
         retryApiPostLogs(
             api,
-            StatsigOfflineRequest(timestamp, bodyString, retryCount = 0),
+            StatsigOfflineRequest(timestamp, bodyString, retryCount = 0, eventCount = eventsCount),
             eventsCount,
-            fallbackUrls
+            fallbackUrls,
+            statsigMetadata
         )
     }
 
@@ -399,7 +408,8 @@ internal class StatsigNetworkImpl(
         api: String,
         request: StatsigOfflineRequest,
         eventsCount: String?,
-        fallbackUrls: List<String>?
+        fallbackUrls: List<String>?,
+        statsigMetadata: StatsigMetadata
     ) {
         var currRetry = 1
         var backoff = 100L
@@ -435,16 +445,23 @@ internal class StatsigNetworkImpl(
                 }
             }
         } catch (e: Exception) {
-            if (request.retryCount < MAX_LOG_RETRIES) {
+            if (request.retryCount < MAX_LOG_RETRIES - 1) {
                 Log.e(TAG, "Error posting logs, saving for retry...", e)
                 addFailedLogRequest(
                     request.copy(retryCount = request.retryCount + 1)
                 )
+            } else {
+                Log.e(TAG, "Logging attempt exceeded retries")
+                reportLogEventFailure(statusCode, request, e, statsigMetadata)
             }
         }
     }
 
-    override suspend fun apiRetryFailedLogs(api: String, fallbackUrls: List<String>?) {
+    override suspend fun apiRetryFailedLogs(
+        api: String,
+        fallbackUrls: List<String>?,
+        statsigMetadata: StatsigMetadata
+    ) {
         if (this.options.disableLogEventRetries) {
             return
         }
@@ -455,8 +472,7 @@ internal class StatsigNetworkImpl(
         keyValueStorage.removeValue(OFFLINE_LOGS_STORE_NAME, OFFLINE_LOGS_KEY_V1)
         keyValueStorage.removeValue(OFFLINE_LOGS_STORE_NAME, offlineLogsKeyV2)
 
-        val eventsCount = savedLogs.size.toString()
-        savedLogs.map { retryApiPostLogs(api, it, eventsCount, fallbackUrls) }
+        savedLogs.map { retryApiPostLogs(api, it, it.eventCount, fallbackUrls, statsigMetadata) }
     }
 
     override suspend fun addFailedLogRequest(request: StatsigOfflineRequest) {
@@ -504,6 +520,7 @@ internal class StatsigNetworkImpl(
         all: List<StatsigOfflineRequest>,
         currentTime: Long
     ): List<StatsigOfflineRequest> {
+        // TODO: attempt to send an exception log for dropped event batches
         return all
             .filter { it.timestamp > currentTime - MAX_LOG_PERIOD } // remove old logs
             .filter { it.retryCount < MAX_LOG_RETRIES } // remove over-retried logs
@@ -694,6 +711,49 @@ internal class StatsigNetworkImpl(
             StepType.NETWORK_REQUEST,
             marker,
             overrideContext = diagnosticsContext
+        )
+    }
+
+    private fun reportLogEventFailure(
+        statusCode: Int?,
+        logRequest: StatsigOfflineRequest,
+        exception: Exception,
+        statsigMetadata: StatsigMetadata
+    ) {
+        val name = exception.javaClass.canonicalName ?: exception.javaClass.name
+        val body = mapOf(
+            "exception" to name,
+            STATSIG_METADATA to statsigMetadata,
+            "tag" to LOG_EVENT_FAILED,
+            "statusCode" to statusCode?.toString(),
+            "eventCount" to logRequest.eventCount,
+            "offlineRetries" to logRequest.retryCount,
+            "eventTimestamp" to logRequest.timestamp
+        )
+        val postData = Gson().toJson(body)
+        val requestBuilder = Request.Builder()
+            .url(HttpUtils.exceptionUrlString)
+            .post(postData.toJsonRequestBody())
+            .addStatsigHeaders(sdkKey)
+        val eventsCount = logRequest.eventCount
+        eventsCount?.let {
+            requestBuilder.addHeader(STATSIG_EVENT_COUNT, it)
+        }
+        sendFailureToNetwork(requestBuilder.build())
+    }
+
+    private fun sendFailureToNetwork(request: Request) {
+        HttpUtils.getHttpClient().newCall(request).enqueue(
+            responseCallback = object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    // No-op, we tried
+                    Log.w(TAG, "failed to send failure")
+                }
+
+                override fun onResponse(call: Call, response: Response) {
+                    response.close()
+                }
+            }
         )
     }
 }

@@ -262,7 +262,7 @@ class StatsigInitializationFailureTest {
             throw Exception("Fake timeout exception")
         }
         coEvery {
-            network.apiPostLogs(any(), any(), any())
+            network.apiPostLogs(any(), any(), any(), any(), any())
         } coAnswers {
             // Blocking logevent
             countDownLatch.await()

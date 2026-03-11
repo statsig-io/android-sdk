@@ -65,7 +65,11 @@ class StatsigCacheTest {
 
         assertTrue(client.checkGate("always_on"))
         runBlocking {
-            client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1")
+            client.statsigNetwork.apiRetryFailedLogs(
+                "https://statsigapi.net/v1",
+                null,
+                StatsigMetadata()
+            )
         }
         val config = client.getConfig("test_config")
         assertEquals("test", config.getString("string", "fallback"))
@@ -97,7 +101,11 @@ class StatsigCacheTest {
         client.statsigNetwork = TestUtil.mockNetwork()
         assertFalse(client.checkGate("always_on"))
         runBlocking {
-            client.statsigNetwork.apiRetryFailedLogs("https://statsigapi.net/v1")
+            client.statsigNetwork.apiRetryFailedLogs(
+                "https://statsigapi.net/v1",
+                null,
+                StatsigMetadata()
+            )
             client.statsigNetwork.addFailedLogRequest(
                 StatsigOfflineRequest(System.currentTimeMillis(), "{}", 0)
             )

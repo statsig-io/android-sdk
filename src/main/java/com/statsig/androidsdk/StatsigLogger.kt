@@ -29,6 +29,8 @@ internal const val GATE_EXPOSURE = "statsig::gate_exposure"
 internal const val DIAGNOSTICS_EVENT = "statsig::diagnostics"
 internal const val NON_EXPOSED_CHECKS_EVENT = "statsig::non_exposed_checks"
 
+internal const val LOG_EVENT_FAILED = "statsig::log_event_failed"
+
 internal data class LogEventData(
     @SerializedName("events") val events: ArrayList<LogEvent>,
     @SerializedName("statsigMetadata") val statsigMetadata: StatsigMetadata
@@ -98,7 +100,8 @@ internal class StatsigLogger(
                 api,
                 gson.toJson(LogEventData(flushEvents, statsigMetadata)),
                 eventsCount,
-                fallbackUrls
+                fallbackUrls,
+                statsigMetadata
             )
             Log.v(TAG, "flush() completed with $eventsCount events")
         }

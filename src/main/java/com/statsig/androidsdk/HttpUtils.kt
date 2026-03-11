@@ -96,6 +96,9 @@ class HttpUtils {
         internal val JSON_MEDIA_TYPE: MediaType = "application/json; charset=utf-8".toMediaType()
 
         @JvmSynthetic
+        internal var exceptionUrlString: String = "https://prodregistryv2.org/v1/rgstr_e"
+
+        @JvmSynthetic
         @VisibleForTesting(otherwise = PRIVATE)
         var okHttpClient: OkHttpClient? = null
 

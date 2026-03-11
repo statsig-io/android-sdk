@@ -127,7 +127,7 @@ class StatsigOfflineInitializationTest {
     private fun mockNetwork(): StatsigNetwork {
         val statsigNetwork = mockk<StatsigNetwork>()
         coEvery {
-            statsigNetwork.apiRetryFailedLogs(any())
+            statsigNetwork.apiRetryFailedLogs(any(), any(), any())
         } answers {}
 
         coEvery {
@@ -153,7 +153,7 @@ class StatsigOfflineInitializationTest {
         } coAnswers {}
 
         coEvery {
-            statsigNetwork.apiPostLogs(any(), any(), any())
+            statsigNetwork.apiPostLogs(any(), any(), any(), any(), any())
         } answers {
             logs.add(gson.fromJson(secondArg<String>(), LogEventData::class.java))
         }
