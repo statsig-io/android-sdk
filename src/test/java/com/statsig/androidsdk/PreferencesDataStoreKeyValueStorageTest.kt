@@ -1,6 +1,7 @@
 package com.statsig.androidsdk
 
 import android.app.Application
+import androidx.datastore.dataStoreFile
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +29,12 @@ class PreferencesDataStoreKeyValueStorageTest {
 
     private val dispatcher = UnconfinedTestDispatcher()
     private val coroutineScope = CoroutineScope(SupervisorJob() + dispatcher)
+    private val compressed = PreferencesDataStoreKeyValueStorage.COMPRESS_DATA
+
+    private fun getStoreFile(store: String, compressed: Boolean = this.compressed) =
+        app.dataStoreFile(
+            "com.statsig.androidsdk.prefs/$store${if (compressed) "_gz" else "_unc"}"
+        )
 
     @Before
     fun setup() {
@@ -41,6 +48,8 @@ class PreferencesDataStoreKeyValueStorageTest {
         runBlocking {
             storage.clearAll()
         }
+        getStoreFile(storeName).delete()
+        getStoreFile(otherStore).delete()
     }
 
     @Test
@@ -76,6 +85,23 @@ class PreferencesDataStoreKeyValueStorageTest {
 
         assertThat(storage.readValue(storeName, keyName)).isEqualTo(value)
         assertThat(storage.readValue(otherStore, keyName)).isNull()
+    }
+
+    @Test
+    fun clearStore_deletesBackingFiles() = runTest {
+        storage.writeValue(storeName, keyName, value)
+
+        val storeFile = getStoreFile(storeName)
+        storeFile.parentFile?.mkdirs()
+        if (!storeFile.exists()) {
+            storeFile.writeText("placeholder")
+        }
+
+        assertThat(storeFile.exists()).isTrue()
+
+        storage.clearStore(storeName)
+
+        assertThat(storeFile.exists()).isFalse()
     }
 
     @Test

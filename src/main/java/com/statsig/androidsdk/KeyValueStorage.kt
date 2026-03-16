@@ -29,6 +29,8 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import java.util.zip.ZipException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
@@ -293,13 +295,29 @@ class PreferencesDataStoreKeyValueStorage(
     companion object {
         private const val TAG = "statsig::PrefsDataStore"
 
-        // Stores each active DataStore
-        private val storeMap: ConcurrentHashMap<String, DataStore<Preferences>> =
+        private data class StoreHandle(
+            val dataStore: DataStore<Preferences>,
+            val scope: CoroutineScope,
+            val job: Job
+        )
+
+        // Stores each active DataStore and its lifecycle scope.
+        private val storeMap: ConcurrentHashMap<String, StoreHandle> =
             ConcurrentHashMap()
 
         private val dispatcherProvider by lazy { CoroutineDispatcherProvider() }
 
         private const val DATA_STORE_FILE_PATH = "com.statsig.androidsdk.prefs"
+        private const val COMPRESSED_SUFFIX = "_gz"
+        private const val UNCOMPRESSED_SUFFIX = "_unc"
+
+        // TODO: Decide on multiprocess here or not - base decision on sdkFlags or StatsigOptions?
+        //   False for v1 - allow configuration in future releases
+        internal val MULTIPROCESS = false
+
+        // TODO: Compression hasn't shown much performance benefit, but could be useful for
+        //  customers who are conscious about storage usage? Offer as an option in later release
+        internal val COMPRESS_DATA = false
 
         private const val FOUR_KB = 4096
         private const val SIXTEEN_KB = 16384
@@ -361,10 +379,12 @@ class PreferencesDataStoreKeyValueStorage(
 
         private suspend fun clearAllStoresForTesting() {
             withContext(CoroutineDispatcherProvider().io) {
-                val storeNames = storeMap.keys.toList()
-                storeNames.forEach { storeName ->
-                    storeMap[storeName]?.edit { it.clear() }
+                val handles = storeMap.values.toList()
+                handles.forEach { handle ->
+                    handle.dataStore.edit { it.clear() }
                 }
+                handles.forEach { handle -> handle.job.cancel() }
+                storeMap.clear()
             }
         }
     }
@@ -406,14 +426,19 @@ class PreferencesDataStoreKeyValueStorage(
 
     override suspend fun clearStore(storeName: String) {
         withContext(dispatcherProvider.io) {
-            getData(storeName).edit { it.clear() }
+            storeMap[storeName]?.dataStore?.edit { it.clear() }
+            shutdownAndRemoveStoreIfPresent(storeName)
+            deleteStoreFiles(storeName)
         }
     }
 
     override suspend fun clearAll() {
         // This impl will ONLY work for stores are loaded into the map when this is actually called.
         //  Could probably use a dedicated store to index each other store
-        storeMap.keys.forEach { storeName -> getData(storeName).edit { prefs -> prefs.clear() } }
+        val storeNames = storeMap.keys.toList()
+        storeNames.forEach { storeName ->
+            storeMap[storeName]?.dataStore?.edit { prefs -> prefs.clear() }
+        }
     }
 
     override suspend fun readAll(storeName: String): Map<String, String> =
@@ -424,46 +449,42 @@ class PreferencesDataStoreKeyValueStorage(
         }
 
     private fun getData(storeName: String): DataStore<Preferences> {
-        maybeBuildStore(storeName)
-        val data = storeMap[storeName]
-        if (data == null) {
-            // This should never happen. (tm)
-            Log.e(TAG, "getData failed to find!")
-        }
-        return data!!
+        val handle = maybeBuildStore(storeName)
+        val data = handle.dataStore
+        return data
     }
 
-    private fun maybeBuildStore(storeName: String) {
-        if (storeMap.containsKey(storeName)) {
-            return
+    private fun maybeBuildStore(storeName: String): StoreHandle {
+        storeMap[storeName]?.let { existing ->
+            return existing
         }
 
-        // TODO: Decide on multiprocess here or not - base decision on sdkFlags or StatsigOptions?
-        //   False for v1 - allow configuration in future releases
-        val multiprocess = false
-
-        // TODO: Compression hasn't shown much performance benefit, but could be useful for
-        //  customers who are conscious about storage usage? Offer as an option in later release
-        val compressed = false
-
-        val store = buildStore(storeName, multiprocess, compressed)
-        storeMap.putIfAbsent(storeName, store)
+        val store = buildStoreHandle(storeName, MULTIPROCESS, COMPRESS_DATA)
+        val existing = storeMap.putIfAbsent(storeName, store)
+        if (existing != null) {
+            store.job.cancel()
+            return existing
+        }
+        return store
     }
 
-    private fun buildStore(
+    @Suppress("SameParameterValue")
+    private fun buildStoreHandle(
         storeName: String,
         multiprocess: Boolean,
         compressed: Boolean
-    ): DataStore<Preferences> {
+    ): StoreHandle {
         val serializer =
             if (compressed) GzipPreferencesSerializer else BufferedPreferencesSerializer
-        val append = if (compressed) "_gz" else "_unc"
+        val append = if (compressed) COMPRESSED_SUFFIX else UNCOMPRESSED_SUFFIX
         val produceFileLambda = {
             application.dataStoreFile("$DATA_STORE_FILE_PATH/$storeName$append")
         }
-        return if (multiprocess) {
+        val job = SupervisorJob()
+        val scope = CoroutineScope(coroutineScope.coroutineContext + job)
+        val dataStore = if (multiprocess) {
             MultiProcessDataStoreFactory.create(
-                scope = coroutineScope,
+                scope = scope,
                 produceFile = produceFileLambda,
                 serializer = serializer,
                 corruptionHandler = getCorruptionHandler(storeName),
@@ -471,12 +492,39 @@ class PreferencesDataStoreKeyValueStorage(
             )
         } else {
             DataStoreFactory.create(
-                scope = coroutineScope,
+                scope = scope,
                 serializer = serializer,
                 corruptionHandler = getCorruptionHandler(storeName),
                 migrations = mutableListOf(),
                 produceFile = produceFileLambda
             )
+        }
+        return StoreHandle(dataStore, scope, job)
+    }
+
+    private suspend fun shutdownAndRemoveStoreIfPresent(storeName: String) {
+        val handle = storeMap[storeName] ?: return
+        handle.job.cancel()
+        handle.job.join()
+        storeMap.remove(storeName, handle)
+    }
+
+    private fun deleteStoreFiles(storeName: String): Boolean {
+        val uncDeleted = deleteStoreFile(storeName, compressed = false)
+        val gzDeleted = deleteStoreFile(storeName, compressed = true)
+        return uncDeleted && gzDeleted
+    }
+
+    private fun deleteStoreFile(storeName: String, compressed: Boolean): Boolean {
+        val suffix = if (compressed) COMPRESSED_SUFFIX else UNCOMPRESSED_SUFFIX
+        val file = application.dataStoreFile("$DATA_STORE_FILE_PATH/$storeName$suffix")
+        if (!file.exists()) {
+            return true
+        }
+        return file.delete().also { deleted ->
+            if (!deleted) {
+                Log.w(TAG, "Failed to delete datastore file: ${file.path}")
+            }
         }
     }
 }
