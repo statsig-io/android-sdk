@@ -462,6 +462,7 @@ class PreferencesDataStoreKeyValueStorage(
         val store = buildStoreHandle(storeName, MULTIPROCESS, COMPRESS_DATA)
         val existing = storeMap.putIfAbsent(storeName, store)
         if (existing != null) {
+            // Race protection - abandon the new store if we somehow got there second
             store.job.cancel()
             return existing
         }

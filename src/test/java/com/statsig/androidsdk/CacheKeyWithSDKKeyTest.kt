@@ -23,17 +23,12 @@ class CacheKeyWithSDKKeyTest {
         app = RuntimeEnvironment.getApplication()
         user.customIDs = mapOf("companyId" to "123")
         TestUtil.mockHashing()
-        var values: MutableMap<String, Any> = HashMap()
-        val sticky: MutableMap<String, Any> = HashMap()
-        values["values"] = TestUtil.makeInitializeResponse()
-        values["stickyUserExperiments"] = sticky
-        var cacheById: MutableMap<String, Any> = HashMap()
         // Write a cached by original key
         testKeyValueStorage = TestUtil.getTestKeyValueStore(app)
         testKeyValueStorage.writeValue(
             "ondiskvaluecache",
             "Statsig.CACHE_BY_USER",
-            StatsigUtil.getOrBuildGson().toJson(cacheById)
+            StatsigUtil.getOrBuildGson().toJson(emptyMap<String, Any>())
         )
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockBrokenNetwork())
 
@@ -49,13 +44,21 @@ class CacheKeyWithSDKKeyTest {
     fun testWriteToCacheWithNewKey() = runBlocking {
         Statsig.client.shutdown()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())
-        val cacheJson = testKeyValueStorage.readValue(
+        val gson = StatsigUtil.getOrBuildGson()
+        val scopedCacheKey = "${user.getCacheKey()}:client-apikey"
+        val fullCacheKey = "${user.toHashString(gson = gson)}:client-apikey"
+
+        val cacheMappingJson = testKeyValueStorage.readValue(
             "ondiskvaluecache",
-            "Statsig.CACHE_BY_USER"
+            "Statsig.CACHE_KEY_MAPPING"
         ) ?: ""
-        val cacheById = StatsigUtil.getOrBuildGson().fromJson(cacheJson, Map::class.java)
-        assertThat(
-            cacheById.keys
-        ).contains("${user.toHashString(gson = StatsigUtil.getOrBuildGson())}:client-apikey")
+        val cacheMapping = gson.fromJson(cacheMappingJson, Map::class.java)
+        assertThat(cacheMapping[scopedCacheKey]).isEqualTo(fullCacheKey)
+
+        val perUserCache = testKeyValueStorage.readValue(
+            TestUtil.getPerUserCacheStoreName(fullCacheKey),
+            TestUtil.getPerUserCacheStorageKey(fullCacheKey)
+        )
+        assertThat(perUserCache).isNotNull()
     }
 }

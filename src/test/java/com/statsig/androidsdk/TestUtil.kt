@@ -9,6 +9,7 @@ import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import java.io.IOException
+import java.security.MessageDigest
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -323,6 +324,22 @@ class TestUtil {
             val scope =
                 coroutineScope ?: CoroutineScope(SupervisorJob() + CoroutineDispatcherProvider().io)
             return StatsigClient.createKeyValueStorage(app, scope)
+        }
+
+        internal fun getPerUserCacheStoreName(fullCacheKey: String): String {
+            val bytes = MessageDigest.getInstance("SHA-256").digest(fullCacheKey.toByteArray())
+            val hash = bytes.joinToString("") { byte ->
+                ((byte.toInt() and 0xFF) + 0x100).toString(16).substring(1)
+            }
+            return "ondiskvaluecache_user_$hash"
+        }
+
+        internal fun getPerUserCacheStorageKey(fullCacheKey: String): String {
+            val bytes = MessageDigest.getInstance("SHA-256").digest(fullCacheKey.toByteArray())
+            val hash = bytes.joinToString("") { byte ->
+                ((byte.toInt() and 0xFF) + 0x100).toString(16).substring(1)
+            }
+            return "Statsig.USER_CACHE_$hash"
         }
 
         fun mockHashing() {

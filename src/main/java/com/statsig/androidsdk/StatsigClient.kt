@@ -1092,7 +1092,7 @@ class StatsigClient : LifecycleEventListener {
                             StepType.LOAD_CACHE,
                             Marker(isBlocking = false)
                         )
-                        this@StatsigClient.store.syncLoadFromLocalStorage()
+                        this@StatsigClient.store.loadFromLocalStorage()
                         diagnostics.markEnd(KeyType.INITIALIZE, true, StepType.LOAD_CACHE)
                     }
                     val initResponse =

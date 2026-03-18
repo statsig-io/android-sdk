@@ -31,10 +31,16 @@ class StoreTest {
         coroutineScope = TestScope(TestUtil.mockDispatchers())
         app = RuntimeEnvironment.getApplication()
         TestUtil.mockHashing()
+        runBlocking {
+            TestUtil.getTestKeyValueStore(app).clearAll()
+        }
     }
 
     @After
     internal fun tearDown() {
+        runBlocking {
+            TestUtil.getTestKeyValueStore(app).clearAll()
+        }
         TestUtil.reset()
         unmockkAll()
     }
@@ -142,6 +148,48 @@ class StoreTest {
         store.resetUser(userDloomb)
         store.loadCacheForCurrentUser()
         assertEquals(false, store.checkGate("gate").getValue())
+    }
+
+    @Test
+    fun testLegacyCacheLoadsAndNextSaveUsesPerUserStore() = runBlocking {
+        val storage = TestUtil.getTestKeyValueStore(app)
+        val legacyCache = mapOf(
+            "${userJkw.getCacheKey()}:client-apikey" to mapOf(
+                "values" to getInitValue("legacy"),
+                "stickyUserExperiments" to mapOf("values" to mapOf<String, APIDynamicConfig>()),
+                "userHash" to userJkw.toHashString(StatsigUtil.getOrBuildGson()),
+                "evaluationTime" to 123L
+            )
+        )
+
+        storage.writeValue(
+            "ondiskvaluecache",
+            "Statsig.CACHE_BY_USER",
+            StatsigUtil.getOrBuildGson().toJson(legacyCache)
+        )
+
+        val store =
+            Store(
+                coroutineScope,
+                storage,
+                userJkw,
+                "client-apikey",
+                StatsigOptions(),
+                StatsigUtil.getOrBuildGson()
+            )
+        store.syncLoadFromLocalStorage()
+
+        assertEquals("legacy", store.getConfig("config").getString("key", ""))
+
+        store.save(getInitValue("network"), userJkw)
+
+        val fullCacheKey = "${userJkw.toHashString(StatsigUtil.getOrBuildGson())}:client-apikey"
+        val persisted = storage.readValueSync(
+            TestUtil.getPerUserCacheStoreName(fullCacheKey),
+            TestUtil.getPerUserCacheStorageKey(fullCacheKey)
+        )
+        assertThat(persisted).contains("\"stickyUserExperiments\"")
+        assertThat(storage.readValueSync("ondiskvaluecache", "Statsig.CACHE_BY_USER")).isNull()
     }
 
     @Test
