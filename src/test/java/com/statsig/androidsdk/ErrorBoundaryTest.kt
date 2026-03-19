@@ -119,4 +119,17 @@ class ErrorBoundaryTest {
         val request = mockWebServer.takeRequest(1, TimeUnit.SECONDS)
         assertThat(request).isNull()
     }
+
+    @Test
+    fun testCaptureAsyncLogsProvidedTag() = runTest {
+        boundary.captureAsync<Unit>(
+            task = {
+                throw IOException("Test")
+            },
+            tag = "testCaptureAsync"
+        )
+
+        val request = mockWebServer.takeRequest()
+        assertThat(request.body.readUtf8()).contains(""""tag":"testCaptureAsync"""")
+    }
 }

@@ -134,6 +134,7 @@ class StatsigClient : LifecycleEventListener {
         callback: IStatsigCallback? = null,
         options: StatsigOptions = StatsigOptions()
     ) {
+        val functionName = "initializeAsync"
         if (isInitializing.getAndSet(true)) {
             Log.w(
                 TAG,
@@ -171,6 +172,7 @@ class StatsigClient : LifecycleEventListener {
                     }
                 }
             },
+            tag = functionName,
             recover = {
                 logEndDiagnosticsWhenException(ContextType.INITIALIZE, it)
                 try {
@@ -212,6 +214,7 @@ class StatsigClient : LifecycleEventListener {
         user: StatsigUser? = null,
         options: StatsigOptions = StatsigOptions()
     ): InitializationDetails? {
+        val functionName = "initialize"
         if (isInitializing.getAndSet(true)) {
             Log.w(
                 TAG,
@@ -221,7 +224,8 @@ class StatsigClient : LifecycleEventListener {
         }
         errorBoundary.initialize(sdkKey)
         return errorBoundary.captureAsync(
-            {
+            tag = functionName,
+            task = {
                 val normalizedUser = setup(application, sdkKey, user, options)
                 val response = setupAsync(normalizedUser)
                 response.duration = SystemClock.elapsedRealtime() - initTime
@@ -235,7 +239,7 @@ class StatsigClient : LifecycleEventListener {
                 }
                 return@captureAsync response
             },
-            {
+            recover = {
                 logEndDiagnosticsWhenException(ContextType.INITIALIZE, it)
                 return@captureAsync InitializationDetails(
                     SystemClock.elapsedRealtime() - initTime,
@@ -720,8 +724,9 @@ class StatsigClient : LifecycleEventListener {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     suspend fun updateUser(user: StatsigUser?, values: Map<String, Any>? = null) {
-        enforceInitialized("updateUser")
-        errorBoundary.captureAsync {
+        val functionName = "updateUser"
+        enforceInitialized(functionName)
+        errorBoundary.captureAsync(task = {
             diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
             this.user = normalizeUser(user)
             this.resetUser()
@@ -734,7 +739,7 @@ class StatsigClient : LifecycleEventListener {
                 updateUserImpl()
                 Log.v(TAG, "updateUser completed")
             }
-        }
+        }, tag = functionName)
     }
 
     /**
@@ -776,12 +781,13 @@ class StatsigClient : LifecycleEventListener {
      * @throws IllegalStateException if the SDK has not been initialized
      */
     suspend fun refreshCache() {
-        enforceInitialized("refreshCache")
-        errorBoundary.captureAsync {
+        val functionName = "refreshCache"
+        enforceInitialized(functionName)
+        errorBoundary.captureAsync(task = {
             diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
             updateUserImpl()
             Log.v(TAG, "refreshCache completed")
-        }
+        }, tag = functionName)
     }
 
     /**
@@ -800,8 +806,9 @@ class StatsigClient : LifecycleEventListener {
     }
 
     suspend fun shutdownSuspend() {
-        enforceInitialized("shutdownSuspend")
-        errorBoundary.captureAsync { shutdownImpl() }
+        val functionName = "shutdownSuspend"
+        enforceInitialized(functionName)
+        errorBoundary.captureAsync(task = { shutdownImpl() }, tag = functionName)
     }
 
     /**
@@ -814,11 +821,12 @@ class StatsigClient : LifecycleEventListener {
     }
 
     suspend fun flush() {
-        enforceInitialized("flush")
-        errorBoundary.captureAsync {
+        val functionName = "flush"
+        enforceInitialized(functionName)
+        errorBoundary.captureAsync(task = {
             Log.v(TAG, "starting manual flush...")
             this.logger.flush()
-        }
+        }, tag = functionName)
     }
 
     /**
@@ -871,20 +879,22 @@ class StatsigClient : LifecycleEventListener {
      * override from
      */
     fun removeOverride(name: String) {
+        val functionName = "removeOverride"
         errorBoundary.capture({
             this.store.removeOverride(name)
             statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
             Log.v(TAG, "removeOverride() completed")
-        })
+        }, tag = functionName)
     }
 
     /** Throw away all overridden values */
     fun removeAllOverrides() {
+        val functionName = "removeAllOverrides"
         errorBoundary.capture({
             this.store.removeAllOverrides()
             statsigScope.launch { this@StatsigClient.store.saveOverridesToLocalStorage() }
             Log.v(TAG, "removeAllOverrides() completed")
-        })
+        }, tag = functionName)
     }
 
     /** @return the current Statsig stableID, or an empty [String] prior to completion of async initialization */
@@ -1048,12 +1058,14 @@ class StatsigClient : LifecycleEventListener {
 
     /** @return the overrides that are currently applied */
     fun getAllOverrides(): StatsigOverrides {
+        val functionName = "getAllOverrides"
         var result: StatsigOverrides? = null
-        errorBoundary.capture({ result = getStore().getAllOverrides() })
+        errorBoundary.capture({ result = getStore().getAllOverrides() }, tag = functionName)
         return result ?: StatsigOverrides.empty()
     }
 
     fun openDebugView(context: Context, callback: DebugViewCallback? = null) {
+        val functionName = "openDebugView"
         errorBoundary.capture({
             val currentValues = store.getCurrentValuesAsString()
             val map =
@@ -1064,14 +1076,16 @@ class StatsigClient : LifecycleEventListener {
                     "options" to options.toMap()
                 )
             DebugView.show(context, sdkKey, map, callback)
-        })
+        }, tag = functionName)
     }
 
     @VisibleForTesting
     internal suspend fun setupAsync(user: StatsigUser): InitializationDetails {
+        val functionName = "setupAsync"
         return withContext(dispatcherProvider.io) {
             return@withContext errorBoundary.captureAsync(
-                {
+                tag = functionName,
+                task = {
                     if (this@StatsigClient.isBootstrapped.get()) {
                         val evalDetails = store.getGlobalEvaluationDetails()
                         this@StatsigClient.diagnostics.markEnd(
@@ -1175,7 +1189,7 @@ class StatsigClient : LifecycleEventListener {
                         }
                     )
                 },
-                { e: Exception ->
+                recover = { e: Exception ->
                     logEndDiagnosticsWhenException(ContextType.INITIALIZE, e)
                     InitializationDetails(
                         0,
@@ -1309,17 +1323,20 @@ class StatsigClient : LifecycleEventListener {
     }
 
     private fun resetUser() {
+        val functionName = "resetUser"
         errorBoundary.capture({
             logger.onUpdateUser()
             pollingJob?.cancel()
             this.store.resetUser(this.user)
-        })
+        }, tag = functionName)
     }
 
     private suspend fun updateUserImpl() {
+        val functionName = "updateUserImpl"
         withContext(dispatcherProvider.io) {
             errorBoundary.captureAsync(
-                {
+                tag = functionName,
+                task = {
                     val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
                     val previousDerivedFields =
                         store.getPreviousDerivedFields(this@StatsigClient.user)
@@ -1373,7 +1390,7 @@ class StatsigClient : LifecycleEventListener {
                         initResponse
                     )
                 },
-                { logEndDiagnosticsWhenException(ContextType.UPDATE_USER, it) }
+                recover = { logEndDiagnosticsWhenException(ContextType.UPDATE_USER, it) }
             )
         }
     }

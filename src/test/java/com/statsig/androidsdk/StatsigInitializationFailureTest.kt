@@ -87,7 +87,7 @@ class StatsigInitializationFailureTest {
         assert(logEventRequests.size == 1)
         assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
         verify {
-            eb.logException(any())
+            eb.logException(any(), "initialize", null)
         }
         val markers = Gson().fromJson(
             logEventRequests[0].events[0].metadata?.get("markers") as String,
@@ -117,7 +117,7 @@ class StatsigInitializationFailureTest {
         // Logger has not been initialized because it's not initialized
         assert(logEventRequests.size == 0)
         verify {
-            eb.logException(any())
+            eb.logException(any(), "initialize", null)
         }
         assert(client.isInitialized())
     }
@@ -150,7 +150,7 @@ class StatsigInitializationFailureTest {
         assert(logEventRequests.size == 1)
         assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
         verify {
-            eb.logException(any())
+            eb.logException(any(), "initializeAsync", null)
         }
         var markers = Gson().fromJson(
             logEventRequests[0].events[0].metadata?.get("markers") as String,
@@ -183,7 +183,7 @@ class StatsigInitializationFailureTest {
         assert(logEventRequests.size == 1)
         assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
         verify {
-            eb.logException(any())
+            eb.logException(any(), "setupAsync", null)
         }
         val markers = Gson().fromJson(
             logEventRequests[0].events[0].metadata?.get("markers") as String,
@@ -213,7 +213,7 @@ class StatsigInitializationFailureTest {
         // Logger has not been initialized because it's not initialized
         assert(logEventRequests.size == 0)
         verify {
-            eb.logException(any())
+            eb.logException(any(), "initializeAsync", null)
         }
         assert(client.isInitialized())
     }
@@ -283,7 +283,7 @@ class StatsigInitializationFailureTest {
         assert(logEventRequests.size == 1)
         assert(logEventRequests[0].events[0].eventName == "statsig::diagnostics")
         verify {
-            eb.logException(any())
+            eb.logException(any(), "setupAsync", null)
         }
         val markers = Gson().fromJson(
             logEventRequests[0].events[0].metadata?.get("markers") as String,

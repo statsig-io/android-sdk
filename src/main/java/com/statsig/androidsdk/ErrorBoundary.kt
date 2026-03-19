@@ -75,20 +75,28 @@ internal class ErrorBoundary(
         }
     }
 
-    suspend fun <T> captureAsync(task: suspend () -> T): T? = try {
+    suspend fun <T> captureAsync(
+        task: suspend () -> T,
+        tag: String? = null,
+        configName: String? = null
+    ): T? = try {
         task()
     } catch (e: Exception) {
-        handleException(e)
+        handleException(e, tag, configName)
         null
     }
 
-    suspend fun <T> captureAsync(task: suspend () -> T, recover: (suspend (e: Exception) -> T)): T =
-        try {
-            task()
-        } catch (e: Exception) {
-            handleException(e)
-            recover(e)
-        }
+    suspend fun <T> captureAsync(
+        task: suspend () -> T,
+        tag: String? = null,
+        recover: (suspend (e: Exception) -> T),
+        configName: String? = null
+    ): T = try {
+        task()
+    } catch (e: Exception) {
+        handleException(e, tag, configName)
+        recover(e)
+    }
 
     internal fun logException(
         exception: Throwable,
