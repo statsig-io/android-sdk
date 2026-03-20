@@ -1594,6 +1594,7 @@ class StatsigClient : LifecycleEventListener {
                     false,
                     additionalMarker =
                     Marker(
+                        evaluationDetails = store.getGlobalEvaluationDetails(),
                         error =
                         Marker.ErrorMessage(
                             message = "${e?.javaClass?.name}: ${e?.message}"
