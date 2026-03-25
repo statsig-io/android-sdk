@@ -88,12 +88,12 @@ data class StatsigUser(
     }
 
     fun getCacheKey(): String {
-        var id = userID ?: STATSIG_NULL_USER
+        val id = StringBuilder(userID ?: STATSIG_NULL_USER)
 
         for ((k, v) in customIDs ?: mapOf()) {
-            id = "$id$k:$v"
+            id.append(k).append(":").append(v)
         }
-        return id
+        return id.toString()
     }
 
     internal fun toHashString(gson: Gson): String =
