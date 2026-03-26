@@ -37,6 +37,12 @@ private data class Cache(
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
 )
 
+private data class UserCacheKeys(
+    val scopedCacheKey: String,
+    val userHash: String,
+    val fullUserCacheKey: String
+)
+
 internal class Store(
     private val statsigScope: CoroutineScope,
     private val keyValueStorage: KeyValueStorage<String>,
@@ -58,8 +64,9 @@ internal class Store(
     private var currentUser: StatsigUser
 
     init {
-        currentUserCacheKeyV2 = this.getScopedCacheKey(user)
-        currentFullUserCacheKey = this.getScopedFullUserCacheKey(user)
+        val userCacheKeys = getUserCacheKeys(user)
+        currentUserCacheKeyV2 = userCacheKeys.scopedCacheKey
+        currentFullUserCacheKey = userCacheKeys.fullUserCacheKey
         cacheById = ConcurrentHashMap()
         currentCache = createEmptyCache()
         stickyDeviceExperiments = ConcurrentHashMap()
@@ -122,8 +129,9 @@ internal class Store(
 
     fun resetUser(user: StatsigUser) {
         reason = EvaluationReason.Uninitialized
-        currentUserCacheKeyV2 = this.getScopedCacheKey(user)
-        currentFullUserCacheKey = this.getScopedFullUserCacheKey(user)
+        val userCacheKeys = getUserCacheKeys(user)
+        currentUserCacheKeyV2 = userCacheKeys.scopedCacheKey
+        currentFullUserCacheKey = userCacheKeys.fullUserCacheKey
         currentUser = user
     }
 
@@ -150,9 +158,10 @@ internal class Store(
     }
 
     suspend fun loadCacheForCurrentUserAsync() {
-        var cachedValues = this.getCachedValuesForUser(currentUser)
+        val userCacheKeys = getUserCacheKeys(currentUser)
+        var cachedValues = this.getCachedValuesForUser(userCacheKeys)
         if (cachedValues == null) {
-            cachedValues = loadCacheForUserFromStorage(currentUser)
+            cachedValues = loadCacheForUserFromStorage(userCacheKeys)
         }
         if (cachedValues != null) {
             currentCache = cachedValues
@@ -162,17 +171,17 @@ internal class Store(
         currentCache = createEmptyCache()
     }
 
-    private fun getCachedValuesForUser(user: StatsigUser): Cache? {
-        var fullHashCachedValues = cacheById[this.getScopedFullUserCacheKey(user)]
+    private fun getCachedValuesForUser(userCacheKeys: UserCacheKeys): Cache? {
+        val fullHashCachedValues = cacheById[userCacheKeys.fullUserCacheKey]
         if (fullHashCachedValues != null) {
             return fullHashCachedValues
         }
-        var cachedValues = cacheById[this.getScopedCacheKey(user)]
+        var cachedValues = cacheById[userCacheKeys.scopedCacheKey]
         if (cachedValues != null) {
             return cachedValues
         }
 
-        val cacheMapping = cacheKeyMapping[this.getScopedCacheKey(user)]
+        val cacheMapping = cacheKeyMapping[userCacheKeys.scopedCacheKey]
         if (cacheMapping != null) {
             cachedValues = cacheById[cacheMapping]
             if (cachedValues != null) {
@@ -184,35 +193,43 @@ internal class Store(
     }
 
     fun getLastUpdateTime(user: StatsigUser): Long? {
-        var cachedValues = this.getCachedValuesForUser(user)
-        if (cachedValues?.userHash != user.toHashString(gson)) {
+        val userCacheKeys = getUserCacheKeys(user)
+        var cachedValues = this.getCachedValuesForUser(userCacheKeys)
+        if (cachedValues?.userHash != userCacheKeys.userHash) {
             return null
         }
         return cachedValues.values.time
     }
 
     fun getPreviousDerivedFields(user: StatsigUser): Map<String, String> {
-        var cachedValues = this.getCachedValuesForUser(user)
-        if (cachedValues?.userHash != user.toHashString(gson)) {
+        val userCacheKeys = getUserCacheKeys(user)
+        val cachedValues = this.getCachedValuesForUser(userCacheKeys)
+        if (cachedValues?.userHash != userCacheKeys.userHash) {
             return mapOf()
         }
         return cachedValues.values.derivedFields ?: mapOf()
     }
 
     fun getFullChecksum(user: StatsigUser): String? {
-        var cachedValues = this.getCachedValuesForUser(user)
+        val userCacheKeys = getUserCacheKeys(user)
+        val cachedValues = this.getCachedValuesForUser(userCacheKeys)
         return cachedValues?.values?.fullChecksum
     }
 
-    private fun getScopedCacheKey(user: StatsigUser): String =
-        this.options.customCacheKey(this.sdkKey, user)
-
-    private fun getScopedFullUserCacheKey(user: StatsigUser): String =
-        "${user.toHashString(gson)}:${this.sdkKey}"
+    private fun getUserCacheKeys(user: StatsigUser): UserCacheKeys {
+        val userHash = user.toHashString(gson)
+        val scopedCacheKey = this.options.customCacheKey(this.sdkKey, user)
+        return UserCacheKeys(
+            scopedCacheKey = scopedCacheKey,
+            userHash = userHash,
+            fullUserCacheKey = "$userHash:${this.sdkKey}"
+        )
+    }
 
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
-        val cacheKey = this.getScopedCacheKey(user)
-        val fullCacheKey = this.getScopedFullUserCacheKey(user)
+        val userCacheKeys = getUserCacheKeys(user)
+        val cacheKey = userCacheKeys.scopedCacheKey
+        val fullCacheKey = userCacheKeys.fullUserCacheKey
         val isCurrentUser = cacheKey == currentUserCacheKeyV2
         if (isCurrentUser) {
             currentFullUserCacheKey = fullCacheKey
@@ -220,7 +237,7 @@ internal class Store(
                 val cache = cacheById[fullCacheKey] ?: createEmptyCache()
                 cache.values = data
                 cache.evaluationTime = System.currentTimeMillis()
-                cache.userHash = user.toHashString(gson)
+                cache.userHash = userCacheKeys.userHash
                 cacheById[fullCacheKey] = cache
 
                 currentCache = cache
@@ -262,7 +279,7 @@ internal class Store(
                 "override"
             )
         }
-        var gate = currentCache.values.featureGates?.get(gateName)
+        val gate = currentCache.values.featureGates?.get(gateName)
             ?: currentCache.values.featureGates?.get(
                 Hashing.getHashedString(gateName, currentCache.values.hashUsed)
             )
@@ -566,9 +583,9 @@ internal class Store(
         )
     }
 
-    private suspend fun loadCacheForUserFromStorage(user: StatsigUser): Cache? {
-        val fullCacheKey = getScopedFullUserCacheKey(user)
-        val scopedCacheKey = getScopedCacheKey(user)
+    private suspend fun loadCacheForUserFromStorage(userCacheKeys: UserCacheKeys): Cache? {
+        val fullCacheKey = userCacheKeys.fullUserCacheKey
+        val scopedCacheKey = userCacheKeys.scopedCacheKey
 
         readUserCache(fullCacheKey)?.let { loaded ->
             cacheById[fullCacheKey] = loaded
