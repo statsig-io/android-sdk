@@ -647,7 +647,7 @@ internal class StatsigNetworkImpl(
                 }
                 end = SystemClock.elapsedRealtimeNanos()
                 coroutineScope.launch(dispatcherProvider.io) {
-                    val timedOut = (end - start) / 1_000_000_000 > (timeout ?: 0)
+                    val timedOut = (end - start) / 1_000_000 > (timeout ?: 0)
                     val fallbackUpdated = networkResolver.tryFetchUpdatedFallbackInfo(
                         urlConfig,
                         errorMessage,
