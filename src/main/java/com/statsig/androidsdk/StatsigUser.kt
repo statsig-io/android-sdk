@@ -25,6 +25,9 @@ data class StatsigUser(
     @SerializedName("userID")
     var userID: String? = null
 ) {
+    @Transient
+    private var memoizedHashJson: String? = null
+
     @SerializedName("email")
     var email: String? = null
 
@@ -96,6 +99,10 @@ data class StatsigUser(
         return id.toString()
     }
 
-    internal fun toHashString(gson: Gson): String =
-        Hashing.getHashedString(gson.toJson(this), HashAlgorithm.DJB2)
+    internal fun toHashString(gson: Gson): String {
+        // This memoization is safe because the sdk maintains its own StatsigUser instance
+        // (copying the external values) and does not mutate it
+        val hashJson = memoizedHashJson ?: gson.toJson(this).also { memoizedHashJson = it }
+        return Hashing.getHashedString(hashJson, HashAlgorithm.DJB2)
+    }
 }
