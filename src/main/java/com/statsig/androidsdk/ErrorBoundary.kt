@@ -1,7 +1,6 @@
 package com.statsig.androidsdk
 
 import android.util.Log
-import com.google.gson.Gson
 import java.io.IOException
 import java.net.URL
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -28,6 +27,7 @@ internal class ErrorBoundary(
     private var apiKey: String? = null
     private var statsigMetadata: StatsigMetadata? = null
     private var seen = HashSet<String>()
+    private val gson = StatsigUtil.getOrBuildGson()
 
     fun initialize(apiKey: String) {
         this.apiKey = apiKey
@@ -126,7 +126,7 @@ internal class ErrorBoundary(
                     "tag" to (tag ?: "unknown"),
                     "configName" to configName
                 )
-                val postData = Gson().toJson(body)
+                val postData = gson.toJson(body)
                 val httpClient = HttpUtils.getHttpClient()
                 val request = Request.Builder()
                     .url(url)

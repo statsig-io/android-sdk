@@ -730,7 +730,7 @@ internal class StatsigNetworkImpl(
             "offlineRetries" to logRequest.retryCount,
             "eventTimestamp" to logRequest.timestamp
         )
-        val postData = Gson().toJson(body)
+        val postData = gson.toJson(body)
         val requestBuilder = Request.Builder()
             .url(HttpUtils.exceptionUrlString)
             .post(postData.toJsonRequestBody())
