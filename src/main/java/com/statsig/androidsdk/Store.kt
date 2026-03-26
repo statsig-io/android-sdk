@@ -43,6 +43,8 @@ private data class UserCacheKeys(
     val fullUserCacheKey: String
 )
 
+private data class UserCacheStorageTarget(val storeName: String, val storageKey: String)
+
 internal class Store(
     private val statsigScope: CoroutineScope,
     private val keyValueStorage: KeyValueStorage<String>,
@@ -627,21 +629,27 @@ internal class Store(
     }
 
     private suspend fun readUserCache(fullCacheKey: String): Cache? {
-        val userStoreName = getUserCacheStoreName(fullCacheKey)
-        val userStoreKey = getUserCacheStorageKey(fullCacheKey)
-        val serialized = keyValueStorage.readValue(userStoreName, userStoreKey) ?: return null
+        val userCacheStorageTarget = getUserCacheStorageTarget(fullCacheKey)
+        val serialized = keyValueStorage.readValue(
+            userCacheStorageTarget.storeName,
+            userCacheStorageTarget.storageKey
+        ) ?: return null
         return try {
             gson.fromJson(serialized, Cache::class.java)
         } catch (_: Exception) {
-            keyValueStorage.removeValue(userStoreName, userStoreKey)
+            keyValueStorage.removeValue(
+                userCacheStorageTarget.storeName,
+                userCacheStorageTarget.storageKey
+            )
             null
         }
     }
 
     private suspend fun writeUserCache(fullCacheKey: String, cache: Cache) {
+        val userCacheStorageTarget = getUserCacheStorageTarget(fullCacheKey)
         keyValueStorage.writeValue(
-            getUserCacheStoreName(fullCacheKey),
-            getUserCacheStorageKey(fullCacheKey),
+            userCacheStorageTarget.storeName,
+            userCacheStorageTarget.storageKey,
             gson.toJson(cache)
         )
     }
@@ -667,12 +675,14 @@ internal class Store(
     }
 
     private suspend fun deleteUserCache(fullCacheKey: String) {
-        val storeName = getUserCacheStoreName(fullCacheKey)
-        val userStoreKey = getUserCacheStorageKey(fullCacheKey)
+        val userCacheStorageTarget = getUserCacheStorageTarget(fullCacheKey)
         try {
-            keyValueStorage.clearStore(storeName)
+            keyValueStorage.clearStore(userCacheStorageTarget.storeName)
         } catch (_: NotImplementedError) {
-            keyValueStorage.removeValue(storeName, userStoreKey)
+            keyValueStorage.removeValue(
+                userCacheStorageTarget.storeName,
+                userCacheStorageTarget.storageKey
+            )
         }
     }
 
@@ -683,12 +693,13 @@ internal class Store(
         }
     }
 
-    private fun getUserCacheStoreName(fullCacheKey: String): String =
-        "${USER_CACHE_STORE_PREFIX}_${getUserCacheStoreHash(fullCacheKey)}"
-
-    // These user keys need to be unique for compatibility with the legacy KeyValueStorage
-    private fun getUserCacheStorageKey(fullCacheKey: String): String =
-        "${USER_CACHE_KEY}_${getUserCacheStoreHash(fullCacheKey)}"
+    private fun getUserCacheStorageTarget(fullCacheKey: String): UserCacheStorageTarget {
+        val storeHash = getUserCacheStoreHash(fullCacheKey)
+        return UserCacheStorageTarget(
+            storeName = "${USER_CACHE_STORE_PREFIX}_$storeHash",
+            storageKey = "${USER_CACHE_KEY}_$storeHash"
+        )
+    }
 
     private fun tryLoadLegacyCacheMap(cachedResponse: String): Map<String, Cache>? {
         val type = object : TypeToken<MutableMap<String, Cache>>() {}.type
