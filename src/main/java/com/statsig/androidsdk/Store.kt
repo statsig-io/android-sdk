@@ -45,6 +45,13 @@ private data class UserCacheKeys(
 
 private data class UserCacheStorageTarget(val storeName: String, val storageKey: String)
 
+private data class PersistedCache(
+    @SerializedName("schema_version") val schemaVersion: Int = PERSISTED_CACHE_SCHEMA_V2,
+    @SerializedName("values") var values: PersistedInitializeResponse,
+    @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments,
+    @SerializedName("userHash") var userHash: String,
+    @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
+)
 internal class Store(
     private val statsigScope: CoroutineScope,
     private val keyValueStorage: KeyValueStorage<String>,
@@ -142,10 +149,8 @@ internal class Store(
         reason = if (isValid) EvaluationReason.Bootstrap else EvaluationReason.InvalidBootstrap
 
         try {
-            currentCache.values = gson.fromJson(
-                gson.toJson(initializeValues),
-                InitializeResponse.SuccessfulInitializeResponse::class.java
-            )
+            currentCache.values =
+                InitializeResponseFormatter.deserialize(gson.toJson(initializeValues), gson)
             cacheKeyMapping[currentUserCacheKeyV2] = currentFullUserCacheKey
             cacheById[currentFullUserCacheKey] = currentCache
         } catch (e: Exception) {
@@ -603,7 +608,8 @@ internal class Store(
         }
 
         val cachedResponse = keyValueStorage.readValue(STORE_NAME, CACHE_BY_USER_KEY) ?: return null
-        val localCache = tryLoadLegacyCacheMap(cachedResponse)
+        val localCache = tryLoadCompactCacheMap(cachedResponse)
+            ?: tryLoadLegacyCacheMap(cachedResponse)
             ?: run {
                 keyValueStorage.removeValue(STORE_NAME, CACHE_BY_USER_KEY)
                 return null
@@ -635,7 +641,7 @@ internal class Store(
             userCacheStorageTarget.storageKey
         ) ?: return null
         return try {
-            gson.fromJson(serialized, Cache::class.java)
+            tryLoadPersistedCache(serialized) ?: gson.fromJson(serialized, Cache::class.java)
         } catch (_: Exception) {
             keyValueStorage.removeValue(
                 userCacheStorageTarget.storeName,
@@ -650,7 +656,7 @@ internal class Store(
         keyValueStorage.writeValue(
             userCacheStorageTarget.storeName,
             userCacheStorageTarget.storageKey,
-            gson.toJson(cache)
+            gson.toJson(toPersistedCache(cache))
         )
     }
 
@@ -709,4 +715,51 @@ internal class Store(
             null
         }
     }
+
+    private fun tryLoadPersistedCache(serialized: String): Cache? {
+        val persisted = try {
+            gson.fromJson(serialized, PersistedCache::class.java)
+        } catch (_: Exception) {
+            null
+        } ?: return null
+
+        if (persisted.schemaVersion != PERSISTED_CACHE_SCHEMA_V2) {
+            return null
+        }
+
+        return Cache(
+            values = persisted.values.toRuntime(),
+            stickyUserExperiments = persisted.stickyUserExperiments,
+            userHash = persisted.userHash,
+            evaluationTime = persisted.evaluationTime
+        )
+    }
+
+    private fun tryLoadCompactCacheMap(cachedResponse: String): Map<String, Cache>? {
+        val type = object : TypeToken<MutableMap<String, PersistedCache>>() {}.type
+        return try {
+            val localCache: Map<String, PersistedCache> = gson.fromJson(cachedResponse, type)
+            if (localCache.values.any { it.schemaVersion != PERSISTED_CACHE_SCHEMA_V2 }) {
+                return null
+            }
+
+            localCache.mapValues { (_, cache) ->
+                Cache(
+                    values = cache.values.toRuntime(),
+                    stickyUserExperiments = cache.stickyUserExperiments,
+                    userHash = cache.userHash,
+                    evaluationTime = cache.evaluationTime
+                )
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun toPersistedCache(cache: Cache): PersistedCache = PersistedCache(
+        values = InitializeResponseFormatter.toPersistedResponse(cache.values, gson),
+        stickyUserExperiments = cache.stickyUserExperiments,
+        userHash = cache.userHash,
+        evaluationTime = cache.evaluationTime
+    )
 }

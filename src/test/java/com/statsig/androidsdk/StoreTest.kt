@@ -151,7 +151,7 @@ class StoreTest {
     }
 
     @Test
-    fun testLegacyCacheLoadsAndNextSaveUsesPerUserStore() = runBlocking {
+    fun testLegacyCacheLoadsAndNextSaveUsesPerUserCompactFormat() = runBlocking {
         val storage = TestUtil.getTestKeyValueStore(app)
         val legacyCache = mapOf(
             "${userJkw.getCacheKey()}:client-apikey" to mapOf(
@@ -188,7 +188,10 @@ class StoreTest {
             TestUtil.getPerUserCacheStoreName(fullCacheKey),
             TestUtil.getPerUserCacheStorageKey(fullCacheKey)
         )
+        assertThat(persisted).contains("\"response_format\":\"init-v2\"")
+        assertThat(persisted).contains("\"dynamic_configs\"")
         assertThat(persisted).contains("\"stickyUserExperiments\"")
+        assertThat(persisted).doesNotContain("\"secondary_exposures\"")
         assertThat(storage.readValueSync("ondiskvaluecache", "Statsig.CACHE_BY_USER")).isNull()
     }
 
