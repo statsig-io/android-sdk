@@ -87,12 +87,6 @@ class HttpUtils {
         internal const val STATSIG_STABLE_ID_HEADER_KEY = "STATSIG-STABLE-ID"
 
         @JvmSynthetic
-        internal const val CONNECTION_HEADER_KEY = "CONNECTION"
-
-        @JvmSynthetic
-        internal const val CONNECTION_HEADER_CLOSE = "CLOSE"
-
-        @JvmSynthetic
         internal val JSON_MEDIA_TYPE: MediaType = "application/json; charset=utf-8".toMediaType()
 
         @JvmSynthetic
@@ -195,10 +189,7 @@ internal fun Request.Builder.addStatsigHeaders(apiKey: String): Request.Builder 
         .addHeader(
             STATSIG_CLIENT_TIME_HEADER_KEY,
             System.currentTimeMillis().toString()
-        ).addHeader(HttpUtils.CONNECTION_HEADER_KEY, HttpUtils.CONNECTION_HEADER_CLOSE)
-    // The "Connection: Close" header is a workaround for some failures seen in Kong testing.
-    //  The server might not be responding with chunked encoding or content-length headers.
-    //  Could also be the no-retry configuration playing poorly with stale open connections.
+        )
     return this
 }
 

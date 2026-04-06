@@ -28,7 +28,6 @@ suspend fun fetchTxtRecords(): List<String> = withContext(coroutineDispatcherPro
         Request.Builder().url(DNS_QUERY_ENDPOINT).post(FEATURE_ASSETS_DNS_QUERY.toRequestBody())
             .addHeader(HttpUtils.CONTENT_TYPE_HEADER_KEY, "application/dns-message")
             .addHeader("Accept", "application/dns-message")
-            .addHeader(HttpUtils.CONNECTION_HEADER_KEY, HttpUtils.CONNECTION_HEADER_CLOSE)
             .build()
     val response = HttpUtils.getHttpClient().newCall(request).execute()
     try {
