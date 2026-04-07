@@ -108,11 +108,13 @@ internal class StatsigLogger(
     }
 
     fun logExposure(name: String, gate: FeatureGate, user: StatsigUser, isManual: Boolean) {
+        val details = gate.getEvalDetails()
+        val detailedReason = details.getDetailedReasonString()
         val key = ExposureKey.Gate(
             name = name,
             value = gate.getValue(),
             ruleID = gate.getRuleID(),
-            reason = gate.getEvaluationDetails().reason
+            reason = detailedReason
         )
         if (!shouldLogExposure(key)) {
             Log.v(TAG, "logExposure() skipped due to recent exposure to same gate")
@@ -127,8 +129,9 @@ internal class StatsigLogger(
                 "gate" to name,
                 "gateValue" to gate.getValue().toString(),
                 "ruleID" to gate.getRuleID(),
-                "reason" to gate.getEvaluationDetails().reason.toString(),
-                "time" to gate.getEvaluationDetails().time.toString()
+                "reason" to detailedReason,
+                "time" to details.receivedAt.toString(),
+                "lcut" to details.lcut.toString()
             )
             addManualFlag(metadata, isManual)
 
@@ -139,10 +142,12 @@ internal class StatsigLogger(
     }
 
     fun logExposure(name: String, config: DynamicConfig, user: StatsigUser, isManual: Boolean) {
+        val details = config.getEvalDetails()
+        val detailedReason = details.getDetailedReasonString()
         val key = ExposureKey.Config(
             name,
             config.getRuleID(),
-            config.getEvaluationDetails().reason
+            detailedReason
         )
         if (!shouldLogExposure(key)) return
 
@@ -152,8 +157,9 @@ internal class StatsigLogger(
             val metadata = mutableMapOf(
                 "config" to name,
                 "ruleID" to config.getRuleID(),
-                "reason" to config.getEvaluationDetails().reason.toString(),
-                "time" to config.getEvaluationDetails().time.toString()
+                "reason" to detailedReason,
+                "time" to details.receivedAt.toString(),
+                "lcut" to details.lcut.toString()
             )
 
             config.getRulePassed()?.let {
@@ -177,16 +183,17 @@ internal class StatsigLogger(
         allocatedExperiment: String,
         parameterName: String,
         isExplicitParameter: Boolean,
-        details: EvaluationDetails,
+        details: EvalDetails,
         isManual: Boolean
     ) {
+        val detailedReason = details.getDetailedReasonString()
         val key = ExposureKey.Layer(
             configName = configName,
             ruleID = ruleID,
             allocatedExperiment = allocatedExperiment,
             parameterName = parameterName,
             isExplicitParameter = isExplicitParameter,
-            reason = details.reason
+            reason = detailedReason
         )
         if (!shouldLogExposure(key)) return
         val metadata = mutableMapOf(
@@ -195,8 +202,8 @@ internal class StatsigLogger(
             "allocatedExperiment" to allocatedExperiment,
             "parameterName" to parameterName,
             "isExplicitParameter" to isExplicitParameter.toString(),
-            "reason" to details.reason.toString(),
-            "time" to details.time.toString()
+            "reason" to detailedReason,
+            "time" to details.receivedAt.toString()
         )
         addManualFlag(metadata, isManual)
 

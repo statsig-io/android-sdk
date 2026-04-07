@@ -103,13 +103,13 @@ class AsyncInitVsUpdateTest {
         var config = client.getConfig("a_config")
         var value = config.getString("key", "default")
         assertEquals("default", value)
-        assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Loading, EvalReason.Unrecognized)
 
         didInitializeUserA.await(3, TimeUnit.SECONDS)
         config = client.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("default", value)
-        assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Loading, EvalReason.Unrecognized)
 
         didInitializeUserB.await(5, TimeUnit.SECONDS)
 
@@ -170,20 +170,20 @@ class AsyncInitVsUpdateTest {
         var config = client.getConfig("a_config")
         var value = config.getString("key", "default")
         assertEquals("user_b_value_cache", value)
-        assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
 
         didInitializeUserA.await(2, TimeUnit.SECONDS)
         config = client.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("user_b_value_cache", value)
-        assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
 
         didInitializeUserB.await(3, TimeUnit.SECONDS)
 
         config = client.getConfig("a_config")
         value = config.getString("key", "default")
         assertEquals("user_b_value", value)
-        assertEquals(EvaluationReason.Network, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
     }
 
     @Test
@@ -209,6 +209,6 @@ class AsyncInitVsUpdateTest {
         val config = client.getConfig("a_config")
         val value = config.getString("key", "default")
         assertThat("user_a_value").isEqualTo(value)
-        assertThat(EvaluationReason.Network).isEqualTo(config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
     }
 }

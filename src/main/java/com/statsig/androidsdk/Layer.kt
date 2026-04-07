@@ -8,7 +8,7 @@ import com.statsig.androidsdk.evaluator.ConfigEvaluation
 class Layer internal constructor(
     private val client: StatsigClient?,
     private val name: String,
-    private val details: EvaluationDetails,
+    private val details: EvalDetails,
     private val jsonValue: Map<String, Any> = mapOf(),
     private val rule: String = "",
     private val groupName: String? = null,
@@ -25,7 +25,7 @@ class Layer internal constructor(
         client: StatsigClient?,
         layerName: String,
         apiDynamicConfig: APIDynamicConfig,
-        evalDetails: EvaluationDetails
+        evalDetails: EvalDetails
     ) : this(
         client,
         layerName,
@@ -47,7 +47,7 @@ class Layer internal constructor(
         client: StatsigClient?,
         layerName: String,
         evaluation: ConfigEvaluation,
-        details: EvaluationDetails
+        details: EvalDetails
     ) : this(
         client = client,
         name = layerName,
@@ -66,7 +66,7 @@ class Layer internal constructor(
 
     companion object {
         fun getError(name: String): Layer =
-            Layer(null, name, EvaluationDetails(EvaluationReason.Error, lcut = 0))
+            Layer(null, name, EvalDetails(EvalSource.Error, EvalReason.Unrecognized, lcut = 0))
     }
 
     /**

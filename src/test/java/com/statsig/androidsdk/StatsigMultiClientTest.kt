@@ -92,27 +92,31 @@ class StatsigMultiClientTest {
 
         // Dynamic config
         val config1 = client1.getConfig("test_config")
-        assert(config1.getEvaluationDetails().reason == EvaluationReason.Network)
+        assertEvalDetails(config1.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
         assert(config1.getString("string", "DEFAULT") == "test_1")
         assert(config1.getInt("number", 0) == 42)
         assert(config1.getInt("otherNumber", 0) == 17)
 
         val config2 = client2.getConfig("test_config")
-        assert(config2.getEvaluationDetails().reason == EvaluationReason.Network)
+        assertEvalDetails(config2.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
         assert(config2.getString("string", "DEFAULT") == "test_2")
         assert(config2.getInt("number", 0) == 84)
         assert(config2.getInt("otherNumber", 0) == 34)
 
         val config3 = client3.getConfig("test_config")
-        assert(config3.getEvaluationDetails().reason == EvaluationReason.Network)
+        assertEvalDetails(config3.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
         assert(config3.getString("string", "DEFAULT") == "test_3")
         assert(config3.getInt("number", 0) == 126)
         assert(config3.getInt("otherNumber", 0) == 51)
 
         val notValidConfig = client3.getConfig("experiment_1")
-        assert(notValidConfig.getEvaluationDetails().reason == EvaluationReason.Unrecognized)
+        assertEvalDetails(
+            notValidConfig.getEvalDetails(),
+            EvalSource.Network,
+            EvalReason.Unrecognized
+        )
         val validConfig = client1.getConfig("experiment_1")
-        assert(validConfig.getEvaluationDetails().reason == EvaluationReason.Network)
+        assertEvalDetails(validConfig.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
         assert(validConfig.getString("string", "DEFAULT") == "other_test")
 
         client1.shutdown()
@@ -197,30 +201,42 @@ class StatsigMultiClientTest {
             network = brokenNetwork
         )
         val config1 = client1.getConfig("test_config")
-        assert(config1.getEvaluationDetails().reason == EvaluationReason.Cache)
+        assertEvalDetails(config1.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
         assert(config1.getString("string", "DEFAULT") == "test_1")
         assert(config1.getInt("number", 0) == 42)
         assert(config1.getInt("otherNumber", 0) == 17)
 
         val config2 = client2.getConfig("test_config")
-        assert(config2.getEvaluationDetails().reason == EvaluationReason.Cache)
+        assertEvalDetails(config2.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
         assert(config2.getString("string", "DEFAULT") == "test_2")
         assert(config2.getInt("number", 0) == 84)
         assert(config2.getInt("otherNumber", 0) == 34)
 
         val config3 = client3.getConfig("test_config")
-        assert(config3.getEvaluationDetails().reason == EvaluationReason.Cache)
+        assertEvalDetails(config3.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
         assert(config3.getString("string", "DEFAULT") == "test_3")
         assert(config3.getInt("number", 0) == 126)
         assert(config3.getInt("otherNumber", 0) == 51)
 
         // Other project configs
         val invalidConfig1 = client1.getConfig("experiment_2")
-        assert(invalidConfig1.getEvaluationDetails().reason == EvaluationReason.Unrecognized)
+        assertEvalDetails(
+            invalidConfig1.getEvalDetails(),
+            EvalSource.Cache,
+            EvalReason.Unrecognized
+        )
         val invalidConfig2 = client2.getConfig("experiment_1")
-        assert(invalidConfig2.getEvaluationDetails().reason == EvaluationReason.Unrecognized)
+        assertEvalDetails(
+            invalidConfig2.getEvalDetails(),
+            EvalSource.Cache,
+            EvalReason.Unrecognized
+        )
         val invalidConfig3 = client3.getConfig("experiment_2")
-        assert(invalidConfig3.getEvaluationDetails().reason == EvaluationReason.Unrecognized)
+        assertEvalDetails(
+            invalidConfig3.getEvalDetails(),
+            EvalSource.Cache,
+            EvalReason.Unrecognized
+        )
     }
 
     @Test

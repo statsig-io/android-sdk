@@ -45,9 +45,12 @@ class ParameterStore(
     private val statsigClient: StatsigClient,
     private val paramStore: Map<String, Map<String, Any>>,
     public val name: String,
-    public val evaluationDetails: EvaluationDetails,
+    private val evalDetails: EvalDetails,
     public val options: ParameterStoreEvaluationOptions?
 ) {
+
+    fun getEvalDetails(): EvalDetails = evalDetails
+
     /**
      * Gets a boolean parameter, falling back to the provided value if the parameter is missing or has a different type.
      * @param paramName the parameter name to fetch from the ParameterStore

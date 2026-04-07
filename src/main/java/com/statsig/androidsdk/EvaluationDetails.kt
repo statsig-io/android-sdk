@@ -1,28 +1,63 @@
 package com.statsig.androidsdk
 
-enum class EvaluationReason {
-    Network,
-    Cache,
+import com.google.gson.annotations.SerializedName
+import kotlin.Long
+
+enum class EvalReason {
+    Recognized,
+    Unrecognized,
     Sticky,
     LocalOverride,
-    Unrecognized,
+    StableIdMismatch
+}
+
+enum class EvalSource {
+    Error,
     Uninitialized,
-    Bootstrap,
-    OnDeviceEvalAdapterBootstrapRecognized,
-    OnDeviceEvalAdapterBootstrapUnrecognized,
-    InvalidBootstrap,
+    Loading,
+    NoValues,
+    Network,
     NetworkNotModified,
-    Error ;
+    Cache,
+    Bootstrap,
+    InvalidBootstrap,
+    OnDeviceEvalAdapterBootstrap;
 
     override fun toString(): String = when (this) {
-        OnDeviceEvalAdapterBootstrapRecognized -> "[OnDevice]Bootstrap:Recognized"
-        OnDeviceEvalAdapterBootstrapUnrecognized -> "[OnDevice]Bootstrap:Unrecognized"
+        OnDeviceEvalAdapterBootstrap -> "[OnDevice]Bootstrap"
         else -> this.name
     }
 }
 
-data class EvaluationDetails(
-    var reason: EvaluationReason,
-    val time: Long = System.currentTimeMillis(),
-    @Transient val lcut: Long
+/** Evaluation result details with explicit source/reason modeling. */
+data class EvalDetails(
+    var source: EvalSource,
+    var reason: EvalReason?,
+    val lcut: Long? = null,
+    val receivedAt: Long? = null
+) {
+    fun getDetailedReasonString(): String {
+        var ret = source.toString()
+        if (source == EvalSource.NoValues || source == EvalSource.Uninitialized) {
+            return ret
+        }
+        reason?.let { ret += ":$reason" }
+        return ret
+    }
+
+    fun toLoggingEvaluationDetails(): OverWireEvalDetails {
+        if (source == EvalSource.NoValues || source == EvalSource.Uninitialized) {
+            return OverWireEvalDetails(getDetailedReasonString())
+        }
+        return OverWireEvalDetails(getDetailedReasonString(), lcut = lcut, receivedAt = receivedAt)
+    }
+}
+
+data class OverWireEvalDetails(
+    @SerializedName("reason")
+    val reason: String,
+    @SerializedName("receivedAt")
+    val receivedAt: Long? = null,
+    @SerializedName("lcut")
+    val lcut: Long? = null
 )

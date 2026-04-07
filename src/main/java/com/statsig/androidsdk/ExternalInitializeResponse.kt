@@ -5,15 +5,16 @@ package com.statsig.androidsdk
  */
 class ExternalInitializeResponse(
     private val values: String?,
-    private val evaluationDetails: EvaluationDetails
+    private val evaluationDetails: EvalDetails
 ) {
+
     internal companion object {
         fun getUninitialized(): ExternalInitializeResponse = ExternalInitializeResponse(
             null,
-            EvaluationDetails(EvaluationReason.Uninitialized, lcut = 0)
+            EvalDetails(EvalSource.Uninitialized, EvalReason.Unrecognized)
         )
     }
     fun getInitializeResponseJSON(): String? = values
 
-    fun getEvaluationDetails(): EvaluationDetails = evaluationDetails.copy()
+    fun getEvalDetails(): EvalDetails = evaluationDetails.copy()
 }

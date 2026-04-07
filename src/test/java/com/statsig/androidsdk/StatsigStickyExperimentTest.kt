@@ -94,11 +94,11 @@ class StatsigStickyExperimentTest {
 
         var exp = Statsig.getExperiment("exp", keepDeviceValue = true)
         assertEquals("exp_v1", exp.getString("key", "ERR"))
-        assertEquals(EvaluationReason.Network, exp.getEvaluationDetails().reason)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         var layer = Statsig.getLayer("layer", keepDeviceValue = true)
         assertEquals("layer_v1", layer.getString("key", "Err"))
-        assertEquals(EvaluationReason.Network, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         Statsig.shutdown()
 
@@ -115,11 +115,11 @@ class StatsigStickyExperimentTest {
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = true)
         assertEquals("exp_v1", exp.getString("key", "ERR"))
-        assertEquals(EvaluationReason.Sticky, exp.getEvaluationDetails().reason)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Network, EvalReason.Sticky)
 
         layer = Statsig.getLayer("layer", keepDeviceValue = true)
         assertEquals("layer_v1", layer.getString("key", "Err"))
-        assertEquals(EvaluationReason.Sticky, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.Sticky)
 
         Statsig.shutdown()
 
@@ -148,11 +148,11 @@ class StatsigStickyExperimentTest {
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = true)
         assertEquals("exp_v3", exp.getString("key", "ERR"))
-        assertEquals(EvaluationReason.Network, exp.getEvaluationDetails().reason)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         layer = Statsig.getLayer("layer", keepDeviceValue = true)
         assertEquals("layer_v3", layer.getString("key", "Err"))
-        assertEquals(EvaluationReason.Network, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         Statsig.shutdown()
 
@@ -186,11 +186,11 @@ class StatsigStickyExperimentTest {
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = true)
         assertEquals("exp_v4", exp.getString("key", "ERR"))
-        assertEquals(EvaluationReason.Network, exp.getEvaluationDetails().reason)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         layer = Statsig.getLayer("layer", keepDeviceValue = true)
         assertEquals("layer_v3", layer.getString("key", "Err"))
-        assertEquals(EvaluationReason.Sticky, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.Sticky)
 
         Statsig.shutdown()
 
@@ -219,11 +219,11 @@ class StatsigStickyExperimentTest {
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = false)
         assertEquals("exp_v5", exp.getString("key", "ERR"))
-        assertEquals(EvaluationReason.Network, exp.getEvaluationDetails().reason)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         layer = Statsig.getLayer("layer", keepDeviceValue = false)
         assertEquals("layer_v5", layer.getString("key", "Err"))
-        assertEquals(EvaluationReason.Network, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         // 6. Only sets sticky values when experiment is active
 
@@ -254,11 +254,11 @@ class StatsigStickyExperimentTest {
 
         exp = Statsig.getExperiment("exp", keepDeviceValue = true)
         assertEquals("exp_v6", exp.getString("key", "ERR"))
-        assertEquals(EvaluationReason.Network, exp.getEvaluationDetails().reason)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         layer = Statsig.getLayer("layer", keepDeviceValue = true)
         assertEquals("layer_v6", layer.getString("key", "Err"))
-        assertEquals(EvaluationReason.Network, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         Statsig.shutdown()
     }

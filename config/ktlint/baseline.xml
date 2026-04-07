@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <baseline version="1.0">
     <file name="src/test/java/com/statsig/androidsdk/SerializationTest.kt">
-        <error line="15" column="101" source="standard:max-line-length" />
+        <error line="19" column="101" source="standard:max-line-length" />
     </file>
 </baseline>

@@ -1,7 +1,7 @@
 package com.statsig.androidsdk
 
-open class BaseConfig(private val name: String, private val details: EvaluationDetails) {
+open class BaseConfig(private val name: String, private val details: EvalDetails) {
     open fun getName(): String = this.name
 
-    open fun getEvaluationDetails(): EvaluationDetails = this.details
+    open fun getEvalDetails(): EvalDetails = this.details
 }

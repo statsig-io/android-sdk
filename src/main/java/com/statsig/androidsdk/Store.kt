@@ -60,7 +60,8 @@ internal class Store(
     private val options: StatsigOptions,
     private val gson: Gson
 ) {
-    var reason: EvaluationReason
+    var sourceV2: EvalSource
+    var receivedValuesAt: Long? = null
 
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private var currentUserCacheKeyV2: String
@@ -80,7 +81,7 @@ internal class Store(
         currentCache = createEmptyCache()
         stickyDeviceExperiments = ConcurrentHashMap()
         localOverrides = StatsigOverrides.empty()
-        reason = EvaluationReason.Uninitialized
+        sourceV2 = EvalSource.Uninitialized
         cacheKeyMapping = ConcurrentHashMap()
         currentUser = user
     }
@@ -92,6 +93,7 @@ internal class Store(
     }
 
     suspend fun loadFromLocalStorage() {
+        sourceV2 = EvalSource.Loading
         cacheById = ConcurrentHashMap()
 
         stickyDeviceExperiments = ConcurrentHashMap()
@@ -137,16 +139,17 @@ internal class Store(
     }
 
     fun resetUser(user: StatsigUser) {
-        reason = EvaluationReason.Uninitialized
         val userCacheKeys = getUserCacheKeys(user)
         currentUserCacheKeyV2 = userCacheKeys.scopedCacheKey
         currentFullUserCacheKey = userCacheKeys.fullUserCacheKey
+        sourceV2 = EvalSource.Uninitialized
         currentUser = user
+        receivedValuesAt = null
     }
 
     fun bootstrap(initializeValues: Map<String, Any>, user: StatsigUser) {
         val isValid = BootstrapValidator.isValid(initializeValues, user)
-        reason = if (isValid) EvaluationReason.Bootstrap else EvaluationReason.InvalidBootstrap
+        sourceV2 = if (isValid) EvalSource.Bootstrap else EvalSource.InvalidBootstrap
 
         try {
             currentCache.values =
@@ -167,12 +170,16 @@ internal class Store(
     suspend fun loadCacheForCurrentUserAsync() {
         val userCacheKeys = getUserCacheKeys(currentUser)
         var cachedValues = this.getCachedValuesForUser(userCacheKeys)
+        if (sourceV2 != EvalSource.Loading) {
+            sourceV2 = EvalSource.Loading
+        }
         if (cachedValues == null) {
             cachedValues = loadCacheForUserFromStorage(userCacheKeys)
         }
         if (cachedValues != null) {
             currentCache = cachedValues
-            reason = EvaluationReason.Cache
+            sourceV2 = EvalSource.Cache
+            receivedValuesAt = cachedValues.evaluationTime
             return
         }
         currentCache = createEmptyCache()
@@ -240,17 +247,18 @@ internal class Store(
         val isCurrentUser = cacheKey == currentUserCacheKeyV2
         if (isCurrentUser) {
             currentFullUserCacheKey = fullCacheKey
+            receivedValuesAt = System.currentTimeMillis()
             if (data.hasUpdates) {
                 val cache = cacheById[fullCacheKey] ?: createEmptyCache()
                 cache.values = data
-                cache.evaluationTime = System.currentTimeMillis()
+                cache.evaluationTime = receivedValuesAt
                 cache.userHash = userCacheKeys.userHash
                 cacheById[fullCacheKey] = cache
 
                 currentCache = cache
-                reason = EvaluationReason.Network
+                sourceV2 = EvalSource.Network
             } else {
-                reason = EvaluationReason.NetworkNotModified
+                sourceV2 = EvalSource.NetworkNotModified
                 return
             }
         }
@@ -281,7 +289,7 @@ internal class Store(
         if (overriddenValue != null) {
             return FeatureGate(
                 gateName,
-                getEvaluationDetails(false, EvaluationReason.LocalOverride),
+                getEvalDetails(false, EvalReason.LocalOverride),
                 overriddenValue,
                 "override"
             )
@@ -290,8 +298,8 @@ internal class Store(
             ?: currentCache.values.featureGates?.get(
                 Hashing.getHashedString(gateName, currentCache.values.hashUsed)
             )
-        val gateOrDefault = gate ?: return FeatureGate(gateName, getEvaluationDetails(false), false)
-        return FeatureGate(gateName, gateOrDefault, getEvaluationDetails(true))
+        val gateOrDefault = gate ?: return FeatureGate(gateName, getEvalDetails(false), false)
+        return FeatureGate(gateName, gateOrDefault, getEvalDetails(true))
     }
 
     fun getConfig(configName: String): DynamicConfig {
@@ -299,14 +307,14 @@ internal class Store(
         if (overrideValue != null) {
             return DynamicConfig(
                 configName,
-                getEvaluationDetails(false, EvaluationReason.LocalOverride),
+                getEvalDetails(false, EvalReason.LocalOverride),
                 overrideValue,
                 "override"
             )
         }
 
         val data = getConfigData(configName)
-        return hydrateDynamicConfig(configName, getEvaluationDetails(data != null), data)
+        return hydrateDynamicConfig(configName, getEvalDetails(data != null), data)
     }
 
     private fun getConfigData(name: String): APIDynamicConfig? = currentCache.values.let {
@@ -319,7 +327,7 @@ internal class Store(
         if (overrideValue != null) {
             return DynamicConfig(
                 experimentName,
-                getEvaluationDetails(false, EvaluationReason.LocalOverride),
+                getEvalDetails(false, EvalReason.LocalOverride),
                 overrideValue,
                 "override"
             )
@@ -329,7 +337,7 @@ internal class Store(
             ?: currentCache.values.configs?.get(
                 Hashing.getHashedString(experimentName, currentCache.values.hashUsed)
             )
-        val details = getEvaluationDetails(latestValue != null)
+        val details = getEvalDetails(latestValue != null)
         val finalValue =
             getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
         return hydrateDynamicConfig(
@@ -349,7 +357,7 @@ internal class Store(
             return Layer(
                 null,
                 layerName,
-                getEvaluationDetails(false, EvaluationReason.LocalOverride),
+                getEvalDetails(false, EvalReason.LocalOverride),
                 overrideValue,
                 "override"
             )
@@ -359,7 +367,7 @@ internal class Store(
             ?: currentCache.values.layerConfigs?.get(
                 Hashing.getHashedString(layerName, currentCache.values.hashUsed)
             )
-        val details = getEvaluationDetails(latestValue != null)
+        val details = getEvalDetails(latestValue != null)
         val finalValue =
             getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, details, true)
         return if (finalValue != null) {
@@ -380,7 +388,7 @@ internal class Store(
                 client,
                 HashMap(),
                 paramStoreName,
-                getEvaluationDetails(false),
+                getEvalDetails(false),
                 options
             )
         }
@@ -390,7 +398,7 @@ internal class Store(
                 client,
                 paramStore,
                 paramStoreName,
-                getEvaluationDetails(true),
+                getEvalDetails(true),
                 options
             )
         }
@@ -404,35 +412,28 @@ internal class Store(
             client,
             paramStore ?: HashMap(),
             paramStoreName,
-            getEvaluationDetails(paramStore != null),
+            getEvalDetails(paramStore != null),
             options
         )
     }
-
-    internal fun getGlobalEvaluationDetails(): EvaluationDetails = EvaluationDetails(
-        this.reason,
-        currentCache.evaluationTime ?: System.currentTimeMillis(),
-        lcut = currentCache.values.time
+    internal fun getGlobalEvalDetails(): EvalDetails = EvalDetails(
+        source = sourceV2,
+        reason = null,
+        lcut = currentCache.values.time,
+        receivedAt = receivedValuesAt
     )
 
-    internal fun getEvaluationDetails(
+    internal fun getEvalDetails(
         valueExists: Boolean,
-        reasonOverride: EvaluationReason? = null
-    ): EvaluationDetails {
+        reasonOverride: EvalReason? = null
+    ): EvalDetails {
         if (valueExists) {
-            return getGlobalEvaluationDetails()
+            return getGlobalEvalDetails().copy().apply { reason = EvalReason.Recognized }
         }
 
-        var reason = EvaluationReason.Unrecognized
-        if (this.reason == EvaluationReason.Uninitialized) {
-            reason = EvaluationReason.Uninitialized
+        return getGlobalEvalDetails().copy().apply {
+            reason = reasonOverride ?: EvalReason.Unrecognized
         }
-
-        return EvaluationDetails(
-            reason = reasonOverride ?: reason,
-            time = System.currentTimeMillis(),
-            lcut = this.currentCache.values.time
-        )
     }
 
     // Sticky Logic: https://gist.github.com/daniel-statsig/3d8dfc9bdee531cffc96901c1a06a402
@@ -440,7 +441,7 @@ internal class Store(
         name: String,
         latestValue: APIDynamicConfig?,
         keepDeviceValue: Boolean,
-        details: EvaluationDetails,
+        details: EvalDetails,
         isLayer: Boolean
     ): APIDynamicConfig? {
         // We don't want sticky behavior. Clear any sticky values and return latest.
@@ -467,7 +468,7 @@ internal class Store(
         }
 
         if (latestExperimentValue?.isExperimentActive == true) {
-            details.reason = EvaluationReason.Sticky
+            details.reason = EvalReason.Sticky
             return stickyValue
         }
 
@@ -516,8 +517,8 @@ internal class Store(
 
     fun getSDKConfigs(): Map<String, Any>? = currentCache.values.sdkConfigs
 
-    fun getCurrentCacheValuesAndEvaluationReason(): ExternalInitializeResponse =
-        ExternalInitializeResponse(gson.toJson(currentCache.values), getEvaluationDetails(true))
+    fun getCurrentCacheValuesAndEvalDetails(): ExternalInitializeResponse =
+        ExternalInitializeResponse(gson.toJson(currentCache.values), getEvalDetails(true))
 
     fun getCurrentValuesAsString(): String = gson.toJson(currentCache.values)
 
@@ -526,7 +527,7 @@ internal class Store(
 
     private fun hydrateDynamicConfig(
         name: String,
-        details: EvaluationDetails,
+        details: EvalDetails,
         config: APIDynamicConfig?
     ): DynamicConfig = if (config != null) {
         DynamicConfig(name, config, details)
@@ -762,4 +763,20 @@ internal class Store(
         userHash = cache.userHash,
         evaluationTime = cache.evaluationTime
     )
+
+    internal fun notifyNetworkFailure() {
+        // Mark NoValues if cache attempt did not complete
+        if (sourceV2 != EvalSource.Cache) {
+            sourceV2 = EvalSource.NoValues
+        }
+    }
+
+    internal fun notifyOfflineInit() {
+        // Mark NoValues if we still have a generated empty cache
+        if (sourceV2 == EvalSource.Cache && currentCache.values.time == 0L &&
+            currentCache.userHash == ""
+        ) {
+            sourceV2 = EvalSource.NoValues
+        }
+    }
 }

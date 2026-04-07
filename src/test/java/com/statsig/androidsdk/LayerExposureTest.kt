@@ -111,7 +111,7 @@ class LayerExposureTest {
                     "allocatedExperiment" to "",
                     "parameterName" to "an_int",
                     "isExplicitParameter" to "false",
-                    "reason" to "Network",
+                    "reason" to "Network:Recognized",
                     "time" to time.toString()
                 )
             ),
@@ -158,7 +158,7 @@ class LayerExposureTest {
                     "allocatedExperiment" to "the_allocated_exp!",
                     "parameterName" to "an_int",
                     "isExplicitParameter" to "true",
-                    "reason" to "Network",
+                    "reason" to "Network:Recognized",
                     "time" to time.toString()
                 )
             ),
@@ -180,7 +180,7 @@ class LayerExposureTest {
                     "allocatedExperiment" to "",
                     "parameterName" to "a_string",
                     "isExplicitParameter" to "false",
-                    "reason" to "Network",
+                    "reason" to "Network:Recognized",
                     "time" to time.toString()
                 )
             ),

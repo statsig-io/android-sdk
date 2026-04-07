@@ -7,7 +7,7 @@ import com.statsig.androidsdk.evaluator.ConfigEvaluation
  */
 class DynamicConfig(
     private val name: String,
-    private val details: EvaluationDetails,
+    private val details: EvalDetails,
     private val jsonValue: Map<String, Any> = mapOf(),
     private val rule: String = "",
     private val groupName: String? = null,
@@ -21,7 +21,7 @@ class DynamicConfig(
     internal constructor(
         configName: String,
         apiDynamicConfig: APIDynamicConfig,
-        evalDetails: EvaluationDetails
+        evalDetails: EvalDetails
     ) : this(
         configName,
         evalDetails,
@@ -39,7 +39,7 @@ class DynamicConfig(
     internal constructor(
         configName: String,
         evaluation: ConfigEvaluation,
-        details: EvaluationDetails
+        details: EvalDetails
     ) : this(
         name = configName,
         details = details,
@@ -54,7 +54,7 @@ class DynamicConfig(
 
     internal companion object {
         fun getError(name: String): DynamicConfig =
-            DynamicConfig(name, EvaluationDetails(EvaluationReason.Error, lcut = 0))
+            DynamicConfig(name, EvalDetails(EvalSource.Error, EvalReason.Unrecognized))
     }
 
     /**

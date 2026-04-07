@@ -5,7 +5,7 @@ import com.statsig.androidsdk.evaluator.ConfigEvaluation
 /** A helper class for interfacing with Feature Gate defined in the Statsig console */
 class FeatureGate(
     private val name: String,
-    private val details: EvaluationDetails,
+    private val details: EvalDetails,
     private val value: Boolean,
     private val rule: String = "",
     private val groupName: String? = null,
@@ -15,7 +15,7 @@ class FeatureGate(
     internal constructor(
         gateName: String,
         apiFeatureGate: APIFeatureGate,
-        evalDetails: EvaluationDetails
+        evalDetails: EvalDetails
     ) : this(
         gateName,
         evalDetails,
@@ -29,7 +29,7 @@ class FeatureGate(
     internal constructor(
         gateName: String,
         evaluation: ConfigEvaluation,
-        details: EvaluationDetails
+        details: EvalDetails
     ) : this(
         gateName,
         details,
@@ -40,8 +40,12 @@ class FeatureGate(
     )
 
     internal companion object {
-        fun getError(name: String): FeatureGate =
-            FeatureGate(name, EvaluationDetails(EvaluationReason.Error, lcut = 0), false, "")
+        fun getError(name: String): FeatureGate = FeatureGate(
+            name,
+            EvalDetails(EvalSource.Error, EvalReason.Unrecognized, lcut = 0),
+            false,
+            ""
+        )
     }
 
     fun getValue(): Boolean = this.value

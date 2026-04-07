@@ -109,7 +109,7 @@ class ParameterStoreTest {
                 )
             ),
             name = "test_parameter_store",
-            evaluationDetails = EvaluationDetails(EvaluationReason.Network, lcut = 0),
+            evalDetails = EvalDetails(EvalSource.Network, EvalReason.Recognized, lcut = 0),
             options = ParameterStoreEvaluationOptions(disableExposureLog = true)
         )
 

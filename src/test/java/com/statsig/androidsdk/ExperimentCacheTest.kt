@@ -122,7 +122,7 @@ class ExperimentCacheTest {
 
         // Verify experiment works for logged out user
         var experiment = Statsig.getExperiment("a_config")
-        assertEquals(EvaluationReason.Network, experiment.getEvaluationDetails().reason)
+        assertEvalDetails(experiment.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
         assertEquals("logged_out_value", experiment.getString("key", "default"))
 
         Statsig.updateUserAsync(loggedInUser, callback)
@@ -130,7 +130,7 @@ class ExperimentCacheTest {
 
         // Verify experiment works for logged in user
         experiment = Statsig.getExperiment("a_config")
-        assertEquals(EvaluationReason.Network, experiment.getEvaluationDetails().reason)
+        assertEvalDetails(experiment.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
         assertEquals("value", experiment.getString("key", "default"))
         // should be written to cache now
 
@@ -175,7 +175,7 @@ class ExperimentCacheTest {
 
         // Check experiment immediately after init (before network response) for cached value
         experiment = Statsig.getExperiment("a_config")
-        assertEquals(EvaluationReason.Cache, experiment.getEvaluationDetails().reason)
+        assertEvalDetails(experiment.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
         assertEquals("value", experiment.getString("key", "default"))
 
         // Wait for network response to complete
@@ -183,12 +183,16 @@ class ExperimentCacheTest {
 
         // Verify new experiment from network response
         experiment = Statsig.getExperiment("b_config")
-        assertEquals(EvaluationReason.Network, experiment.getEvaluationDetails().reason)
+        assertEvalDetails(experiment.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
         assertEquals("value", experiment.getString("key", "default"))
 
         // Verify old experiment is no longer available
         experiment = Statsig.getExperiment("a_config")
-        assertEquals(EvaluationReason.Unrecognized, experiment.getEvaluationDetails().reason)
+        assertEvalDetails(
+            experiment.getEvalDetails(),
+            EvalSource.Network,
+            EvalReason.Unrecognized
+        )
         assertEquals("default", experiment.getString("key", "default"))
     }
 }

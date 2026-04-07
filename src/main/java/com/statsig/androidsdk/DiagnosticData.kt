@@ -20,7 +20,7 @@ data class Marker(
     @SerializedName("isRetry") var isRetry: Boolean? = null,
     @SerializedName("isDelta") var isDelta: Boolean? = null,
     @SerializedName("configName") var configName: String? = null,
-    @SerializedName("evaluationDetails") var evaluationDetails: EvaluationDetails? = null,
+    @SerializedName("evaluationDetails") var evaluationDetails: OverWireEvalDetails? = null,
     @SerializedName("error") var error: ErrorMessage? = null,
     @SerializedName("hasNetwork") var hasNetwork: Boolean? = null,
     @SerializedName("timeoutMS") var timeoutMS: Int? = null,

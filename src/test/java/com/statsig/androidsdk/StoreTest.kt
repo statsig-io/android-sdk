@@ -224,9 +224,10 @@ class StoreTest {
         assertEquals(Double.MIN_VALUE, Statsig.getConfig("double").getDouble("key", 0.0), 0.0)
         network = TestUtil.mockBrokenNetwork()
         TestUtil.startStatsigAndWait(app, userJkw, StatsigOptions(loadCacheAsync = true), network)
-        assertEquals(
-            EvaluationReason.Cache,
-            Statsig.getConfig("long").getEvaluationDetails().reason
+        assertEvalDetails(
+            Statsig.getConfig("long").getEvalDetails(),
+            EvalSource.Cache,
+            EvalReason.Recognized
         )
         assertEquals(Long.MAX_VALUE, Statsig.getConfig("long").getLong("key", 0L))
         assertEquals(Double.MIN_VALUE, Statsig.getConfig("double").getDouble("key", 0.0), 0.0)
@@ -248,8 +249,12 @@ class StoreTest {
         // check before there is any value
         var exp = store.getExperiment("exp", false)
         var fakeConfig = store.getExperiment("config_fake", false)
-        assertEquals(EvaluationReason.Uninitialized, exp.getEvaluationDetails().reason)
-        assertEquals(EvaluationReason.Uninitialized, fakeConfig.getEvaluationDetails().reason)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Uninitialized, EvalReason.Unrecognized)
+        assertEvalDetails(
+            fakeConfig.getEvalDetails(),
+            EvalSource.Uninitialized,
+            EvalReason.Unrecognized
+        )
 
         store.syncLoadFromLocalStorage()
 
@@ -257,7 +262,11 @@ class StoreTest {
         store.save(getInitValue("v0", hasUpdates = false), userJkw)
         store.persistStickyValues()
         exp = store.getExperiment("exp", false)
-        assertEquals(EvaluationReason.Unrecognized, exp.getEvaluationDetails().reason)
+        assertEvalDetails(
+            exp.getEvalDetails(),
+            EvalSource.NetworkNotModified,
+            EvalReason.Unrecognized
+        )
 
         // save some value from "network" and check again
         store.save(getInitValue("v0", inExperiment = true, active = true), userJkw)
@@ -265,15 +274,19 @@ class StoreTest {
 
         exp = store.getExperiment("exp", false)
         fakeConfig = store.getExperiment("config_fake", false)
-        val time = exp.getEvaluationDetails().time
-        assertEquals(EvaluationReason.Network, exp.getEvaluationDetails().reason)
-        assertEquals(EvaluationReason.Unrecognized, fakeConfig.getEvaluationDetails().reason)
+        val receivedAt = exp.getEvalDetails().receivedAt
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
+        assertEvalDetails(fakeConfig.getEvalDetails(), EvalSource.Network, EvalReason.Unrecognized)
 
         // we've saved values now, and got a successful network response with no updates
         // which is networknotmodified
         store.save(getInitValue("v0", hasUpdates = false), userJkw)
         exp = store.getExperiment("exp", false)
-        assertEquals(EvaluationReason.NetworkNotModified, exp.getEvaluationDetails().reason)
+        assertEvalDetails(
+            exp.getEvalDetails(),
+            EvalSource.NetworkNotModified,
+            EvalReason.Recognized
+        )
 
         // re-initialize store, and check before any "network" value is saved
         // wait 1 sec before reinitializing so that we can check
@@ -295,9 +308,9 @@ class StoreTest {
         ) // set keepDeviceValue to true so we can check for sticky value next
         store.persistStickyValues()
 
-        assertEquals(EvaluationReason.Cache, exp.getEvaluationDetails().reason)
-        assertEquals(EvaluationReason.Unrecognized, fakeConfig.getEvaluationDetails().reason)
-        assertEquals(time, exp.getEvaluationDetails().time)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
+        assertEvalDetails(fakeConfig.getEvalDetails(), EvalSource.Network, EvalReason.Unrecognized)
+        assertEquals(receivedAt, exp.getEvalDetails().receivedAt)
 
         // re-initialize and check the previously saved sticky value
         store =
@@ -315,7 +328,7 @@ class StoreTest {
 
         exp = store.getExperiment("exp", true)
         assertEquals("v0", exp.getString("key", "default"))
-        assertEquals(EvaluationReason.Sticky, exp.getEvaluationDetails().reason)
+        assertEvalDetails(exp.getEvalDetails(), EvalSource.Network, EvalReason.Sticky)
     }
 
     @Test

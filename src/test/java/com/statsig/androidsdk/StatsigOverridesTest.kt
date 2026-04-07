@@ -69,7 +69,7 @@ class StatsigOverridesTest {
         assertEquals("string-val", config.getString("str", null))
         assertEquals(true, config.getBoolean("bool", false))
         assertEquals(123, config.getInt("num", 0))
-        assertEquals(EvaluationReason.LocalOverride, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Network, EvalReason.LocalOverride)
     }
 
     @Test
@@ -81,7 +81,7 @@ class StatsigOverridesTest {
         assertEquals("string-val", experiment.getString("str", null))
         assertEquals(true, experiment.getBoolean("bool", false))
         assertEquals(123, experiment.getInt("num", 0))
-        assertEquals(EvaluationReason.LocalOverride, experiment.getEvaluationDetails().reason)
+        assertEvalDetails(experiment.getEvalDetails(), EvalSource.Network, EvalReason.LocalOverride)
     }
 
     @Test
@@ -93,7 +93,7 @@ class StatsigOverridesTest {
         assertEquals("string-val", layer.getString("str", null))
         assertEquals(true, layer.getBoolean("bool", false))
         assertEquals(123, layer.getInt("num", 0))
-        assertEquals(EvaluationReason.LocalOverride, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.LocalOverride)
     }
 
     @Test
@@ -108,13 +108,17 @@ class StatsigOverridesTest {
         assertTrue(Statsig.checkGate("a_gate"))
 
         val config = Statsig.getConfig("a_config")
-        assertEquals(EvaluationReason.LocalOverride, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Network, EvalReason.LocalOverride)
 
         val layer = Statsig.getLayer("a_layer")
-        assertEquals(EvaluationReason.Unrecognized, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.Unrecognized)
 
         val anotherLayer = Statsig.getLayer("b_layer")
-        assertEquals(EvaluationReason.LocalOverride, anotherLayer.getEvaluationDetails().reason)
+        assertEvalDetails(
+            anotherLayer.getEvalDetails(),
+            EvalSource.Network,
+            EvalReason.LocalOverride
+        )
     }
 
     @Test
@@ -129,13 +133,17 @@ class StatsigOverridesTest {
         assertTrue(Statsig.checkGate("a_gate"))
 
         val config = Statsig.getConfig("a_config")
-        assertEquals(EvaluationReason.Unrecognized, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Network, EvalReason.Unrecognized)
 
         val anotherConfig = Statsig.getConfig("b_config")
-        assertEquals(EvaluationReason.LocalOverride, anotherConfig.getEvaluationDetails().reason)
+        assertEvalDetails(
+            anotherConfig.getEvalDetails(),
+            EvalSource.Network,
+            EvalReason.LocalOverride
+        )
 
         val layer = Statsig.getLayer("a_layer")
-        assertEquals(EvaluationReason.LocalOverride, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.LocalOverride)
     }
 
     @Test
@@ -155,12 +163,12 @@ class StatsigOverridesTest {
         assertFalse(config.getBoolean("bool", false))
         assertEquals(0, config.getInt("num", 0))
         // reason should be unrecognized because a_config does not exist
-        assertEquals(EvaluationReason.Unrecognized, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Network, EvalReason.Unrecognized)
 
         val layer = Statsig.getConfig("a_layer")
         assertEquals("a_layer", layer.getName())
         assertNull(config.getString("str", null))
-        assertEquals(EvaluationReason.Unrecognized, layer.getEvaluationDetails().reason)
+        assertEvalDetails(layer.getEvalDetails(), EvalSource.Network, EvalReason.Unrecognized)
     }
 
     @Test

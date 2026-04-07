@@ -514,7 +514,7 @@ class StatsigClient : LifecycleEventListener {
             this,
             HashMap(),
             parameterStoreName,
-            store.getEvaluationDetails(false),
+            store.getEvalDetails(false),
             options
         )
         errorBoundary.capture(
@@ -799,7 +799,7 @@ class StatsigClient : LifecycleEventListener {
         var result: ExternalInitializeResponse? = null
         enforceInitialized(functionName)
         errorBoundary.capture(
-            { result = store.getCurrentCacheValuesAndEvaluationReason() },
+            { result = store.getCurrentCacheValuesAndEvalDetails() },
             tag = functionName
         )
         return result ?: ExternalInitializeResponse.getUninitialized()
@@ -1071,7 +1071,7 @@ class StatsigClient : LifecycleEventListener {
             val map =
                 mapOf(
                     "values" to currentValues,
-                    "evalReason" to store.reason,
+                    "evalReason" to store.getGlobalEvalDetails().getDetailedReasonString(),
                     "user" to user.getCopyForEvaluation(),
                     "options" to options.toMap()
                 )
@@ -1087,11 +1087,13 @@ class StatsigClient : LifecycleEventListener {
                 tag = functionName,
                 task = {
                     if (this@StatsigClient.isBootstrapped.get()) {
-                        val evalDetails = store.getGlobalEvaluationDetails()
+                        val evalDetails = store.getGlobalEvalDetails()
                         this@StatsigClient.diagnostics.markEnd(
                             KeyType.OVERALL,
-                            evalDetails.reason === EvaluationReason.Bootstrap,
-                            additionalMarker = Marker(evaluationDetails = evalDetails)
+                            evalDetails.source == EvalSource.Bootstrap,
+                            additionalMarker = Marker(
+                                evaluationDetails = evalDetails.toLoggingEvaluationDetails()
+                            )
                         )
                         logger.logDiagnostics()
                         return@captureAsync InitializationDetails(
@@ -1111,6 +1113,7 @@ class StatsigClient : LifecycleEventListener {
                     }
                     val initResponse =
                         if (this@StatsigClient.options.initializeOffline) {
+                            store.notifyOfflineInit()
                             store.getCachedInitializationResponse()
                         } else {
                             statsigNetwork.initialize(
@@ -1178,6 +1181,9 @@ class StatsigClient : LifecycleEventListener {
 
                     val success =
                         initResponse is InitializeResponse.SuccessfulInitializeResponse
+                    if (!success && !options.initializeOffline) {
+                        store.notifyNetworkFailure()
+                    }
                     logEndDiagnostics(success, ContextType.INITIALIZE, initResponse)
                     InitializationDetails(
                         0,
@@ -1382,6 +1388,8 @@ class StatsigClient : LifecycleEventListener {
                             StepType.PROCESS,
                             overrideContext = ContextType.UPDATE_USER
                         )
+                    } else {
+                        store.notifyNetworkFailure()
                     }
                     pollForUpdates()
                     logEndDiagnostics(
@@ -1447,7 +1455,7 @@ class StatsigClient : LifecycleEventListener {
             allocatedExperiment,
             parameterName,
             isExplicit,
-            layer.getEvaluationDetails(),
+            layer.getEvalDetails(),
             isManual
         )
     }
@@ -1571,7 +1579,7 @@ class StatsigClient : LifecycleEventListener {
             success,
             additionalMarker =
             Marker(
-                evaluationDetails = store.getGlobalEvaluationDetails(),
+                evaluationDetails = store.getGlobalEvalDetails().toLoggingEvaluationDetails(),
                 error =
                 if (initResponse is InitializeResponse.FailedInitializeResponse) {
                     Diagnostics.formatFailedResponse(
@@ -1594,7 +1602,8 @@ class StatsigClient : LifecycleEventListener {
                     false,
                     additionalMarker =
                     Marker(
-                        evaluationDetails = store.getGlobalEvaluationDetails(),
+                        evaluationDetails =
+                        store.getGlobalEvalDetails().toLoggingEvaluationDetails(),
                         error =
                         Marker.ErrorMessage(
                             message = "${e?.javaClass?.name}: ${e?.message}"

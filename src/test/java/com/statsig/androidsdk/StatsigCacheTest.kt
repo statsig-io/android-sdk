@@ -58,9 +58,10 @@ class StatsigCacheTest {
         TestUtil.startStatsigAndDontWait(app, user, StatsigOptions())
         client = Statsig.client
         assertTrue(client.isInitialized())
-        assertEquals(
-            EvaluationReason.Cache,
-            client.getStore().checkGate("always_on").getEvaluationDetails().reason
+        assertEvalDetails(
+            client.getStore().checkGate("always_on").getEvalDetails(),
+            EvalSource.Cache,
+            EvalReason.Recognized
         )
 
         assertTrue(client.checkGate("always_on"))
@@ -73,7 +74,7 @@ class StatsigCacheTest {
         }
         val config = client.getConfig("test_config")
         assertEquals("test", config.getString("string", "fallback"))
-        assertEquals(EvaluationReason.Cache, config.getEvaluationDetails().reason)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
     }
 
     @Test
@@ -112,7 +113,11 @@ class StatsigCacheTest {
         }
         val config = client.getConfig("test_config")
         assertEquals("fallback", config.getString("string", "fallback"))
-        assertEquals(EvaluationReason.Uninitialized, config.getEvaluationDetails().reason)
+        assertEvalDetails(
+            config.getEvalDetails(),
+            EvalSource.Uninitialized,
+            EvalReason.Unrecognized
+        )
         runBlocking {
             Statsig.client.shutdown()
             Statsig.client.initialize(
@@ -126,7 +131,7 @@ class StatsigCacheTest {
 
         val netConfig = client.getConfig("test_config")
         assertEquals("test", netConfig.getString("string", "fallback"))
-        assertEquals(EvaluationReason.Network, netConfig.getEvaluationDetails().reason)
+        assertEvalDetails(netConfig.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
 
         assertTrue(Statsig.client.isInitialized())
     }

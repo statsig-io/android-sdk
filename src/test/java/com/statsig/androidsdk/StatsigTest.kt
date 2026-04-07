@@ -171,7 +171,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[0].metadata!!["gate"], "always_on")
         assertEquals(parsedLogs.events[0].metadata!!["gateValue"], "true")
         assertEquals(parsedLogs.events[0].metadata!!["ruleID"], "always_on_rule_id")
-        assertEquals(parsedLogs.events[0].metadata!!["reason"], "Network")
+        assertEquals(parsedLogs.events[0].metadata!!["reason"], "Network:Recognized")
         assertEquals(parsedLogs.events[0].metadata!!["isManualExposure"], null)
 
         var evalTime = (parsedLogs.events[1].metadata!!["time"] as String).toLong()
@@ -195,14 +195,14 @@ class StatsigTest {
         )
 
         // validate non-existent gate's evaluation reason
-        assertEquals(parsedLogs.events[2].metadata!!["reason"], "Unrecognized")
+        assertEquals(parsedLogs.events[2].metadata!!["reason"], "Network:Unrecognized")
 
         // validate config exposure
         assertEquals(parsedLogs.events[3].eventName, "statsig::config_exposure")
         assertEquals(parsedLogs.events[3].user!!.userID, "123")
         assertEquals(parsedLogs.events[3].metadata!!["config"], "test_config")
         assertEquals(parsedLogs.events[3].metadata!!["ruleID"], "default")
-        assertEquals(parsedLogs.events[3].metadata!!["reason"], "Network")
+        assertEquals(parsedLogs.events[3].metadata!!["reason"], "Network:Recognized")
         assertEquals(parsedLogs.events[3].metadata!!["isManualExposure"], null)
         evalTime = (parsedLogs.events[3].metadata!!["time"] as String).toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)
@@ -224,7 +224,7 @@ class StatsigTest {
         assertEquals(parsedLogs.events[5].user!!.userID, "123")
         assertEquals(parsedLogs.events[5].metadata!!["config"], "exp")
         assertEquals(parsedLogs.events[5].metadata!!["ruleID"], "exp_rule")
-        assertEquals(parsedLogs.events[5].metadata!!["reason"], "Network")
+        assertEquals(parsedLogs.events[5].metadata!!["reason"], "Network:Recognized")
         assertEquals(parsedLogs.events[5].metadata!!["isManualExposure"], null)
         evalTime = (parsedLogs.events[5].metadata!!["time"] as String).toLong()
         assertTrue(evalTime >= now && evalTime < now + 2000)

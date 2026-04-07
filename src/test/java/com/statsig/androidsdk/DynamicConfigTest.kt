@@ -17,7 +17,7 @@ class DynamicConfigTest {
     internal fun setup() {
         dc = DynamicConfig(
             "test_config",
-            EvaluationDetails(EvaluationReason.Network, lcut = 0),
+            EvalDetails(EvalSource.Network, EvalReason.Recognized, lcut = 0),
             TestUtil.getConfigValueMap(),
             "default"
         )
@@ -26,7 +26,7 @@ class DynamicConfigTest {
     @Test
     fun testDummy() {
         val dummyConfig =
-            DynamicConfig("", EvaluationDetails(EvaluationReason.Unrecognized, lcut = 0))
+            DynamicConfig("", EvalDetails(EvalSource.Error, EvalReason.Unrecognized, lcut = 0))
         assertEquals("provided default", dummyConfig.getString("test", "provided default"))
         assertEquals(true, dummyConfig.getBoolean("test", true))
         assertEquals(12, dummyConfig.getInt("test", 12))
@@ -46,14 +46,14 @@ class DynamicConfigTest {
         assertNull(dummyConfig.getDoubleIfPresent("test"))
         assertNull(dummyConfig.getArrayIfPresent("test"))
         assertNull(dummyConfig.getDictionaryIfPresent("test"))
-        assertEquals(dummyConfig.getEvaluationDetails().reason, EvaluationReason.Unrecognized)
+        assertEvalDetails(dummyConfig.getEvalDetails(), EvalSource.Error, EvalReason.Unrecognized)
     }
 
     @Test
     fun testEmpty() {
         val emptyConfig = DynamicConfig(
             "test_config",
-            EvaluationDetails(EvaluationReason.Uninitialized, lcut = 0),
+            EvalDetails(EvalSource.Uninitialized, EvalReason.Unrecognized, lcut = 0),
             mapOf(),
             "default"
         )
@@ -79,7 +79,11 @@ class DynamicConfigTest {
         assertNull(emptyConfig.getArrayIfPresent("test_config"))
         assertNull(emptyConfig.getDictionaryIfPresent("test_config"))
 
-        assertEquals(emptyConfig.getEvaluationDetails().reason, EvaluationReason.Uninitialized)
+        assertEvalDetails(
+            emptyConfig.getEvalDetails(),
+            EvalSource.Uninitialized,
+            EvalReason.Unrecognized
+        )
     }
 
     @Test

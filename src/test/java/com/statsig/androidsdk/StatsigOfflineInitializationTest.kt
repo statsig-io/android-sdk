@@ -46,7 +46,7 @@ class StatsigOfflineInitializationTest {
         )
         initializeCountdown.await()
         var config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason == EvaluationReason.Cache)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
         assert(config.getString("string", "DEFAULT") == "test")
         assert(initializeNetworkCalled == 0)
         Statsig.shutdown()
@@ -59,7 +59,7 @@ class StatsigOfflineInitializationTest {
             StatsigOptions(initializeOffline = true)
         )
         config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason == EvaluationReason.Cache)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
         assert(config.getString("string", "DEFAULT") == "test")
         assert(initializeNetworkCalled == 0)
         Statsig.shutdown()
@@ -111,13 +111,13 @@ class StatsigOfflineInitializationTest {
         )
         initializeCountdown.await()
         var config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason == EvaluationReason.Cache)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Cache, EvalReason.Recognized)
         assert(config.getString("string", "DEFAULT") == "test")
         assert(initializeNetworkCalled == 0)
         user.email = "abc@gmail.com"
         Statsig.client.updateUser(user)
         config = Statsig.client.getConfig("test_config")
-        assert(config.getEvaluationDetails().reason == EvaluationReason.Network)
+        assertEvalDetails(config.getEvalDetails(), EvalSource.Network, EvalReason.Recognized)
         assert(config.getString("string", "DEFAULT") == "test")
 
         // From UpdateUser
