@@ -53,8 +53,39 @@ class InitializationTest {
     fun testDefaultInitialization() = runTest {
         val options = StatsigOptions(api = mockWebServer.url("/v1").toString())
         val client = StatsigClient()
-        client.initialize(app, "client-key", user, options)
+        val details = client.initialize(app, "client-key", user, options)
         assertThat(initializationHits).isEqualTo(1)
+        assertThat(details?.source).isEqualTo(EvalSource.NoValues)
+        client.shutdown()
+    }
+
+    @Test
+    fun testInitializationDetailsUsesNetworkSource() = runTest {
+        val client = StatsigClient()
+        client.statsigNetwork = TestUtil.mockNetwork()
+
+        val details = client.initialize(app, "client-key", user, StatsigOptions())
+
+        assertThat(details?.success).isTrue()
+        assertThat(details?.source).isEqualTo(EvalSource.Network)
+        client.shutdown()
+    }
+
+    @Test
+    fun testInitializationDetailsUsesBootstrapSource() = runTest {
+        val client = StatsigClient()
+
+        val details = client.initialize(
+            app,
+            "client-key",
+            user,
+            StatsigOptions(
+                initializeValues = mapOf("evaluated_keys" to mapOf("userID" to "test-user"))
+            )
+        )
+
+        assertThat(details?.success).isTrue()
+        assertThat(details?.source).isEqualTo(EvalSource.Bootstrap)
         client.shutdown()
     }
 

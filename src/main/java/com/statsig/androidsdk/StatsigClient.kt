@@ -111,6 +111,12 @@ class StatsigClient : LifecycleEventListener {
 
     private lateinit var connectivityListener: StatsigNetworkConnectivityListener
 
+    private fun getInitializationDetailsSource(): EvalSource = if (this::store.isInitialized) {
+        store.getGlobalEvalDetails().source
+    } else {
+        EvalSource.Error
+    }
+
     /**
      * Initializes the SDK for the given user. Initialization is complete when the callback is
      * invoked
@@ -178,12 +184,13 @@ class StatsigClient : LifecycleEventListener {
                 try {
                     val initDetails =
                         InitializationDetails(
-                            SystemClock.elapsedRealtime() - initTime,
-                            false,
-                            InitializeResponse.FailedInitializeResponse(
+                            duration = SystemClock.elapsedRealtime() - initTime,
+                            success = false,
+                            failureDetails = InitializeResponse.FailedInitializeResponse(
                                 InitializeFailReason.InternalError,
                                 it
-                            )
+                            ),
+                            source = getInitializationDetailsSource()
                         )
                     callback?.onStatsigInitialize(initDetails)
                 } catch (e: Exception) {
@@ -242,12 +249,13 @@ class StatsigClient : LifecycleEventListener {
             recover = {
                 logEndDiagnosticsWhenException(ContextType.INITIALIZE, it)
                 return@captureAsync InitializationDetails(
-                    SystemClock.elapsedRealtime() - initTime,
-                    false,
-                    InitializeResponse.FailedInitializeResponse(
+                    duration = SystemClock.elapsedRealtime() - initTime,
+                    success = false,
+                    failureDetails = InitializeResponse.FailedInitializeResponse(
                         InitializeFailReason.InternalError,
                         it
-                    )
+                    ),
+                    source = getInitializationDetailsSource()
                 )
             }
         )
@@ -1097,9 +1105,10 @@ class StatsigClient : LifecycleEventListener {
                         )
                         logger.logDiagnostics()
                         return@captureAsync InitializationDetails(
-                            0,
-                            true,
-                            null
+                            duration = 0,
+                            success = true,
+                            failureDetails = null,
+                            source = getInitializationDetailsSource()
                         )
                     }
                     if (this@StatsigClient.options.loadCacheAsync) {
@@ -1186,28 +1195,27 @@ class StatsigClient : LifecycleEventListener {
                     }
                     logEndDiagnostics(success, ContextType.INITIALIZE, initResponse)
                     InitializationDetails(
-                        0,
-                        success,
-                        if (initResponse is InitializeResponse.FailedInitializeResponse) {
-                            initResponse
-                        } else {
-                            null
-                        }
+                        duration = 0,
+                        success = success,
+                        failureDetails =
+                        initResponse as? InitializeResponse.FailedInitializeResponse,
+                        source = getInitializationDetailsSource()
                     )
                 },
                 recover = { e: Exception ->
                     logEndDiagnosticsWhenException(ContextType.INITIALIZE, e)
                     InitializationDetails(
-                        0,
-                        false,
-                        InitializeResponse.FailedInitializeResponse(
+                        duration = 0,
+                        success = false,
+                        failureDetails = InitializeResponse.FailedInitializeResponse(
                             if (e is TimeoutCancellationException) {
                                 InitializeFailReason.CoroutineTimeout
                             } else {
                                 InitializeFailReason.InternalError
                             },
                             e
-                        )
+                        ),
+                        source = getInitializationDetailsSource()
                     )
                 }
             )
