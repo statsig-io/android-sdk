@@ -157,6 +157,44 @@ class LogEventTest {
         }
     }
 
+    @Test
+    fun testBootstrapMetadataIncludedAfterUpdateUserNetworkExposure() = runBlocking {
+        val bootstrapValues = TestUtil.makeBootstrapInitializeValues(
+            user = StatsigUser(userID = "testUser"),
+            response = TestUtil.makeInitializeResponse(time = 123L),
+            sdkInfo = mapOf(
+                "sdkType" to "ios-react-native",
+                "sdkVersion" to "9.9.9"
+            )
+        )
+
+        setup(
+            StatsigOptions(
+                eventLoggingAPI = "https://fake.statsig.com/v1",
+                initializeValues = bootstrapValues
+            )
+        )
+        Statsig.flush()
+        logEventRequests.clear()
+
+        Statsig.updateUser(StatsigUser(userID = "testUser"))
+        Statsig.getConfig("test_config")
+        Statsig.flush()
+
+        val exposure = logEventRequests
+            .flatMap { it.events }
+            .first { it.eventName == CONFIG_EXPOSURE }
+        val bootstrapMetadata = exposure.metadata?.get("bootstrapMetadata") as Map<*, *>
+        val generatorSDKInfo = bootstrapMetadata["generatorSDKInfo"] as Map<*, *>
+        val bootstrapUser = bootstrapMetadata["user"] as Map<*, *>
+
+        assertThat(exposure.metadata?.get("reason")).isEqualTo("Network:Recognized")
+        assertThat((bootstrapMetadata["lcut"] as Number).toLong()).isEqualTo(123L)
+        assertThat(generatorSDKInfo["sdkType"]).isEqualTo("ios-react-native")
+        assertThat(generatorSDKInfo["sdkVersion"]).isEqualTo("9.9.9")
+        assertThat(bootstrapUser["userID"]).isEqualTo("testUser")
+    }
+
     private fun verifyAPI(initializeApi: String, logEventAPI: String) = runBlocking {
         val options = StatsigOptions()
         var expectedInitializeAPI = "https://featureassets.org/v1/"

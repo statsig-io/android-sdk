@@ -1299,6 +1299,7 @@ class StatsigClient : LifecycleEventListener {
                 statsigClientMetadata,
                 statsigNetwork,
                 normalizedUser,
+                { store.getBootstrapMetadata() },
                 diagnostics,
                 options.logEventFallbackUrls,
                 options.loggingEnabled,

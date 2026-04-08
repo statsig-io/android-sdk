@@ -237,6 +237,33 @@ class TestUtil {
                 derivedFields = mapOf()
             )
 
+        internal fun makeBootstrapInitializeValues(
+            user: StatsigUser,
+            response: InitializeResponse.SuccessfulInitializeResponse = makeInitializeResponse(),
+            sdkInfo: Map<String, String> = mapOf(
+                "sdkType" to "ios-react-native",
+                "sdkVersion" to "1.2.3"
+            )
+        ): Map<String, Any> {
+            @Suppress("UNCHECKED_CAST")
+            val initializeValues = StatsigUtil.getOrBuildGson().fromJson(
+                StatsigUtil.getOrBuildGson().toJson(response),
+                MutableMap::class.java
+            ) as MutableMap<String, Any>
+
+            val bootstrapUser = mutableMapOf<String, Any>()
+            user.userID?.let { bootstrapUser["userID"] = it }
+            if (!user.customIDs.isNullOrEmpty()) {
+                bootstrapUser["customIDs"] = HashMap(user.customIDs)
+            }
+
+            initializeValues["sdkInfo"] = sdkInfo
+            initializeValues["user"] = bootstrapUser
+            initializeValues["evaluated_keys"] = bootstrapUser
+
+            return initializeValues
+        }
+
         @JvmName("startStatsigAndWait")
         internal fun startStatsigAndWait(
             app: Application,

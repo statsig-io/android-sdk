@@ -34,7 +34,8 @@ private data class Cache(
     @SerializedName("values") var values: InitializeResponse.SuccessfulInitializeResponse,
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments,
     @SerializedName("userHash") var userHash: String,
-    @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
+    @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis(),
+    @SerializedName("bootstrapMetadata") var bootstrapMetadata: BootstrapMetadata? = null
 )
 
 private data class UserCacheKeys(
@@ -50,7 +51,8 @@ private data class PersistedCache(
     @SerializedName("values") var values: PersistedInitializeResponse,
     @SerializedName("stickyUserExperiments") var stickyUserExperiments: StickyUserExperiments,
     @SerializedName("userHash") var userHash: String,
-    @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis()
+    @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis(),
+    @SerializedName("bootstrapMetadata") var bootstrapMetadata: BootstrapMetadata? = null
 )
 internal class Store(
     private val statsigScope: CoroutineScope,
@@ -152,6 +154,10 @@ internal class Store(
         sourceV2 = if (isValid) EvalSource.Bootstrap else EvalSource.InvalidBootstrap
 
         try {
+            currentCache.bootstrapMetadata = BootstrapMetadata.fromInitializeValues(
+                initializeValues,
+                gson
+            )
             currentCache.values =
                 InitializeResponseFormatter.deserialize(gson.toJson(initializeValues), gson)
             cacheKeyMapping[currentUserCacheKeyV2] = currentFullUserCacheKey
@@ -422,6 +428,8 @@ internal class Store(
         lcut = currentCache.values.time,
         receivedAt = receivedValuesAt
     )
+
+    internal fun getBootstrapMetadata(): BootstrapMetadata? = currentCache.bootstrapMetadata
 
     internal fun getEvalDetails(
         valueExists: Boolean,
@@ -732,7 +740,8 @@ internal class Store(
             values = persisted.values.toRuntime(),
             stickyUserExperiments = persisted.stickyUserExperiments,
             userHash = persisted.userHash,
-            evaluationTime = persisted.evaluationTime
+            evaluationTime = persisted.evaluationTime,
+            bootstrapMetadata = persisted.bootstrapMetadata
         )
     }
 
@@ -749,7 +758,8 @@ internal class Store(
                     values = cache.values.toRuntime(),
                     stickyUserExperiments = cache.stickyUserExperiments,
                     userHash = cache.userHash,
-                    evaluationTime = cache.evaluationTime
+                    evaluationTime = cache.evaluationTime,
+                    bootstrapMetadata = cache.bootstrapMetadata
                 )
             }
         } catch (_: Exception) {
@@ -761,7 +771,8 @@ internal class Store(
         values = InitializeResponseFormatter.toPersistedResponse(cache.values, gson),
         stickyUserExperiments = cache.stickyUserExperiments,
         userHash = cache.userHash,
-        evaluationTime = cache.evaluationTime
+        evaluationTime = cache.evaluationTime,
+        bootstrapMetadata = cache.bootstrapMetadata
     )
 
     internal fun notifyNetworkFailure() {

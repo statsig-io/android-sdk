@@ -43,6 +43,7 @@ internal class StatsigLogger(
     private val statsigMetadata: StatsigMetadata,
     private val statsigNetwork: StatsigNetwork,
     private val statsigUser: StatsigUser,
+    private val bootstrapMetadataProvider: () -> BootstrapMetadata?,
     private val diagnostics: Diagnostics,
     private val fallbackUrls: List<String>? = null,
     private var loggingEnabled: Boolean,
@@ -125,7 +126,7 @@ internal class StatsigLogger(
             val event = LogEvent(GATE_EXPOSURE)
             event.user = user
 
-            val metadata = mutableMapOf(
+            val metadata = mutableMapOf<String, Any?>(
                 "gate" to name,
                 "gateValue" to gate.getValue().toString(),
                 "ruleID" to gate.getRuleID(),
@@ -133,6 +134,7 @@ internal class StatsigLogger(
                 "time" to details.receivedAt.toString(),
                 "lcut" to details.lcut.toString()
             )
+            addBootstrapMetadata(metadata)
             addManualFlag(metadata, isManual)
 
             event.metadata = metadata
@@ -154,13 +156,14 @@ internal class StatsigLogger(
         coroutineScope.launch(singleThreadDispatcher) {
             val event = LogEvent(CONFIG_EXPOSURE)
             event.user = user
-            val metadata = mutableMapOf(
+            val metadata = mutableMapOf<String, Any?>(
                 "config" to name,
                 "ruleID" to config.getRuleID(),
                 "reason" to detailedReason,
                 "time" to details.receivedAt.toString(),
                 "lcut" to details.lcut.toString()
             )
+            addBootstrapMetadata(metadata)
 
             config.getRulePassed()?.let {
                 metadata["rulePassed"] = it.toString()
@@ -196,7 +199,7 @@ internal class StatsigLogger(
             reason = detailedReason
         )
         if (!shouldLogExposure(key)) return
-        val metadata = mutableMapOf(
+        val metadata = mutableMapOf<String, Any?>(
             "config" to configName,
             "ruleID" to ruleID,
             "allocatedExperiment" to allocatedExperiment,
@@ -205,6 +208,7 @@ internal class StatsigLogger(
             "reason" to detailedReason,
             "time" to details.receivedAt.toString()
         )
+        addBootstrapMetadata(metadata)
         addManualFlag(metadata, isManual)
 
         coroutineScope.launch(singleThreadDispatcher) {
@@ -256,13 +260,20 @@ internal class StatsigLogger(
     }
 
     private fun addManualFlag(
-        metadata: MutableMap<String, String>,
+        metadata: MutableMap<String, Any?>,
         isManual: Boolean
-    ): MutableMap<String, String> {
+    ): MutableMap<String, Any?> {
         if (isManual) {
             metadata["isManualExposure"] = "true"
         }
         return metadata
+    }
+
+    private fun addBootstrapMetadata(metadata: MutableMap<String, Any?>) {
+        val bootstrapMetadata = bootstrapMetadataProvider()
+        if (bootstrapMetadata != null && !bootstrapMetadata.isEmpty()) {
+            metadata["bootstrapMetadata"] = bootstrapMetadata
+        }
     }
 
     private fun shouldLogExposure(key: ExposureKey): Boolean {

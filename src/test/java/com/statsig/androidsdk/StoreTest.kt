@@ -196,6 +196,71 @@ class StoreTest {
     }
 
     @Test
+    fun testBootstrapMetadataPersistsAcrossNetworkSaveAndReload() = runBlocking {
+        val storage = TestUtil.getTestKeyValueStore(app)
+        val bootstrapValues = TestUtil.makeBootstrapInitializeValues(
+            user = userJkw,
+            response = TestUtil.makeInitializeResponse(time = 123L),
+            sdkInfo = mapOf(
+                "sdkType" to "ios-react-native",
+                "sdkVersion" to "9.9.9"
+            )
+        )
+        var store = Store(
+            coroutineScope,
+            storage,
+            userJkw,
+            "client-apikey",
+            StatsigOptions(),
+            StatsigUtil.getOrBuildGson()
+        )
+
+        store.bootstrap(bootstrapValues, userJkw)
+
+        assertThat(store.getBootstrapMetadata()).isEqualTo(
+            BootstrapMetadata(
+                generatorSDKInfo = GeneratorSDKInfo(
+                    sdkType = "ios-react-native",
+                    sdkVersion = "9.9.9"
+                ),
+                lcut = 123L,
+                user = StatsigUser(userID = "jkw")
+            )
+        )
+
+        store.save(getInitValue("network"), userJkw)
+
+        val fullCacheKey = "${userJkw.toHashString(StatsigUtil.getOrBuildGson())}:client-apikey"
+        val persisted = storage.readValueSync(
+            TestUtil.getPerUserCacheStoreName(fullCacheKey),
+            TestUtil.getPerUserCacheStorageKey(fullCacheKey)
+        )
+        assertThat(persisted).contains("\"bootstrapMetadata\"")
+        assertThat(persisted).contains("\"generatorSDKInfo\"")
+
+        store = Store(
+            coroutineScope,
+            storage,
+            userJkw,
+            "client-apikey",
+            StatsigOptions(),
+            StatsigUtil.getOrBuildGson()
+        )
+        store.syncLoadFromLocalStorage()
+
+        assertThat(store.getBootstrapMetadata()).isEqualTo(
+            BootstrapMetadata(
+                generatorSDKInfo = GeneratorSDKInfo(
+                    sdkType = "ios-react-native",
+                    sdkVersion = "9.9.9"
+                ),
+                lcut = 123L,
+                user = StatsigUser(userID = "jkw")
+            )
+        )
+    }
+
+    @Test
     fun testParsingNumberPrecision() = runBlocking {
         var network: StatsigNetwork = TestUtil.mockNetwork(
             dynamicConfigs = mapOf(
