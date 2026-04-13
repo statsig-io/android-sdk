@@ -31,9 +31,7 @@ class ErrorBoundaryTest {
         mockWebServer.start()
 
         boundary = ErrorBoundary(coroutineScope)
-        boundary.initialize("client-key")
-
-        boundary.urlString = mockWebServer.url("/v1/sdk_exception").toString()
+        boundary.initialize("client-key", mockWebServer.url("/v1").toString())
 
         TestUtil.setupHttp(app)
         TestUtil.mockHashing()
@@ -58,7 +56,7 @@ class ErrorBoundaryTest {
         val request = mockWebServer.takeRequest()
 
         assertThat(request.headers).contains("STATSIG-API-KEY" to "client-key")
-        assertThat(request.requestUrl.toString()).contains("/v1/sdk_exception")
+        assertThat(request.requestUrl.toString()).contains("/v1/rgstr_e")
         assertThat(request.body.toString())
             .contains(""""exception":"java.io.IOException"""")
     }
@@ -85,7 +83,7 @@ class ErrorBoundaryTest {
         val request2 = mockWebServer.takeRequest(1, TimeUnit.SECONDS)
 
         assertThat(request.headers).contains("STATSIG-API-KEY" to "client-key")
-        assertThat(request.requestUrl.toString()).contains("/v1/sdk_exception")
+        assertThat(request.requestUrl.toString()).contains("/v1/rgstr_e")
         assertThat(request.body.toString())
             .contains(""""exception":"java.io.IOException"""")
 

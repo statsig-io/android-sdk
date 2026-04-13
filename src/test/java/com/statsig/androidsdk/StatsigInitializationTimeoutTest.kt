@@ -41,7 +41,7 @@ class StatsigInitializationTimeoutTest {
         mockWebServer = MockWebServer()
         val dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse =
-                if (request.path!!.contains("sdk_exception")) {
+                if (request.path!!.contains("rgstr_e")) {
                     hitErrorBoundary.countDown()
                     allowErrorBoundaryResponse.await(5, TimeUnit.SECONDS)
                     errorBoundaryResponseReleased.set(true)
@@ -57,7 +57,6 @@ class StatsigInitializationTimeoutTest {
         client = spyk(StatsigClient(), recordPrivateCalls = true)
 
         errorBoundary = client.errorBoundary
-        errorBoundary.urlString = mockWebServer.url("/v1/sdk_exception").toString()
 
         network = TestUtil.mockNetwork()
         coEvery {
@@ -89,7 +88,7 @@ class StatsigInitializationTimeoutTest {
             app,
             "client-key",
             StatsigUser("test_user"),
-            StatsigOptions()
+            StatsigOptions(sdkErrorAPI = mockWebServer.url("/v1").toString())
         )
         // Received response and are initialized, despite error boundary hit
         assert(initializationDetails != null)

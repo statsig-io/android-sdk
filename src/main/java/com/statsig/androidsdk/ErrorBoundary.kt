@@ -22,15 +22,16 @@ internal class ErrorBoundary(
     private companion object {
         private const val TAG: String = "statsig::ErrorBoundary"
     }
-    internal var urlString = "https://prodregistryv2.org/v1/rgstr_e"
 
+    private var urlString = UrlConfig(Endpoint.SdkException).getUrl()
     private var apiKey: String? = null
     private var statsigMetadata: StatsigMetadata? = null
     private var seen = HashSet<String>()
     private val gson = StatsigUtil.getOrBuildGson()
 
-    fun initialize(apiKey: String) {
+    fun initialize(apiKey: String, errorApi: String) {
         this.apiKey = apiKey
+        this.urlString = UrlConfig(Endpoint.SdkException, errorApi).getUrl()
     }
 
     fun getUrl(): String = urlString

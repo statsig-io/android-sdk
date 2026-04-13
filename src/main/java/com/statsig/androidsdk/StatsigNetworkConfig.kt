@@ -7,7 +7,10 @@ enum class Endpoint(val value: String) {
     Rgstr("log_event"),
 
     @SerializedName("initialize")
-    Initialize("initialize") ;
+    Initialize("initialize"),
+
+    @SerializedName("rgstr_e")
+    SdkException("rgstr_e") ;
 
     override fun toString(): String = value
 }
@@ -21,7 +24,8 @@ val ENDPOINT_DNS_KEY_MAP: Map<Endpoint, EndpointDnsKey> = mapOf(
 
 val NetworkDefault: Map<Endpoint, String> = mapOf(
     Endpoint.Initialize to DEFAULT_INIT_API,
-    Endpoint.Rgstr to DEFAULT_EVENT_API
+    Endpoint.Rgstr to DEFAULT_EVENT_API,
+    Endpoint.SdkException to DEFAULT_ERROR_API
 )
 
 class UrlConfig(

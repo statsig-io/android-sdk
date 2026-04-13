@@ -157,7 +157,7 @@ class StatsigClient : LifecycleEventListener {
             )
             return
         }
-        errorBoundary.initialize(sdkKey)
+        errorBoundary.initialize(sdkKey, options.sdkErrorAPI)
         errorBoundary.capture(
             {
                 val normalizedUser = setup(application, sdkKey, user, options)
@@ -238,7 +238,7 @@ class StatsigClient : LifecycleEventListener {
             )
             return null
         }
-        errorBoundary.initialize(sdkKey)
+        errorBoundary.initialize(sdkKey, options.sdkErrorAPI)
         return errorBoundary.captureAsync(
             tag = functionName,
             task = {

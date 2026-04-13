@@ -57,7 +57,7 @@ class StatsigLongInitializationTimeoutTest {
 
         every {
             errorBoundary.getUrl()
-        } returns mockWebServer.url("/v1/sdk_exception").toString()
+        } returns mockWebServer.url("/v1/rgstr_e").toString()
 
         client.errorBoundary = errorBoundary
     }

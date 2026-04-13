@@ -17,6 +17,8 @@ const val AUTO_VALUE_UPDATE_INTERVAL_MINIMUM_VALUE: Double = 1.0
 const val DEFAULT_INIT_API = "https://featureassets.org/v1/"
 const val DEFAULT_EVENT_API = "https://prodregistryv2.org/v1/"
 
+const val DEFAULT_ERROR_API = DEFAULT_EVENT_API
+
 /**
  * An object of properties for initializing the sdk with advanced options
  * @property api the api endpoint to use for initialization and logging
@@ -44,6 +46,12 @@ class StatsigOptions(
      * endpoint, and eventLoggingApi controls the event logging endpoint.
      */
     @SerializedName("eventLoggingAPI") var eventLoggingAPI: String = DEFAULT_EVENT_API,
+
+    /**
+     * The endpoint to use for logging sdk-internal exceptions for Statsig diagnostics.
+     */
+    @SerializedName("sdkErrorAPI") var sdkErrorAPI: String = DEFAULT_ERROR_API,
+
     /**
      * By default, any custom event your application logs with Statsig.logEvent() includes the current
      * root View Controller. This is so we can generate user journey funnels for your users. You can
@@ -207,6 +215,8 @@ class StatsigOptions(
     @Suppress("DEPRECATION") // disableDiagnosticsLogging
     internal fun toMap(): Map<String, Any?> = mapOf(
         "api" to api,
+        "eventLoggingApi" to eventLoggingAPI,
+        "sdkErrorAPI" to sdkErrorAPI,
         "disableCurrentActivityLogging" to disableCurrentActivityLogging,
         "disableDiagnosticsLogging" to disableDiagnosticsLogging,
         "initTimeoutMs" to initTimeoutMs,
@@ -223,6 +233,7 @@ class StatsigOptions(
     internal fun getLoggingCopy(): Map<String, Any?> = mapOf(
         "api" to api,
         "eventLoggingApi" to eventLoggingAPI,
+        "sdkErrorAPI" to sdkErrorAPI,
         "disableCurrentActivityLogging" to disableCurrentActivityLogging,
         "disableDiagnosticsLogging" to disableDiagnosticsLogging,
         "initTimeoutMs" to initTimeoutMs,

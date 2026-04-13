@@ -732,7 +732,7 @@ internal class StatsigNetworkImpl(
         )
         val postData = gson.toJson(body)
         val requestBuilder = Request.Builder()
-            .url(HttpUtils.exceptionUrlString)
+            .url(UrlConfig(Endpoint.SdkException, options.sdkErrorAPI).getUrl())
             .post(postData.toJsonRequestBody())
             .addStatsigHeaders(sdkKey)
         val eventsCount = logRequest.eventCount

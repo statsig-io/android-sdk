@@ -52,7 +52,6 @@ class StatsigNetworkTest {
         TestUtil.mockHashing()
         keyValueStorage = TestUtil.getTestKeyValueStore(app)
         TestUtil.setupHttp(app)
-        HttpUtils.exceptionUrlString = "${wireMockRule.baseUrl()}/rgstr_e"
 
         stubFor(
             post(urlMatching("/initialize"))
@@ -69,7 +68,10 @@ class StatsigNetworkTest {
                 .willReturn(aResponse().withStatus(202))
         )
 
-        options = StatsigOptions(api = wireMockRule.baseUrl())
+        options = StatsigOptions(
+            api = wireMockRule.baseUrl(),
+            sdkErrorAPI = wireMockRule.baseUrl()
+        )
         fallbackResolver =
             NetworkFallbackResolver(
                 keyValueStorage,
@@ -106,7 +108,6 @@ class StatsigNetworkTest {
 
     @After
     fun teardown() {
-        HttpUtils.exceptionUrlString = "https://prodregistryv2.org/v1/rgstr_e"
         TestUtil.reset()
     }
 
