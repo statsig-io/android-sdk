@@ -44,16 +44,17 @@ class CacheKeyWithSDKKeyTest {
     fun testWriteToCacheWithNewKey() = runBlocking {
         Statsig.client.shutdown()
         TestUtil.startStatsigAndWait(app, user, network = TestUtil.mockNetwork())
+        Statsig.client.getStore().awaitPendingSave()
         val gson = StatsigUtil.getOrBuildGson()
         val scopedCacheKey = "${user.getCacheKey()}:client-apikey"
         val fullCacheKey = "${user.toHashString(gson = gson)}:client-apikey"
 
-        val cacheMappingJson = testKeyValueStorage.readValue(
-            "ondiskvaluecache",
-            "Statsig.CACHE_KEY_MAPPING"
-        ) ?: ""
-        val cacheMapping = gson.fromJson(cacheMappingJson, Map::class.java)
-        assertThat(cacheMapping[scopedCacheKey]).isEqualTo(fullCacheKey)
+        val cacheMapping =
+            testKeyValueStorage.readValue("ondiskvaluecache", "Statsig.CACHE_KEY_MAPPING")
+        val mapping = gson.fromJson(cacheMapping, Map::class.java)
+        val mappingEntry = mapping[scopedCacheKey] as Map<*, *>
+        assertThat(mappingEntry["fullUserCacheKey"]).isEqualTo(fullCacheKey)
+        assertThat(mappingEntry["lastUsedAt"]).isNotNull()
 
         val perUserCache = testKeyValueStorage.readValue(
             TestUtil.getPerUserCacheStoreName(fullCacheKey),

@@ -196,6 +196,156 @@ class StoreTest {
     }
 
     @Test
+    fun testCacheKeyMappingWritesFromMultipleStoresAreMerged() = runBlocking {
+        val storage = InMemoryKeyValueStorage()
+        val gson = StatsigUtil.getOrBuildGson()
+        val sdkKeyA = "client-apikey-a"
+        val sdkKeyB = "client-apikey-b"
+        val userA = StatsigUser("shared").apply { custom = mapOf("version" to "a") }
+        val userB = StatsigUser("shared").apply { custom = mapOf("version" to "b") }
+
+        val storeA = Store(coroutineScope, storage, userA, sdkKeyA, StatsigOptions(), gson)
+        val storeB = Store(coroutineScope, storage, userB, sdkKeyB, StatsigOptions(), gson)
+        storeA.syncLoadFromLocalStorage()
+        storeB.syncLoadFromLocalStorage()
+
+        storeA.save(getInitValue("a"), userA)
+        storeB.save(getInitValue("b"), userB)
+
+        val userAWithNewFullCacheKey =
+            StatsigUser("shared").apply { custom = mapOf("version" to "a2") }
+        val userBWithNewFullCacheKey =
+            StatsigUser("shared").apply { custom = mapOf("version" to "b2") }
+
+        val reloadedStoreA =
+            Store(
+                coroutineScope,
+                storage,
+                userAWithNewFullCacheKey,
+                sdkKeyA,
+                StatsigOptions(),
+                gson
+            )
+        val reloadedStoreB =
+            Store(
+                coroutineScope,
+                storage,
+                userBWithNewFullCacheKey,
+                sdkKeyB,
+                StatsigOptions(),
+                gson
+            )
+
+        reloadedStoreA.syncLoadFromLocalStorage()
+        reloadedStoreB.syncLoadFromLocalStorage()
+
+        assertThat(reloadedStoreA.getConfig("config").getString("key", "")).isEqualTo("a")
+        assertThat(reloadedStoreB.getConfig("config").getString("key", "")).isEqualTo("b")
+    }
+
+    @Test
+    fun testLegacyCacheKeyMappingLoadsFromSingleBlob() = runBlocking {
+        val storage = InMemoryKeyValueStorage()
+        val gson = StatsigUtil.getOrBuildGson()
+        val legacyUser =
+            StatsigUser("same-scoped-key").apply { custom = mapOf("version" to "one") }
+        val currentUser =
+            StatsigUser("same-scoped-key").apply { custom = mapOf("version" to "two") }
+        val scopedCacheKey = "${legacyUser.getCacheKey()}:client-apikey"
+        val legacyFullCacheKey = "${legacyUser.toHashString(gson)}:client-apikey"
+        val currentFullCacheKey = "${currentUser.toHashString(gson)}:client-apikey"
+
+        storage.writeValue(
+            "ondiskvaluecache",
+            "Statsig.CACHE_KEY_MAPPING",
+            gson.toJson(mapOf(scopedCacheKey to legacyFullCacheKey))
+        )
+
+        val store =
+            Store(coroutineScope, storage, currentUser, "client-apikey", StatsigOptions(), gson)
+        store.syncLoadFromLocalStorage()
+
+        assertThat(store.getFullUserCacheKeyForTesting(scopedCacheKey))
+            .isEqualTo(legacyFullCacheKey)
+
+        store.save(getInitValue("new"), currentUser)
+
+        val persistedMapping = gson.fromJson(
+            storage.readValue("ondiskvaluecache", "Statsig.CACHE_KEY_MAPPING"),
+            Map::class.java
+        )
+        val persistedMappingEntry = persistedMapping[scopedCacheKey] as Map<*, *>
+        assertThat(persistedMappingEntry["fullUserCacheKey"]).isEqualTo(currentFullCacheKey)
+        assertThat(persistedMappingEntry["lastUsedAt"]).isNotNull()
+    }
+
+    @Test
+    fun testReplacingCacheKeyMappingCleansUpOldUnreferencedUserCacheAsync() = runBlocking {
+        val storage = InMemoryKeyValueStorage()
+        val gson = StatsigUtil.getOrBuildGson()
+        val userV1 = StatsigUser("same-scoped-key").apply { custom = mapOf("version" to "one") }
+        val userV2 = StatsigUser("same-scoped-key").apply { custom = mapOf("version" to "two") }
+        val oldFullCacheKey = "${userV1.toHashString(gson)}:client-apikey"
+        val newFullCacheKey = "${userV2.toHashString(gson)}:client-apikey"
+        val scopedCacheKey = "${userV1.getCacheKey()}:client-apikey"
+
+        val store = Store(coroutineScope, storage, userV1, "client-apikey", StatsigOptions(), gson)
+        store.syncLoadFromLocalStorage()
+        store.save(getInitValue("old"), userV1)
+
+        store.resetUser(userV2)
+        store.loadCacheForCurrentUserAsync()
+        store.save(getInitValue("new"), userV2)
+
+        store.awaitCacheMaintenance()
+
+        assertThat(store.getFullUserCacheKeyForTesting(scopedCacheKey)).isEqualTo(newFullCacheKey)
+        assertThat(
+            storage.readValue(
+                TestUtil.getPerUserCacheStoreName(newFullCacheKey),
+                TestUtil.getPerUserCacheStorageKey(newFullCacheKey)
+            )
+        ).isNotNull()
+        assertThat(
+            storage.readValue(
+                TestUtil.getPerUserCacheStoreName(oldFullCacheKey),
+                TestUtil.getPerUserCacheStorageKey(oldFullCacheKey)
+            )
+        ).isNull()
+    }
+
+    @Test
+    fun testCacheKeyMappingEvictionUsesGlobalRegistry() = runBlocking {
+        val storage = InMemoryKeyValueStorage()
+        val gson = StatsigUtil.getOrBuildGson()
+        val store =
+            Store(
+                coroutineScope,
+                storage,
+                StatsigUser("user_0"),
+                "client-apikey",
+                StatsigOptions(),
+                gson
+            )
+
+        for (i in 0..10) {
+            val user = StatsigUser("user_$i")
+            store.resetUser(user)
+            store.loadCacheForCurrentUserAsync()
+            store.save(getInitValue("v$i"), user)
+        }
+
+        store.awaitCacheMaintenance()
+
+        assertThat(store.getCacheKeyMappingSizeForTesting()).isEqualTo(10)
+        assertThat(
+            store.getFullUserCacheKeyForTesting(
+                "${StatsigUser("user_10").getCacheKey()}:client-apikey"
+            )
+        ).isNotNull()
+    }
+
+    @Test
     fun testBootstrapMetadataPersistsAcrossNetworkSaveAndReload() = runBlocking {
         val storage = TestUtil.getTestKeyValueStore(app)
         val bootstrapValues = TestUtil.makeBootstrapInitializeValues(

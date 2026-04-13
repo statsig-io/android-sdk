@@ -1580,6 +1580,7 @@ class StatsigClient : LifecycleEventListener {
     private suspend fun shutdownImpl() {
         Log.v(TAG, "shutting down...")
         store.awaitPendingSave()
+        store.awaitCacheMaintenance()
         initialized.set(false)
         pollingJob?.cancel()
         logger.shutdown()

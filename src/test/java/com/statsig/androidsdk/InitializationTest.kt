@@ -115,6 +115,8 @@ class InitializationTest {
 
     @Test
     fun testInitializeDoesNotBlockOnCachePersistence() {
+        // Needs real background dispatchers for this assertion, rather than the single
+        // dispatcher most of our tests are using.
         Dispatchers.setMain(UnconfinedTestDispatcher())
         mockkConstructor(CoroutineDispatcherProvider::class)
         every { anyConstructed<CoroutineDispatcherProvider>().io } returns Dispatchers.IO

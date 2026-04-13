@@ -6,10 +6,13 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
 private const val DEPRECATED_STICKY_USER_EXPERIMENTS_KEY: String = "Statsig.STICKY_USER_EXPERIMENTS"
@@ -48,6 +51,11 @@ private data class UserCacheKeys(
 
 private data class UserCacheStorageTarget(val storeName: String, val storageKey: String)
 
+private data class CacheKeyMappingValue(
+    @SerializedName("fullUserCacheKey") val fullUserCacheKey: String,
+    @SerializedName("lastUsedAt") val lastUsedAt: Long
+)
+
 private data class PersistedCache(
     @SerializedName("schema_version") val schemaVersion: Int = PERSISTED_CACHE_SCHEMA_V2,
     @SerializedName("values") var values: PersistedInitializeResponse,
@@ -56,6 +64,253 @@ private data class PersistedCache(
     @SerializedName("evaluationTime") var evaluationTime: Long? = System.currentTimeMillis(),
     @SerializedName("bootstrapMetadata") var bootstrapMetadata: BootstrapMetadata? = null
 )
+
+private fun getStorageHash(value: String): String {
+    // Storage hashes are embedded into DataStore file names and preference keys. Keep them
+    // lowercase hex instead of our usual base64 SHA-256 representation so they are path-safe.
+    val bytes = MessageDigest.getInstance("SHA-256").digest(value.toByteArray())
+    return bytes.joinToString("") { byte ->
+        ((byte.toInt() and 0xFF) + 0x100).toString(16).substring(1)
+    }
+}
+
+/**
+ * Stores one Initialize response payload per full user cache key.
+ *
+ * The full user cache key is still a logical Statsig cache identifier; this class hashes it into
+ * DataStore-safe store/key names and owns the per-user mutex used while mutating that payload.
+ */
+private class UserCacheStorage(
+    private val keyValueStorage: KeyValueStorage<String>,
+    private val fromSerializedCache: suspend (String, UserCacheStorageTarget) -> Cache?,
+    private val toSerializedCache: (Cache) -> String
+) {
+    private companion object {
+        private val userCacheMutexes: ConcurrentHashMap<String, Mutex> = ConcurrentHashMap()
+
+        private fun getUserCacheMutex(fullUserCacheKey: String): Mutex =
+            userCacheMutexes.getOrPut(fullUserCacheKey) { Mutex() }
+    }
+
+    suspend fun read(fullUserCacheKey: String): Cache? {
+        val target = getStorageTarget(fullUserCacheKey)
+        val serialized = keyValueStorage.readValue(target.storeName, target.storageKey)
+            ?: return null
+        return fromSerializedCache(serialized, target)
+    }
+
+    suspend fun write(fullUserCacheKey: String, cache: Cache) {
+        val target = getStorageTarget(fullUserCacheKey)
+        keyValueStorage.writeValue(target.storeName, target.storageKey, toSerializedCache(cache))
+    }
+
+    suspend fun delete(fullUserCacheKey: String) {
+        val target = getStorageTarget(fullUserCacheKey)
+        try {
+            keyValueStorage.clearStore(target.storeName)
+        } catch (_: NotImplementedError) {
+            keyValueStorage.removeValue(target.storeName, target.storageKey)
+        }
+    }
+
+    suspend fun <T> withFullUserCacheKeyLock(fullUserCacheKey: String, action: suspend () -> T): T =
+        getUserCacheMutex(fullUserCacheKey).withLock { action() }
+
+    private fun getStorageTarget(fullUserCacheKey: String): UserCacheStorageTarget {
+        val storeHash = getStorageHash(fullUserCacheKey)
+        return UserCacheStorageTarget(
+            storeName = "${USER_CACHE_STORE_PREFIX}_$storeHash",
+            storageKey = "${USER_CACHE_KEY}_$storeHash"
+        )
+    }
+}
+
+/**
+ * Cache-key mapping shared by all Store instances.
+ *
+ * The companion state is the same-process coordination point. The single persisted blob is only the
+ * durable backing state, so reads after load avoid disk and multi-client writes cannot overwrite
+ * each other with stale local map snapshots. Multi-process is out-of-scope for now.
+ */
+private class SharedCacheKeyMapping(
+    private val keyValueStorage: KeyValueStorage<String>,
+    private val gson: Gson
+) {
+    companion object {
+        private val mutex = Mutex()
+        private val mappings = ConcurrentHashMap<String, CacheKeyMappingValue>()
+        private var isLoaded = false
+
+        @VisibleForTesting
+        internal fun resetForTesting() {
+            mappings.clear()
+            isLoaded = false
+        }
+
+        @VisibleForTesting
+        internal fun sizeForTesting(): Int = mappings.size
+    }
+
+    suspend fun ensureLoaded() {
+        if (isLoaded) {
+            return
+        }
+
+        mutex.withLock {
+            if (isLoaded) {
+                return@withLock
+            }
+            mappings.clear()
+            mappings.putAll(readPersisted())
+            isLoaded = true
+        }
+    }
+
+    fun readFullUserCacheKey(scopedCacheKey: String): String? =
+        mappings[scopedCacheKey]?.fullUserCacheKey
+
+    fun upsertInMemory(scopedCacheKey: String, fullUserCacheKey: String) {
+        mappings[scopedCacheKey] = newMappingValue(fullUserCacheKey)
+    }
+
+    suspend fun commit(scopedCacheKey: String, fullUserCacheKey: String): String? = mutex.withLock {
+        val previousFullUserCacheKey =
+            mappings.put(scopedCacheKey, newMappingValue(fullUserCacheKey))?.fullUserCacheKey
+        writePersisted()
+        previousFullUserCacheKey
+    }
+
+    suspend fun removeOverflowEntries(maxEntries: Int, exemptScopedCacheKey: String): List<String> =
+        mutex.withLock {
+            val overflow = mappings.size - maxEntries
+            if (overflow <= 0) {
+                return@withLock emptyList()
+            }
+
+            val removedEntries = mappings.entries
+                .filter { it.key != exemptScopedCacheKey }
+                .sortedWith(
+                    compareBy<Map.Entry<String, CacheKeyMappingValue>> { it.value.lastUsedAt }
+                        .thenBy { it.key }
+                )
+                .take(overflow)
+                .onEach { mappings.remove(it.key) }
+
+            if (removedEntries.isNotEmpty()) {
+                writePersisted()
+            }
+
+            removedEntries.map { it.value.fullUserCacheKey }
+        }
+
+    suspend fun isFullUserCacheKeyReferenced(fullUserCacheKey: String): Boolean = mutex.withLock {
+        mappings.values.any { it.fullUserCacheKey == fullUserCacheKey }
+    }
+
+    private suspend fun readPersisted(): Map<String, CacheKeyMappingValue> {
+        val serialized = keyValueStorage.readValue(STORE_NAME, CACHE_KEY_MAPPING_KEY)
+            ?: return emptyMap()
+
+        tryLoadPersistedMapping(serialized)?.let { return it }
+        tryLoadLegacyMapping(serialized)?.let { return it }
+
+        keyValueStorage.removeValue(STORE_NAME, CACHE_KEY_MAPPING_KEY)
+        return emptyMap()
+    }
+
+    private suspend fun writePersisted() {
+        val persisted = mappings.entries
+            .sortedBy { it.key }
+            .associate { (scopedCacheKey, value) -> scopedCacheKey to value }
+
+        keyValueStorage.writeValue(
+            STORE_NAME,
+            CACHE_KEY_MAPPING_KEY,
+            gson.toJson(persisted)
+        )
+    }
+
+    private fun newMappingValue(fullUserCacheKey: String): CacheKeyMappingValue =
+        CacheKeyMappingValue(
+            fullUserCacheKey = fullUserCacheKey,
+            lastUsedAt = System.currentTimeMillis()
+        )
+
+    private fun tryLoadPersistedMapping(serialized: String): Map<String, CacheKeyMappingValue>? {
+        return try {
+            val type = object : TypeToken<Map<String, CacheKeyMappingValue>>() {}.type
+            val persisted: Map<String, CacheKeyMappingValue> = gson.fromJson(
+                serialized,
+                type
+            )
+                ?: return null
+            persisted
+                .filter { (scopedKey, value) ->
+                    scopedKey.isNotEmpty() && value.isValid()
+                }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun tryLoadLegacyMapping(serialized: String): Map<String, CacheKeyMappingValue>? {
+        return try {
+            val type = object : TypeToken<Map<String, String>>() {}.type
+            val legacyMapping: Map<String, String> =
+                gson.fromJson(serialized, type) ?: return null
+            val now = System.currentTimeMillis()
+            legacyMapping
+                .mapValues { (_, fullKey) ->
+                    CacheKeyMappingValue(fullUserCacheKey = fullKey, lastUsedAt = now)
+                }
+                .filter { (scopedKey, value) ->
+                    scopedKey.isNotEmpty() && value.isValid()
+                }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun CacheKeyMappingValue.isValid(): Boolean = fullUserCacheKey.isNotEmpty()
+}
+
+private class SerialBackgroundQueue(
+    private val scope: CoroutineScope,
+    private val dispatcher: CoroutineDispatcher
+) {
+    private val lock = Any()
+    private var pendingJob: Job? = null
+
+    fun enqueue(action: suspend () -> Unit) {
+        synchronized(lock) {
+            val priorJob = pendingJob
+            pendingJob = scope.launch(dispatcher) {
+                priorJob?.join()
+                try {
+                    action()
+                } catch (_: Exception) {
+                    // Best effort background work should not fail evaluation.
+                }
+            }
+        }
+    }
+
+    suspend fun await() {
+        val pending = synchronized(lock) { pendingJob }
+        pending?.join()
+        synchronized(lock) {
+            if (pendingJob?.isCompleted == true) {
+                pendingJob = null
+            }
+        }
+    }
+}
+
+@VisibleForTesting
+internal fun resetSharedCacheKeyMappingStoreForTesting() {
+    SharedCacheKeyMapping.resetForTesting()
+}
+
 internal class Store(
     private val statsigScope: CoroutineScope,
     private val keyValueStorage: KeyValueStorage<String>,
@@ -68,27 +323,31 @@ internal class Store(
     var receivedValuesAt: Long? = null
 
     private val dispatcherProvider = CoroutineDispatcherProvider()
-    private var currentUserCacheKeyV2: String
+    private val userCacheStorage = UserCacheStorage(
+        keyValueStorage,
+        ::readSerializedUserCache,
+        { cache -> gson.toJson(toPersistedCache(cache)) }
+    )
+    private val cacheKeyMappingStore = SharedCacheKeyMapping(keyValueStorage, gson)
+    private val saveQueue = SerialBackgroundQueue(statsigScope, dispatcherProvider.io)
+    private val cacheMaintenanceQueue = SerialBackgroundQueue(statsigScope, dispatcherProvider.io)
+    private var currentScopedCacheKey: String
     private var currentFullUserCacheKey: String
-    private var cacheById: ConcurrentHashMap<String, Cache>
+    private var userCacheByKey: ConcurrentHashMap<String, Cache>
     private var currentCache: Cache
     private var stickyDeviceExperiments: ConcurrentHashMap<String, APIDynamicConfig>
     private var localOverrides: StatsigOverrides
-    private var cacheKeyMapping: ConcurrentHashMap<String, String>
     private var currentUser: StatsigUser
-    private var pendingSaveJob: Job? = null
-    private val saveQueueLock = Any()
 
     init {
         val userCacheKeys = getUserCacheKeys(user)
-        currentUserCacheKeyV2 = userCacheKeys.scopedCacheKey
+        currentScopedCacheKey = userCacheKeys.scopedCacheKey
         currentFullUserCacheKey = userCacheKeys.fullUserCacheKey
-        cacheById = ConcurrentHashMap()
+        userCacheByKey = ConcurrentHashMap()
         currentCache = createEmptyCache()
         stickyDeviceExperiments = ConcurrentHashMap()
         localOverrides = StatsigOverrides.empty()
         sourceV2 = EvalSource.Uninitialized
-        cacheKeyMapping = ConcurrentHashMap()
         currentUser = user
     }
 
@@ -100,7 +359,7 @@ internal class Store(
 
     suspend fun loadFromLocalStorage() {
         sourceV2 = EvalSource.Loading
-        cacheById = ConcurrentHashMap()
+        userCacheByKey = ConcurrentHashMap()
 
         stickyDeviceExperiments = ConcurrentHashMap()
         val cachedDeviceValues = keyValueStorage.readValue(
@@ -130,23 +389,14 @@ internal class Store(
             }
         }
 
-        cacheKeyMapping = ConcurrentHashMap()
-        val cachedCacheKeyMapping = keyValueStorage.readValue(STORE_NAME, CACHE_KEY_MAPPING_KEY)
-        if (cachedCacheKeyMapping != null) {
-            val type = object : TypeToken<ConcurrentHashMap<String, String>>() {}.type
-            try {
-                cacheKeyMapping = gson.fromJson(cachedCacheKeyMapping, type)
-            } catch (_: Exception) {
-                keyValueStorage.removeValue(STORE_NAME, CACHE_KEY_MAPPING_KEY)
-            }
-        }
+        cacheKeyMappingStore.ensureLoaded()
 
         loadCacheForCurrentUserAsync()
     }
 
     fun resetUser(user: StatsigUser) {
         val userCacheKeys = getUserCacheKeys(user)
-        currentUserCacheKeyV2 = userCacheKeys.scopedCacheKey
+        currentScopedCacheKey = userCacheKeys.scopedCacheKey
         currentFullUserCacheKey = userCacheKeys.fullUserCacheKey
         sourceV2 = EvalSource.Uninitialized
         currentUser = user
@@ -164,8 +414,11 @@ internal class Store(
             )
             currentCache.values =
                 InitializeResponseFormatter.deserialize(gson.toJson(initializeValues), gson)
-            cacheKeyMapping[currentUserCacheKeyV2] = currentFullUserCacheKey
-            cacheById[currentFullUserCacheKey] = currentCache
+            cacheKeyMappingStore.upsertInMemory(
+                currentScopedCacheKey,
+                currentFullUserCacheKey
+            )
+            userCacheByKey[currentFullUserCacheKey] = currentCache
         } catch (e: Exception) {
             // Do Nothing
         }
@@ -196,18 +449,19 @@ internal class Store(
     }
 
     private fun getCachedValuesForUser(userCacheKeys: UserCacheKeys): Cache? {
-        val fullHashCachedValues = cacheById[userCacheKeys.fullUserCacheKey]
+        val fullHashCachedValues = userCacheByKey[userCacheKeys.fullUserCacheKey]
         if (fullHashCachedValues != null) {
             return fullHashCachedValues
         }
-        var cachedValues = cacheById[userCacheKeys.scopedCacheKey]
+        var cachedValues = userCacheByKey[userCacheKeys.scopedCacheKey]
         if (cachedValues != null) {
             return cachedValues
         }
 
-        val cacheMapping = cacheKeyMapping[userCacheKeys.scopedCacheKey]
-        if (cacheMapping != null) {
-            cachedValues = cacheById[cacheMapping]
+        val mappedFullUserCacheKey =
+            cacheKeyMappingStore.readFullUserCacheKey(userCacheKeys.scopedCacheKey)
+        if (mappedFullUserCacheKey != null) {
+            cachedValues = userCacheByKey[mappedFullUserCacheKey]
             if (cachedValues != null) {
                 return cachedValues
             }
@@ -267,46 +521,37 @@ internal class Store(
         if (!applySaveToMemory(data, userCacheKeys)) {
             return
         }
-        synchronized(saveQueueLock) {
-            val priorJob = pendingSaveJob
-            pendingSaveJob = statsigScope.launch(dispatcherProvider.io) {
-                priorJob?.join()
-                try {
-                    persistSave(userCacheKeys)
-                    onPersisted()
-                } catch (_: Exception) {
-                    // Best effort persistence after the response is applied in memory.
-                }
-            }
+        saveQueue.enqueue {
+            persistSave(userCacheKeys)
+            onPersisted()
         }
     }
 
     suspend fun awaitPendingSave() {
-        val pending = synchronized(saveQueueLock) { pendingSaveJob }
-        pending?.join()
-        synchronized(saveQueueLock) {
-            if (pendingSaveJob?.isCompleted == true) {
-                pendingSaveJob = null
-            }
-        }
+        saveQueue.await()
+    }
+
+    @VisibleForTesting
+    internal suspend fun awaitCacheMaintenance() {
+        cacheMaintenanceQueue.await()
     }
 
     private fun applySaveToMemory(
         data: InitializeResponse.SuccessfulInitializeResponse,
         userCacheKeys: UserCacheKeys
     ): Boolean {
-        val cacheKey = userCacheKeys.scopedCacheKey
-        val fullCacheKey = userCacheKeys.fullUserCacheKey
-        val isCurrentUser = cacheKey == currentUserCacheKeyV2
+        val scopedCacheKey = userCacheKeys.scopedCacheKey
+        val fullUserCacheKey = userCacheKeys.fullUserCacheKey
+        val isCurrentUser = scopedCacheKey == currentScopedCacheKey
         if (isCurrentUser) {
-            currentFullUserCacheKey = fullCacheKey
+            currentFullUserCacheKey = fullUserCacheKey
             receivedValuesAt = System.currentTimeMillis()
             if (data.hasUpdates) {
-                val cache = cacheById[fullCacheKey] ?: createEmptyCache()
+                val cache = userCacheByKey[fullUserCacheKey] ?: createEmptyCache()
                 cache.values = data
                 cache.evaluationTime = receivedValuesAt
                 cache.userHash = userCacheKeys.userHash
-                cacheById[fullCacheKey] = cache
+                userCacheByKey[fullUserCacheKey] = cache
 
                 currentCache = cache
                 sourceV2 = EvalSource.Network
@@ -316,33 +561,41 @@ internal class Store(
             }
         }
 
-        val cacheToPersist = cacheById[fullCacheKey] ?: currentCache
-        cacheById[fullCacheKey] = cacheToPersist
+        val cacheToPersist = userCacheByKey[fullUserCacheKey] ?: currentCache
+        userCacheByKey[fullUserCacheKey] = cacheToPersist
 
         return true
     }
 
     private suspend fun persistSave(userCacheKeys: UserCacheKeys) {
-        val cacheKey = userCacheKeys.scopedCacheKey
-        val fullCacheKey = userCacheKeys.fullUserCacheKey
-        val cacheToPersist = cacheById[fullCacheKey] ?: currentCache
-        writeUserCache(fullCacheKey, cacheToPersist)
-
-        val priorMapping = cacheKeyMapping[cacheKey]
-        cacheKeyMapping[cacheKey] = fullCacheKey
-
-        if (priorMapping != null &&
-            priorMapping != fullCacheKey &&
-            !cacheKeyMapping.containsValue(priorMapping)
-        ) {
-            cacheById.remove(priorMapping)
-            deleteUserCache(priorMapping)
+        var previousFullUserCacheKey: String? = null
+        val cacheToPersist = userCacheByKey[userCacheKeys.fullUserCacheKey] ?: currentCache
+        userCacheStorage.withFullUserCacheKeyLock(userCacheKeys.fullUserCacheKey) {
+            userCacheStorage.write(userCacheKeys.fullUserCacheKey, cacheToPersist)
+            previousFullUserCacheKey = cacheKeyMappingStore.commit(
+                userCacheKeys.scopedCacheKey,
+                userCacheKeys.fullUserCacheKey
+            )
         }
 
-        evictMappedCachesIfNeeded(cacheKey)
-        keyValueStorage.writeValue(STORE_NAME, CACHE_KEY_MAPPING_KEY, gson.toJson(cacheKeyMapping))
         // New writes are per-user stores; keep legacy key read-only fallback.
         keyValueStorage.removeValue(STORE_NAME, CACHE_BY_USER_KEY)
+        enqueueCacheMaintenance(
+            currentScopedCacheKey = userCacheKeys.scopedCacheKey,
+            replacedFullUserCacheKey = previousFullUserCacheKey
+        )
+    }
+
+    private fun enqueueCacheMaintenance(
+        currentScopedCacheKey: String,
+        replacedFullUserCacheKey: String?
+    ) {
+        cacheMaintenanceQueue.enqueue {
+            cleanupReplacedAndEvictedCaches(
+                currentScopedCacheKey,
+                replacedFullUserCacheKey
+            )
+        }
     }
 
     fun checkGate(gateName: String): FeatureGate {
@@ -646,7 +899,9 @@ internal class Store(
     }
 
     suspend fun persistStickyValues() {
-        writeUserCache(currentFullUserCacheKey, currentCache)
+        userCacheStorage.withFullUserCacheKeyLock(currentFullUserCacheKey) {
+            userCacheStorage.write(currentFullUserCacheKey, currentCache)
+        }
         keyValueStorage.writeValue(
             STORE_NAME,
             STICKY_DEVICE_EXPERIMENTS_KEY,
@@ -655,18 +910,19 @@ internal class Store(
     }
 
     private suspend fun loadCacheForUserFromStorage(userCacheKeys: UserCacheKeys): Cache? {
-        val fullCacheKey = userCacheKeys.fullUserCacheKey
+        val fullUserCacheKey = userCacheKeys.fullUserCacheKey
         val scopedCacheKey = userCacheKeys.scopedCacheKey
 
-        readUserCache(fullCacheKey)?.let { loaded ->
-            cacheById[fullCacheKey] = loaded
+        userCacheStorage.read(fullUserCacheKey)?.let { loaded ->
+            userCacheByKey[fullUserCacheKey] = loaded
             return loaded
         }
 
-        val mappedKey = cacheKeyMapping[scopedCacheKey]
-        if (mappedKey != null) {
-            readUserCache(mappedKey)?.let { loaded ->
-                cacheById[mappedKey] = loaded
+        val mappedFullUserCacheKey = cacheKeyMappingStore
+            .readFullUserCacheKey(scopedCacheKey)
+        if (mappedFullUserCacheKey != null) {
+            userCacheStorage.read(mappedFullUserCacheKey)?.let { loaded ->
+                userCacheByKey[mappedFullUserCacheKey] = loaded
                 return loaded
             }
         }
@@ -681,95 +937,74 @@ internal class Store(
 
         val resolvedKey =
             when {
-                localCache.containsKey(fullCacheKey) -> fullCacheKey
-                mappedKey != null && localCache.containsKey(mappedKey) -> mappedKey
+                localCache.containsKey(fullUserCacheKey) -> fullUserCacheKey
+                mappedFullUserCacheKey != null &&
+                    localCache.containsKey(mappedFullUserCacheKey) -> mappedFullUserCacheKey
                 localCache.containsKey(scopedCacheKey) -> scopedCacheKey
                 else -> return null
             }
 
         val canonicalKey = if (resolvedKey == scopedCacheKey) {
-            fullCacheKey
+            fullUserCacheKey
         } else {
             resolvedKey
         }
         val loaded = localCache[resolvedKey] ?: return null
-        cacheById[canonicalKey] = loaded
-        cacheKeyMapping[scopedCacheKey] = canonicalKey
+        userCacheByKey[canonicalKey] = loaded
+        cacheKeyMappingStore.upsertInMemory(
+            scopedCacheKey,
+            canonicalKey
+        )
         return loaded
     }
 
-    private suspend fun readUserCache(fullCacheKey: String): Cache? {
-        val userCacheStorageTarget = getUserCacheStorageTarget(fullCacheKey)
-        val serialized = keyValueStorage.readValue(
+    private suspend fun readSerializedUserCache(
+        serialized: String,
+        userCacheStorageTarget: UserCacheStorageTarget
+    ): Cache? = try {
+        tryLoadPersistedCache(serialized) ?: gson.fromJson(serialized, Cache::class.java)
+    } catch (_: Exception) {
+        keyValueStorage.removeValue(
             userCacheStorageTarget.storeName,
             userCacheStorageTarget.storageKey
-        ) ?: return null
-        return try {
-            tryLoadPersistedCache(serialized) ?: gson.fromJson(serialized, Cache::class.java)
-        } catch (_: Exception) {
-            keyValueStorage.removeValue(
-                userCacheStorageTarget.storeName,
-                userCacheStorageTarget.storageKey
-            )
-            null
-        }
-    }
-
-    private suspend fun writeUserCache(fullCacheKey: String, cache: Cache) {
-        val userCacheStorageTarget = getUserCacheStorageTarget(fullCacheKey)
-        keyValueStorage.writeValue(
-            userCacheStorageTarget.storeName,
-            userCacheStorageTarget.storageKey,
-            gson.toJson(toPersistedCache(cache))
         )
+        null
     }
 
-    private suspend fun evictMappedCachesIfNeeded(currentCacheKey: String) {
-        val overflow = cacheKeyMapping.size - MAX_USER_CACHE_ENTRIES
-        if (overflow <= 0) {
-            return
-        }
+    private suspend fun cleanupReplacedAndEvictedCaches(
+        currentScopedCacheKey: String,
+        replacedFullUserCacheKey: String?
+    ) {
+        val evictedFullCacheKeys = cacheKeyMappingStore.removeOverflowEntries(
+            maxEntries = MAX_USER_CACHE_ENTRIES,
+            exemptScopedCacheKey = currentScopedCacheKey
+        )
 
-        val candidates = cacheKeyMapping.entries
-            .filter { it.key != currentCacheKey }
-            .sortedBy { it.key }
-            .take(overflow)
-
-        candidates.forEach { (scopedKey, fullKey) ->
-            cacheKeyMapping.remove(scopedKey, fullKey)
-            cacheById.remove(fullKey)
-            if (!cacheKeyMapping.containsValue(fullKey)) {
-                deleteUserCache(fullKey)
+        (listOfNotNull(replacedFullUserCacheKey) + evictedFullCacheKeys)
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .forEach { fullUserCacheKey ->
+                deleteUnreferencedUserCacheIfNeeded(fullUserCacheKey)
             }
+    }
+
+    private suspend fun deleteUnreferencedUserCacheIfNeeded(fullUserCacheKey: String) {
+        userCacheStorage.withFullUserCacheKeyLock(fullUserCacheKey) {
+            if (cacheKeyMappingStore.isFullUserCacheKeyReferenced(fullUserCacheKey)) {
+                return@withFullUserCacheKeyLock
+            }
+
+            userCacheByKey.remove(fullUserCacheKey)
+            userCacheStorage.delete(fullUserCacheKey)
         }
     }
 
-    private suspend fun deleteUserCache(fullCacheKey: String) {
-        val userCacheStorageTarget = getUserCacheStorageTarget(fullCacheKey)
-        try {
-            keyValueStorage.clearStore(userCacheStorageTarget.storeName)
-        } catch (_: NotImplementedError) {
-            keyValueStorage.removeValue(
-                userCacheStorageTarget.storeName,
-                userCacheStorageTarget.storageKey
-            )
-        }
-    }
+    @VisibleForTesting
+    internal fun getCacheKeyMappingSizeForTesting(): Int = SharedCacheKeyMapping.sizeForTesting()
 
-    private fun getUserCacheStoreHash(fullCacheKey: String): String {
-        val bytes = MessageDigest.getInstance("SHA-256").digest(fullCacheKey.toByteArray())
-        return bytes.joinToString("") { byte ->
-            ((byte.toInt() and 0xFF) + 0x100).toString(16).substring(1)
-        }
-    }
-
-    private fun getUserCacheStorageTarget(fullCacheKey: String): UserCacheStorageTarget {
-        val storeHash = getUserCacheStoreHash(fullCacheKey)
-        return UserCacheStorageTarget(
-            storeName = "${USER_CACHE_STORE_PREFIX}_$storeHash",
-            storageKey = "${USER_CACHE_KEY}_$storeHash"
-        )
-    }
+    @VisibleForTesting
+    internal fun getFullUserCacheKeyForTesting(scopedCacheKey: String): String? =
+        cacheKeyMappingStore.readFullUserCacheKey(scopedCacheKey)
 
     private fun tryLoadLegacyCacheMap(cachedResponse: String): Map<String, Cache>? {
         val type = object : TypeToken<MutableMap<String, Cache>>() {}.type

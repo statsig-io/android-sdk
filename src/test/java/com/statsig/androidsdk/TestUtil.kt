@@ -480,6 +480,7 @@ class TestUtil {
             StatsigClient.keyValueStorageFactoryOverride = null
             StatsigClient.keyValueStorageImplementationOverride =
                 StatsigClient.Companion.KeyValueStorageImplementation.LEGACY
+            resetSharedCacheKeyMappingStoreForTesting()
 
             // Clear static storage
             runBlocking {
