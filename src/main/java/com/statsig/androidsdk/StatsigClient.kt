@@ -42,6 +42,15 @@ class StatsigClient : LifecycleEventListener {
 
         @VisibleForTesting
         @JvmSynthetic
+        internal var keyValueStorageFactoryOverride: (
+            (
+                Application,
+                CoroutineScope
+            ) -> KeyValueStorage<String>
+        )? = null
+
+        @VisibleForTesting
+        @JvmSynthetic
         internal fun createKeyValueStorage(
             application: Application,
             scope: CoroutineScope
@@ -51,7 +60,7 @@ class StatsigClient : LifecycleEventListener {
             Application,
             CoroutineScope
         ) -> KeyValueStorage<String> =
-            when (keyValueStorageImplementationOverride) {
+            keyValueStorageFactoryOverride ?: when (keyValueStorageImplementationOverride) {
                 KeyValueStorageImplementation.LEGACY -> { app, _ -> LegacyKeyValueStorage(app) }
                 KeyValueStorageImplementation.PREFERENCES_DATASTORE -> { app, scope ->
                     PreferencesDataStoreKeyValueStorage(app, scope)
@@ -1155,11 +1164,12 @@ class StatsigClient : LifecycleEventListener {
                             KeyType.INITIALIZE,
                             StepType.PROCESS
                         )
-                        this@StatsigClient.store.save(initResponse, user)
-                        integratedSdkExperiments.processSdkConfigs(
-                            store.getSDKConfigs() ?: emptyMap(),
-                            this@StatsigClient
-                        )
+                        this@StatsigClient.store.saveAsync(initResponse, user) {
+                            integratedSdkExperiments.processSdkConfigs(
+                                store.getSDKConfigs() ?: emptyMap(),
+                                this@StatsigClient
+                            )
+                        }
                         if (initResponse.hasUpdates) {
                             statsigScope.launch(dispatcherProvider.main) {
                                 lifetimeCallback?.onValuesUpdated()
@@ -1352,6 +1362,7 @@ class StatsigClient : LifecycleEventListener {
             errorBoundary.captureAsync(
                 tag = functionName,
                 task = {
+                    store.awaitPendingSave()
                     val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
                     val previousDerivedFields =
                         store.getPreviousDerivedFields(this@StatsigClient.user)
@@ -1535,6 +1546,7 @@ class StatsigClient : LifecycleEventListener {
                 )
                 .onEach {
                     if (it != null) {
+                        store.awaitPendingSave()
                         store.save(it, user)
                         integratedSdkExperiments.processSdkConfigs(
                             store.getSDKConfigs() ?: emptyMap(),
@@ -1567,6 +1579,7 @@ class StatsigClient : LifecycleEventListener {
 
     private suspend fun shutdownImpl() {
         Log.v(TAG, "shutting down...")
+        store.awaitPendingSave()
         initialized.set(false)
         pollingJob?.cancel()
         logger.shutdown()

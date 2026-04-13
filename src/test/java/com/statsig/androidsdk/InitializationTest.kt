@@ -2,7 +2,16 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.common.truth.Truth.assertThat
+import io.mockk.every
+import io.mockk.mockkConstructor
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import okhttp3.mockwebserver.Dispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -102,5 +111,55 @@ class InitializationTest {
         client.initialize(app, "client-key", user, options)
         assertThat(initializationHits).isEqualTo(3)
         client.shutdown()
+    }
+
+    @Test
+    fun testInitializeDoesNotBlockOnCachePersistence() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+        mockkConstructor(CoroutineDispatcherProvider::class)
+        every { anyConstructed<CoroutineDispatcherProvider>().io } returns Dispatchers.IO
+        every { anyConstructed<CoroutineDispatcherProvider>().main } returns Dispatchers.Main
+        every { anyConstructed<CoroutineDispatcherProvider>().default } returns Dispatchers.Default
+
+        val backingStorage = TestUtil.getTestKeyValueStore(app)
+        val allowCacheWrites = CountDownLatch(1)
+        val cacheWriteStarted = CountDownLatch(1)
+
+        StatsigClient.keyValueStorageFactoryOverride = { _, _ ->
+            object : KeyValueStorage<String> by backingStorage {
+                override suspend fun writeValue(storeName: String, key: String, value: String) {
+                    if (storeName.startsWith("ondiskvaluecache")) {
+                        cacheWriteStarted.countDown()
+                        allowCacheWrites.await(1, TimeUnit.SECONDS)
+                    }
+                    backingStorage.writeValue(storeName, key, value)
+                }
+            }
+        }
+
+        val client = StatsigClient()
+        client.statsigNetwork = TestUtil.mockNetwork()
+        val executor = Executors.newSingleThreadExecutor()
+        val initResult = executor.submit<InitializationDetails?> {
+            runBlocking {
+                client.initialize(app, "client-key", user, StatsigOptions())
+            }
+        }
+
+        assertThat(initResult.get(1, TimeUnit.SECONDS)?.success).isTrue()
+        assertThat(client.checkGate("always_on")).isTrue()
+        assertThat(cacheWriteStarted.await(1, TimeUnit.SECONDS)).isTrue()
+
+        allowCacheWrites.countDown()
+
+        val gson = StatsigUtil.getOrBuildGson()
+        val fullCacheKey = "${user.toHashString(gson)}:client-key"
+        val storeName = TestUtil.getPerUserCacheStoreName(fullCacheKey)
+        val storageKey = TestUtil.getPerUserCacheStorageKey(fullCacheKey)
+        runBlocking {
+            client.shutdownSuspend()
+            assertThat(backingStorage.readValue(storeName, storageKey)).isNotNull()
+        }
+        executor.shutdownNow()
     }
 }

@@ -477,6 +477,10 @@ class TestUtil {
             HttpUtils.okHttpClient?.dispatcher?.executorService?.shutdown()
             HttpUtils.okHttpClient = null
 
+            StatsigClient.keyValueStorageFactoryOverride = null
+            StatsigClient.keyValueStorageImplementationOverride =
+                StatsigClient.Companion.KeyValueStorageImplementation.LEGACY
+
             // Clear static storage
             runBlocking {
                 val app = RuntimeEnvironment.getApplication()

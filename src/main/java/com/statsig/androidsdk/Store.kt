@@ -7,6 +7,8 @@ import com.google.gson.reflect.TypeToken
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 private const val CACHE_BY_USER_KEY: String = "Statsig.CACHE_BY_USER"
@@ -74,6 +76,8 @@ internal class Store(
     private var localOverrides: StatsigOverrides
     private var cacheKeyMapping: ConcurrentHashMap<String, String>
     private var currentUser: StatsigUser
+    private var pendingSaveJob: Job? = null
+    private val saveQueueLock = Any()
 
     init {
         val userCacheKeys = getUserCacheKeys(user)
@@ -248,6 +252,49 @@ internal class Store(
 
     suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
         val userCacheKeys = getUserCacheKeys(user)
+        if (!applySaveToMemory(data, userCacheKeys)) {
+            return
+        }
+        persistSave(userCacheKeys)
+    }
+
+    fun saveAsync(
+        data: InitializeResponse.SuccessfulInitializeResponse,
+        user: StatsigUser,
+        onPersisted: suspend () -> Unit = {}
+    ) {
+        val userCacheKeys = getUserCacheKeys(user)
+        if (!applySaveToMemory(data, userCacheKeys)) {
+            return
+        }
+        synchronized(saveQueueLock) {
+            val priorJob = pendingSaveJob
+            pendingSaveJob = statsigScope.launch(dispatcherProvider.io) {
+                priorJob?.join()
+                try {
+                    persistSave(userCacheKeys)
+                    onPersisted()
+                } catch (_: Exception) {
+                    // Best effort persistence after the response is applied in memory.
+                }
+            }
+        }
+    }
+
+    suspend fun awaitPendingSave() {
+        val pending = synchronized(saveQueueLock) { pendingSaveJob }
+        pending?.join()
+        synchronized(saveQueueLock) {
+            if (pendingSaveJob?.isCompleted == true) {
+                pendingSaveJob = null
+            }
+        }
+    }
+
+    private fun applySaveToMemory(
+        data: InitializeResponse.SuccessfulInitializeResponse,
+        userCacheKeys: UserCacheKeys
+    ): Boolean {
         val cacheKey = userCacheKeys.scopedCacheKey
         val fullCacheKey = userCacheKeys.fullUserCacheKey
         val isCurrentUser = cacheKey == currentUserCacheKeyV2
@@ -265,16 +312,24 @@ internal class Store(
                 sourceV2 = EvalSource.Network
             } else {
                 sourceV2 = EvalSource.NetworkNotModified
-                return
+                return false
             }
         }
 
-        val priorMapping = cacheKeyMapping[cacheKey]
-        cacheKeyMapping[cacheKey] = fullCacheKey
-
         val cacheToPersist = cacheById[fullCacheKey] ?: currentCache
         cacheById[fullCacheKey] = cacheToPersist
+
+        return true
+    }
+
+    private suspend fun persistSave(userCacheKeys: UserCacheKeys) {
+        val cacheKey = userCacheKeys.scopedCacheKey
+        val fullCacheKey = userCacheKeys.fullUserCacheKey
+        val cacheToPersist = cacheById[fullCacheKey] ?: currentCache
         writeUserCache(fullCacheKey, cacheToPersist)
+
+        val priorMapping = cacheKeyMapping[cacheKey]
+        cacheKeyMapping[cacheKey] = fullCacheKey
 
         if (priorMapping != null &&
             priorMapping != fullCacheKey &&
