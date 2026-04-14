@@ -16,6 +16,7 @@ import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_SDK_VERSION_KEY
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.Inet6Address
 import java.net.InetAddress
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -166,14 +167,17 @@ class HttpUtils {
 internal class DohDnsWithSystemFallback(val doh: DnsOverHttps, val systemDns: Dns = Dns.SYSTEM) :
     Dns {
     override fun lookup(hostname: String): List<InetAddress> {
+        // TODO: Remove IPV4 preference after updating to OkHttp 5 (which supports Happy Eyeballs)
         try {
-            return doh.lookup(hostname)
+            // Sort to prefer IPv4
+            return doh.lookup(hostname).sortedBy { it is Inet6Address }
         } catch (e: IOException) {
             // IOException covers the majority of network exceptions OkHttp would expose here.
             Log.w(HttpUtils.TAG, "DoH lookup failed, attempting fallback to system DNS.", e)
             Log.w(HttpUtils.TAG, "${e.cause}")
         }
-        return systemDns.lookup(hostname)
+        // Sort to prefer IPv4
+        return systemDns.lookup(hostname).sortedBy { it is Inet6Address }
     }
 }
 
