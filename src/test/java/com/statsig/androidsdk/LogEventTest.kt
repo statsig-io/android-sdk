@@ -142,6 +142,33 @@ class LogEventTest {
     }
 
     @Test
+    fun testRuntimeMutableSettingsEventLoggingApi() = runBlocking {
+        val initialLogEventApi = "https://initial.fake.statsig.com/v1"
+        val updatedLogEventApi = "https://updated.fake.statsig.com/v1"
+        val options = StatsigOptions(eventLoggingAPI = initialLogEventApi)
+
+        setup(options)
+
+        Statsig.logEvent("event_before_api_update")
+        Statsig.flush()
+
+        Statsig.updateRuntimeOptions(
+            StatsigRuntimeMutableOptions(eventLoggingAPI = updatedLogEventApi)
+        )
+
+        Statsig.logEvent("event_after_api_update")
+        Statsig.flush()
+
+        coVerify(exactly = 1) {
+            network.apiPostLogs(initialLogEventApi, any(), any(), any(), any())
+        }
+        coVerify(exactly = 1) {
+            network.apiPostLogs(updatedLogEventApi, any(), any(), any(), any())
+        }
+        assertThat(options.eventLoggingAPI).isEqualTo(initialLogEventApi)
+    }
+
+    @Test
     fun testOverrideLoggingApi() = runBlocking {
         val apiPermutations = arrayOf(
             arrayOf(
