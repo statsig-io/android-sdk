@@ -22,4 +22,5 @@ jobs:
           repositories: statsig-publish-sdk-action
       - uses: openai/statsig-publish-sdk-action@main
         with:
+          token: ${{ steps.app-token.outputs.token }}
           kong-private-key: ${{ secrets.KONG_GH_APP_PRIVATE_KEY }}
