@@ -15,5 +15,12 @@ open class StatsigRuntimeMutableOptions(
      * [loggingEnabled] defaults to true if a value is not provided.
      */
     @SerializedName("loggingEnabled")
-    var loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED
+    var loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED,
+
+    /**
+     * The endpoint to use for logging events. This can be updated at runtime to support gradual
+     * cutovers between log ingestion endpoints.
+     */
+    @SerializedName("eventLoggingAPI")
+    var eventLoggingAPI: String = DEFAULT_EVENT_API
 )
