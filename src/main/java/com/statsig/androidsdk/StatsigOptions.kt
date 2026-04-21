@@ -40,12 +40,11 @@ class StatsigOptions(
     @SerializedName("api") var api: String = DEFAULT_INIT_API,
 
     /**
-     * The endpoint to use for logging events. Default is "https://api.statsig.com/v1".
-     * The SDK will hit different endpoints for initialize
+     * The endpoint to use for logging events. The SDK will hit different endpoints for initialize
      * to evaluate gates and for logEvent to log event data. The api option controls the evaluation
      * endpoint, and eventLoggingApi controls the event logging endpoint.
      */
-    @SerializedName("eventLoggingAPI") var eventLoggingAPI: String = DEFAULT_EVENT_API,
+    eventLoggingAPI: String = DEFAULT_EVENT_API,
 
     /**
      * The endpoint to use for logging sdk-internal exceptions for Statsig diagnostics.
@@ -166,7 +165,7 @@ class StatsigOptions(
     var logNetworkMetadata: Boolean = false,
 
     loggingEnabled: Boolean = DEFAULT_LOGGING_ENABLED
-) : StatsigRuntimeMutableOptions(loggingEnabled) {
+) : StatsigRuntimeMutableOptions(loggingEnabled, eventLoggingAPI) {
 
     @SerializedName("autoValueUpdateIntervalMinutes")
     var autoValueUpdateIntervalMinutes =
