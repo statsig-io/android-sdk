@@ -655,7 +655,7 @@ internal class StatsigNetworkImpl(
                         connectivityListener.isNetworkAvailable()
                     )
                     if (fallbackUpdated) {
-                        Log.i(TAG, "Updated fallback URL,")
+                        Log.i(TAG, "Updated fallback URL")
                         urlConfig.fallbackUrl =
                             networkResolver.getActiveFallbackUrlFromMemory(urlConfig)
                     }

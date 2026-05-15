@@ -249,9 +249,9 @@ class StatsigClient : LifecycleEventListener {
                 Log.v(TAG, "initialize completed. Success: ${response.success}")
                 val failure = response.failureDetails
                 failure?.let {
-                    Log.e(TAG, "initializeAsync failure reason: ${failure.reason}")
+                    Log.e(TAG, "initialize failure reason: ${failure.reason}")
                     failure.exception?.let {
-                        Log.e(TAG, "initializeAsync failure exception: ${failure.exception}")
+                        Log.e(TAG, "initialize failure exception: ${failure.exception}")
                     }
                 }
                 return@captureAsync response
