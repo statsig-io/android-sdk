@@ -117,6 +117,7 @@ class StatsigClient : LifecycleEventListener {
 
     @VisibleForTesting
     internal lateinit var options: StatsigOptions
+    private lateinit var runtimeMutableOptions: StatsigRuntimeMutableOptions
 
     private lateinit var connectivityListener: StatsigNetworkConnectivityListener
 
@@ -675,7 +676,13 @@ class StatsigClient : LifecycleEventListener {
         enforceInitialized(functionName)
         errorBoundary.capture(
             {
+                this.runtimeMutableOptions =
+                    StatsigRuntimeMutableOptions(
+                        loggingEnabled = runtimeMutableOptions.loggingEnabled,
+                        eventLoggingAPI = runtimeMutableOptions.eventLoggingAPI
+                    )
                 this.logger.setLoggingEnabled(runtimeMutableOptions.loggingEnabled)
+                this.logger.setApi(runtimeMutableOptions.eventLoggingAPI)
                 Log.v(TAG, "Runtime options successfully updated")
             },
             tag = functionName
@@ -1188,7 +1195,7 @@ class StatsigClient : LifecycleEventListener {
                         retryScope.launch(dispatcherProvider.io) {
                             try {
                                 this@StatsigClient.statsigNetwork.apiRetryFailedLogs(
-                                    this@StatsigClient.options.eventLoggingAPI,
+                                    this@StatsigClient.runtimeMutableOptions.eventLoggingAPI,
                                     this@StatsigClient.options.logEventFallbackUrls,
                                     statsigClientMetadata
                                 )
@@ -1267,6 +1274,11 @@ class StatsigClient : LifecycleEventListener {
         this.keyValueStorage = storage
         this.sdkKey = sdkKey
         this.options = options
+        this.runtimeMutableOptions =
+            StatsigRuntimeMutableOptions(
+                loggingEnabled = options.loggingEnabled,
+                eventLoggingAPI = options.eventLoggingAPI
+            )
         val normalizedUser = normalizeUser(user)
         val initializeValues = options.initializeValues
         this.user = normalizedUser
@@ -1313,14 +1325,14 @@ class StatsigClient : LifecycleEventListener {
             StatsigLogger(
                 statsigScope,
                 sdkKey,
-                options.eventLoggingAPI,
+                runtimeMutableOptions.eventLoggingAPI,
                 statsigClientMetadata,
                 statsigNetwork,
                 normalizedUser,
                 { store.getBootstrapMetadata() },
                 diagnostics,
                 options.logEventFallbackUrls,
-                options.loggingEnabled,
+                runtimeMutableOptions.loggingEnabled,
                 gson
             )
         populateStatsigMetadata()
@@ -1648,7 +1660,7 @@ class StatsigClient : LifecycleEventListener {
         }
         retryScope.launch(dispatcherProvider.io) {
             statsigNetwork.apiRetryFailedLogs(
-                this@StatsigClient.options.eventLoggingAPI,
+                this@StatsigClient.runtimeMutableOptions.eventLoggingAPI,
                 this@StatsigClient.options.logEventFallbackUrls,
                 statsigClientMetadata
             )

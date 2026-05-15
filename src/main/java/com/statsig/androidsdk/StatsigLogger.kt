@@ -39,7 +39,7 @@ internal data class LogEventData(
 internal class StatsigLogger(
     private val coroutineScope: CoroutineScope,
     private val sdkKey: String,
-    private val api: String,
+    private var api: String,
     private val statsigMetadata: StatsigMetadata,
     private val statsigNetwork: StatsigNetwork,
     private val statsigUser: StatsigUser,
@@ -257,6 +257,10 @@ internal class StatsigLogger(
 
     fun setLoggingEnabled(loggingEnabled: Boolean) {
         this.loggingEnabled = loggingEnabled
+    }
+
+    fun setApi(api: String) {
+        this.api = api
     }
 
     private fun addManualFlag(
