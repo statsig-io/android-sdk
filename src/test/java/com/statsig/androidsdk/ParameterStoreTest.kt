@@ -243,4 +243,77 @@ class ParameterStoreTest {
             "missing_layer_value"
         )
     }
+
+    @Test
+    fun testOnDeviceParamStorePreservesDisabledExposureLogging() {
+        val flushedLogs = mutableListOf<LogEventData>()
+        val configName = "android_news_multimodal_comments_on_watch_q2_2026"
+        val adapter = OnDeviceEvalAdapter(
+            """
+            {
+              "dynamic_configs": [
+                {
+                  "name": "$configName",
+                  "type": "dynamic_config",
+                  "isActive": true,
+                  "salt": "",
+                  "defaultValue": {
+                    "title": "from config"
+                  },
+                  "enabled": true,
+                  "rules": [],
+                  "idType": "userID",
+                  "entity": "",
+                  "explicitParameters": [],
+                  "hasSharedParams": false
+                }
+              ],
+              "feature_gates": [],
+              "layer_configs": [],
+              "param_stores": {
+                "android_sample_app": {
+                  "targetAppIDs": [],
+                  "parameters": {
+                    "home_screen_title": {
+                      "ref_type": "dynamic_config",
+                      "param_type": "string",
+                      "config_name": "$configName",
+                      "param_name": "title"
+                    }
+                  }
+                }
+              },
+              "layers": null,
+              "time": 1621637840,
+              "has_updates": true
+            }
+            """.trimIndent()
+        )
+
+        TestUtil.startStatsigAndWait(
+            app,
+            user,
+            StatsigOptions(
+                overrideStableID = "custom_stable_id",
+                onDeviceEvalAdapter = adapter
+            ),
+            network = TestUtil.mockNetwork(
+                time = 1621637839,
+                onLog = { flushedLogs.add(it) }
+            )
+        )
+
+        val store = Statsig.getParameterStore(
+            "android_sample_app",
+            ParameterStoreEvaluationOptions(disableExposureLog = true)
+        )
+
+        assertEquals("from config", store.getString("home_screen_title", "default string"))
+
+        Statsig.shutdown()
+
+        val events = flushedLogs.flatMap { it.events }
+        assertThat(events.map { it.eventName }).doesNotContain("statsig::config_exposure")
+        assertThat(events.map { it.eventName }).contains("statsig::non_exposed_checks")
+    }
 }
