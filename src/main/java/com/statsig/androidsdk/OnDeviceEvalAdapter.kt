@@ -73,7 +73,13 @@ class OnDeviceEvalAdapter(private val data: String?) {
         val spec = store.getParamStore(current.name)
         val details = getEvalDetails(spec == null)
 
-        return ParameterStore(client, spec?.parameters ?: mapOf(), current.name, details, null)
+        return ParameterStore(
+            client,
+            spec?.parameters ?: mapOf(),
+            current.name,
+            details,
+            current.options
+        )
     }
 
     private fun shouldTryOnDeviceEvaluation(details: EvalDetails): Boolean {
