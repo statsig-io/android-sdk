@@ -6,6 +6,9 @@ import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.read
+import kotlin.concurrent.write
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -25,8 +28,9 @@ private const val MAX_USER_CACHE_ENTRIES = 10
 
 private const val STORE_NAME: String = "ondiskvaluecache"
 
+// Declared concrete so sticky reads/writes and Gson round-trips keep a concurrent map.
 private data class StickyUserExperiments(
-    @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>
+    @SerializedName("values") val experiments: ConcurrentHashMap<String, APIDynamicConfig>
 )
 
 private data class DeprecatedStickyUserExperiments(
@@ -311,6 +315,15 @@ internal fun resetSharedCacheKeyMappingStoreForTesting() {
     SharedCacheKeyMapping.resetForTesting()
 }
 
+// Values is pinned separately because Cache.values can be reassigned on a retained Cache object.
+// Avoid Cache.copy(): legacy Gson caches can contain nulls in non-null fields.
+private data class CacheSnapshot(
+    val cache: Cache,
+    val values: InitializeResponse.SuccessfulInitializeResponse,
+    val source: EvalSource,
+    val receivedValuesAt: Long?
+)
+
 internal class Store(
     private val statsigScope: CoroutineScope,
     private val keyValueStorage: KeyValueStorage<String>,
@@ -321,6 +334,9 @@ internal class Store(
 ) {
     var sourceV2: EvalSource
     var receivedValuesAt: Long? = null
+
+    // Guards synchronous swaps of in-memory eval state. Never hold it across suspension.
+    private val lock = ReentrantReadWriteLock()
 
     private val dispatcherProvider = CoroutineDispatcherProvider()
     private val userCacheStorage = UserCacheStorage(
@@ -336,6 +352,9 @@ internal class Store(
     private var userCacheByKey: ConcurrentHashMap<String, Cache>
     private var currentCache: Cache
     private var stickyDeviceExperiments: ConcurrentHashMap<String, APIDynamicConfig>
+
+    // Override maps are mutated directly, but removeAllOverrides swaps the holder.
+    @Volatile
     private var localOverrides: StatsigOverrides
     private var currentUser: StatsigUser
 
@@ -358,10 +377,12 @@ internal class Store(
     }
 
     suspend fun loadFromLocalStorage() {
-        sourceV2 = EvalSource.Loading
-        userCacheByKey = ConcurrentHashMap()
+        lock.write {
+            sourceV2 = EvalSource.Loading
+            userCacheByKey = ConcurrentHashMap()
+            stickyDeviceExperiments = ConcurrentHashMap()
+        }
 
-        stickyDeviceExperiments = ConcurrentHashMap()
         val cachedDeviceValues = keyValueStorage.readValue(
             STORE_NAME,
             STICKY_DEVICE_EXPERIMENTS_KEY
@@ -373,7 +394,7 @@ internal class Store(
                     cachedDeviceValues,
                     type
                 )
-                stickyDeviceExperiments = ConcurrentHashMap(localSticky)
+                lock.write { stickyDeviceExperiments = ConcurrentHashMap(localSticky) }
             } catch (_: Exception) {
                 keyValueStorage.removeValue(STORE_NAME, STICKY_DEVICE_EXPERIMENTS_KEY)
             }
@@ -394,7 +415,7 @@ internal class Store(
         loadCacheForCurrentUserAsync()
     }
 
-    fun resetUser(user: StatsigUser) {
+    fun resetUser(user: StatsigUser) = lock.write {
         val userCacheKeys = getUserCacheKeys(user)
         currentScopedCacheKey = userCacheKeys.scopedCacheKey
         currentFullUserCacheKey = userCacheKeys.fullUserCacheKey
@@ -403,7 +424,7 @@ internal class Store(
         receivedValuesAt = null
     }
 
-    fun bootstrap(initializeValues: Map<String, Any>, user: StatsigUser) {
+    fun bootstrap(initializeValues: Map<String, Any>, user: StatsigUser) = lock.write {
         val isValid = BootstrapValidator.isValid(initializeValues, user)
         sourceV2 = if (isValid) EvalSource.Bootstrap else EvalSource.InvalidBootstrap
 
@@ -431,22 +452,38 @@ internal class Store(
     }
 
     suspend fun loadCacheForCurrentUserAsync() {
-        val userCacheKeys = getUserCacheKeys(currentUser)
-        var cachedValues = this.getCachedValuesForUser(userCacheKeys)
-        if (sourceV2 != EvalSource.Loading) {
-            sourceV2 = EvalSource.Loading
+        val userCacheKeys = lock.read { getUserCacheKeys(currentUser) }
+        var cachedValues = lock.read { this.getCachedValuesForUser(userCacheKeys) }
+        lock.write {
+            if (isCurrentUserCacheKeys(userCacheKeys) && sourceV2 != EvalSource.Loading) {
+                sourceV2 = EvalSource.Loading
+            }
         }
         if (cachedValues == null) {
+            // Storage I/O can suspend, so keep it outside the write lock.
             cachedValues = loadCacheForUserFromStorage(userCacheKeys)
         }
         if (cachedValues != null) {
-            currentCache = cachedValues
-            sourceV2 = EvalSource.Cache
-            receivedValuesAt = cachedValues.evaluationTime
+            lock.write {
+                if (!isCurrentUserCacheKeys(userCacheKeys)) {
+                    return@write
+                }
+                currentCache = cachedValues
+                sourceV2 = EvalSource.Cache
+                receivedValuesAt = cachedValues.evaluationTime
+            }
             return
         }
-        currentCache = createEmptyCache()
+        lock.write {
+            if (isCurrentUserCacheKeys(userCacheKeys)) {
+                currentCache = createEmptyCache()
+            }
+        }
     }
+
+    private fun isCurrentUserCacheKeys(userCacheKeys: UserCacheKeys): Boolean =
+        currentScopedCacheKey == userCacheKeys.scopedCacheKey &&
+            currentFullUserCacheKey == userCacheKeys.fullUserCacheKey
 
     private fun getCachedValuesForUser(userCacheKeys: UserCacheKeys): Cache? {
         val fullHashCachedValues = userCacheByKey[userCacheKeys.fullUserCacheKey]
@@ -472,26 +509,38 @@ internal class Store(
 
     fun getLastUpdateTime(user: StatsigUser): Long? {
         val userCacheKeys = getUserCacheKeys(user)
-        var cachedValues = this.getCachedValuesForUser(userCacheKeys)
-        if (cachedValues?.userHash != userCacheKeys.userHash) {
-            return null
+        return lock.read {
+            val cachedValues = this.getCachedValuesForUser(userCacheKeys)
+            if (cachedValues?.userHash != userCacheKeys.userHash) {
+                null
+            } else {
+                cachedValues.values.time
+            }
         }
-        return cachedValues.values.time
     }
 
     fun getPreviousDerivedFields(user: StatsigUser): Map<String, String> {
         val userCacheKeys = getUserCacheKeys(user)
-        val cachedValues = this.getCachedValuesForUser(userCacheKeys)
-        if (cachedValues?.userHash != userCacheKeys.userHash) {
-            return mapOf()
+        return lock.read {
+            val cachedValues = this.getCachedValuesForUser(userCacheKeys)
+            if (cachedValues?.userHash != userCacheKeys.userHash) {
+                mapOf()
+            } else {
+                cachedValues.values.derivedFields ?: mapOf()
+            }
         }
-        return cachedValues.values.derivedFields ?: mapOf()
     }
 
     fun getFullChecksum(user: StatsigUser): String? {
         val userCacheKeys = getUserCacheKeys(user)
-        val cachedValues = this.getCachedValuesForUser(userCacheKeys)
-        return cachedValues?.values?.fullChecksum
+        return lock.read {
+            val cachedValues = this.getCachedValuesForUser(userCacheKeys)
+            if (cachedValues?.userHash != userCacheKeys.userHash) {
+                null
+            } else {
+                cachedValues.values.fullChecksum
+            }
+        }
     }
 
     private fun getUserCacheKeys(user: StatsigUser): UserCacheKeys {
@@ -539,37 +588,38 @@ internal class Store(
     private fun applySaveToMemory(
         data: InitializeResponse.SuccessfulInitializeResponse,
         userCacheKeys: UserCacheKeys
-    ): Boolean {
-        val scopedCacheKey = userCacheKeys.scopedCacheKey
-        val fullUserCacheKey = userCacheKeys.fullUserCacheKey
-        val isCurrentUser = scopedCacheKey == currentScopedCacheKey
-        if (isCurrentUser) {
-            currentFullUserCacheKey = fullUserCacheKey
-            receivedValuesAt = System.currentTimeMillis()
-            if (data.hasUpdates) {
-                val cache = userCacheByKey[fullUserCacheKey] ?: createEmptyCache()
-                cache.values = data
-                cache.evaluationTime = receivedValuesAt
-                cache.userHash = userCacheKeys.userHash
-                userCacheByKey[fullUserCacheKey] = cache
-
-                currentCache = cache
-                sourceV2 = EvalSource.Network
-            } else {
-                sourceV2 = EvalSource.NetworkNotModified
-                return false
-            }
+    ): Boolean = lock.write {
+        if (!isCurrentUserCacheKeys(userCacheKeys)) {
+            return@write false
         }
 
-        val cacheToPersist = userCacheByKey[fullUserCacheKey] ?: currentCache
-        userCacheByKey[fullUserCacheKey] = cacheToPersist
+        val fullUserCacheKey = userCacheKeys.fullUserCacheKey
+        currentFullUserCacheKey = fullUserCacheKey
+        receivedValuesAt = System.currentTimeMillis()
 
-        return true
+        if (!data.hasUpdates) {
+            sourceV2 = EvalSource.NetworkNotModified
+            return@write false
+        }
+
+        val cache = userCacheByKey[fullUserCacheKey] ?: createEmptyCache()
+        cache.values = data
+        cache.evaluationTime = receivedValuesAt
+        cache.userHash = userCacheKeys.userHash
+        userCacheByKey[fullUserCacheKey] = cache
+
+        currentCache = cache
+        sourceV2 = EvalSource.Network
+
+        return@write true
     }
 
     private suspend fun persistSave(userCacheKeys: UserCacheKeys) {
         var previousFullUserCacheKey: String? = null
-        val cacheToPersist = userCacheByKey[userCacheKeys.fullUserCacheKey] ?: currentCache
+        val cacheToPersist = lock.read {
+            userCacheByKey[userCacheKeys.fullUserCacheKey]
+                ?: currentCache
+        }
         userCacheStorage.withFullUserCacheKeyLock(userCacheKeys.fullUserCacheKey) {
             userCacheStorage.write(userCacheKeys.fullUserCacheKey, cacheToPersist)
             previousFullUserCacheKey = cacheKeyMappingStore.commit(
@@ -598,62 +648,81 @@ internal class Store(
         }
     }
 
+    // Single choke point for eval reads: capture one coherent generation, then compute unlocked.
+    private fun readState(): CacheSnapshot = lock.read {
+        val cache = currentCache
+        CacheSnapshot(cache, cache.values, sourceV2, receivedValuesAt)
+    }
+
     fun checkGate(gateName: String): FeatureGate {
+        val snapshot = readState()
         val overriddenValue = localOverrides.gates[gateName]
         if (overriddenValue != null) {
             return FeatureGate(
                 gateName,
-                getEvalDetails(false, EvalReason.LocalOverride),
+                getEvalDetails(snapshot, false, EvalReason.LocalOverride),
                 overriddenValue,
                 "override"
             )
         }
-        val gate = currentCache.values.featureGates?.get(gateName)
-            ?: currentCache.values.featureGates?.get(
-                Hashing.getHashedString(gateName, currentCache.values.hashUsed)
+        val values = snapshot.values
+        val gate = values.featureGates?.get(gateName)
+            ?: values.featureGates?.get(
+                Hashing.getHashedString(gateName, values.hashUsed)
             )
-        val gateOrDefault = gate ?: return FeatureGate(gateName, getEvalDetails(false), false)
-        return FeatureGate(gateName, gateOrDefault, getEvalDetails(true))
+        val gateOrDefault = gate
+            ?: return FeatureGate(gateName, getEvalDetails(snapshot, false), false)
+        return FeatureGate(gateName, gateOrDefault, getEvalDetails(snapshot, true))
     }
 
     fun getConfig(configName: String): DynamicConfig {
+        val snapshot = readState()
         val overrideValue = localOverrides.configs[configName]
         if (overrideValue != null) {
             return DynamicConfig(
                 configName,
-                getEvalDetails(false, EvalReason.LocalOverride),
+                getEvalDetails(snapshot, false, EvalReason.LocalOverride),
                 overrideValue,
                 "override"
             )
         }
 
-        val data = getConfigData(configName)
-        return hydrateDynamicConfig(configName, getEvalDetails(data != null), data)
+        val data = getConfigData(snapshot.values, configName)
+        return hydrateDynamicConfig(configName, getEvalDetails(snapshot, data != null), data)
     }
 
-    private fun getConfigData(name: String): APIDynamicConfig? = currentCache.values.let {
-        it.configs?.get(name)
-            ?: it.configs?.get(Hashing.getHashedString(name, currentCache.values.hashUsed))
-    }
+    private fun getConfigData(
+        values: InitializeResponse.SuccessfulInitializeResponse,
+        name: String
+    ): APIDynamicConfig? = values.configs?.get(name)
+        ?: values.configs?.get(Hashing.getHashedString(name, values.hashUsed))
 
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean): DynamicConfig {
+        val snapshot = readState()
         val overrideValue = localOverrides.configs[experimentName]
         if (overrideValue != null) {
             return DynamicConfig(
                 experimentName,
-                getEvalDetails(false, EvalReason.LocalOverride),
+                getEvalDetails(snapshot, false, EvalReason.LocalOverride),
                 overrideValue,
                 "override"
             )
         }
 
-        val latestValue = currentCache.values.configs?.get(experimentName)
-            ?: currentCache.values.configs?.get(
-                Hashing.getHashedString(experimentName, currentCache.values.hashUsed)
+        val values = snapshot.values
+        val latestValue = values.configs?.get(experimentName)
+            ?: values.configs?.get(
+                Hashing.getHashedString(experimentName, values.hashUsed)
             )
-        val details = getEvalDetails(latestValue != null)
-        val finalValue =
-            getPossiblyStickyValue(experimentName, latestValue, keepDeviceValue, details, false)
+        val details = getEvalDetails(snapshot, latestValue != null)
+        val finalValue = getPossiblyStickyValue(
+            snapshot,
+            experimentName,
+            latestValue,
+            keepDeviceValue,
+            details,
+            false
+        )
         return hydrateDynamicConfig(
             experimentName,
             details,
@@ -666,24 +735,26 @@ internal class Store(
         layerName: String,
         keepDeviceValue: Boolean = false
     ): Layer {
+        val snapshot = readState()
         val overrideValue = localOverrides.layers[layerName]
         if (overrideValue != null) {
             return Layer(
                 null,
                 layerName,
-                getEvalDetails(false, EvalReason.LocalOverride),
+                getEvalDetails(snapshot, false, EvalReason.LocalOverride),
                 overrideValue,
                 "override"
             )
         }
 
-        val latestValue = currentCache.values.layerConfigs?.get(layerName)
-            ?: currentCache.values.layerConfigs?.get(
-                Hashing.getHashedString(layerName, currentCache.values.hashUsed)
+        val values = snapshot.values
+        val latestValue = values.layerConfigs?.get(layerName)
+            ?: values.layerConfigs?.get(
+                Hashing.getHashedString(layerName, values.hashUsed)
             )
-        val details = getEvalDetails(latestValue != null)
+        val details = getEvalDetails(snapshot, latestValue != null)
         val finalValue =
-            getPossiblyStickyValue(layerName, latestValue, keepDeviceValue, details, true)
+            getPossiblyStickyValue(snapshot, layerName, latestValue, keepDeviceValue, details, true)
         return if (finalValue != null) {
             Layer(client, layerName, finalValue, details)
         } else {
@@ -696,13 +767,14 @@ internal class Store(
         paramStoreName: String,
         options: ParameterStoreEvaluationOptions?
     ): ParameterStore {
-        val values = currentCache.values
+        val snapshot = readState()
+        val values = snapshot.values
         if (values.paramStores == null) {
             return ParameterStore(
                 client,
                 HashMap(),
                 paramStoreName,
-                getEvalDetails(false),
+                getEvalDetails(snapshot, false),
                 options
             )
         }
@@ -712,48 +784,58 @@ internal class Store(
                 client,
                 paramStore,
                 paramStoreName,
-                getEvalDetails(true),
+                getEvalDetails(snapshot, true),
                 options
             )
         }
 
         val hashedParamStoreName = Hashing.getHashedString(
             paramStoreName,
-            currentCache.values.hashUsed
+            values.hashUsed
         )
         paramStore = values.paramStores[hashedParamStoreName]
         return ParameterStore(
             client,
             paramStore ?: HashMap(),
             paramStoreName,
-            getEvalDetails(paramStore != null),
+            getEvalDetails(snapshot, paramStore != null),
             options
         )
     }
-    internal fun getGlobalEvalDetails(): EvalDetails = EvalDetails(
-        source = sourceV2,
+
+    internal fun getGlobalEvalDetails(): EvalDetails = getGlobalEvalDetails(readState())
+
+    private fun getGlobalEvalDetails(snapshot: CacheSnapshot): EvalDetails = EvalDetails(
+        source = snapshot.source,
         reason = null,
-        lcut = currentCache.values.time,
-        receivedAt = receivedValuesAt
+        lcut = snapshot.values.time,
+        receivedAt = snapshot.receivedValuesAt
     )
 
-    internal fun getBootstrapMetadata(): BootstrapMetadata? = currentCache.bootstrapMetadata
+    internal fun getBootstrapMetadata(): BootstrapMetadata? = readState().cache.bootstrapMetadata
 
     internal fun getEvalDetails(
         valueExists: Boolean,
         reasonOverride: EvalReason? = null
+    ): EvalDetails = getEvalDetails(readState(), valueExists, reasonOverride)
+
+    private fun getEvalDetails(
+        snapshot: CacheSnapshot,
+        valueExists: Boolean,
+        reasonOverride: EvalReason? = null
     ): EvalDetails {
         if (valueExists) {
-            return getGlobalEvalDetails().copy().apply { reason = EvalReason.Recognized }
+            return getGlobalEvalDetails(snapshot).copy().apply { reason = EvalReason.Recognized }
         }
 
-        return getGlobalEvalDetails().copy().apply {
+        return getGlobalEvalDetails(snapshot).copy().apply {
             reason = reasonOverride ?: EvalReason.Unrecognized
         }
     }
 
     // Sticky Logic: https://gist.github.com/daniel-statsig/3d8dfc9bdee531cffc96901c1a06a402
     private fun getPossiblyStickyValue(
+        snapshot: CacheSnapshot,
         name: String,
         latestValue: APIDynamicConfig?,
         keepDeviceValue: Boolean,
@@ -762,14 +844,14 @@ internal class Store(
     ): APIDynamicConfig? {
         // We don't want sticky behavior. Clear any sticky values and return latest.
         if (!keepDeviceValue) {
-            removeStickyValue(name)
+            removeStickyValue(snapshot, name)
             return latestValue
         }
 
         // If there is no sticky value, save latest as sticky and return latest.
-        val stickyValue = getStickyValue(name)
+        val stickyValue = getStickyValue(snapshot, name)
         if (stickyValue == null) {
-            attemptToSaveStickyValue(name, latestValue)
+            attemptToSaveStickyValue(snapshot, name, latestValue)
             return latestValue
         }
 
@@ -777,7 +859,7 @@ internal class Store(
         var latestExperimentValue: APIDynamicConfig? = null
         if (isLayer) {
             stickyValue.allocatedExperimentName?.let {
-                latestExperimentValue = currentCache.values.configs?.get(it)
+                latestExperimentValue = snapshot.values.configs?.get(it)
             }
         } else {
             latestExperimentValue = latestValue
@@ -789,9 +871,9 @@ internal class Store(
         }
 
         if (latestValue?.isExperimentActive == true) {
-            attemptToSaveStickyValue(name, latestValue)
+            attemptToSaveStickyValue(snapshot, name, latestValue)
         } else {
-            removeStickyValue(name)
+            removeStickyValue(snapshot, name)
         }
 
         return latestValue
@@ -829,17 +911,22 @@ internal class Store(
         localOverrides.layers
     )
 
-    fun getSDKFlags(): Map<String, Any>? = currentCache.values.sdkFlags
+    fun getSDKFlags(): Map<String, Any>? = readState().values.sdkFlags
 
-    fun getSDKConfigs(): Map<String, Any>? = currentCache.values.sdkConfigs
+    fun getSDKConfigs(): Map<String, Any>? = readState().values.sdkConfigs
 
-    fun getCurrentCacheValuesAndEvalDetails(): ExternalInitializeResponse =
-        ExternalInitializeResponse(gson.toJson(currentCache.values), getEvalDetails(true))
+    fun getCurrentCacheValuesAndEvalDetails(): ExternalInitializeResponse {
+        val snapshot = readState()
+        return ExternalInitializeResponse(
+            gson.toJson(snapshot.values),
+            getEvalDetails(snapshot, true)
+        )
+    }
 
-    fun getCurrentValuesAsString(): String = gson.toJson(currentCache.values)
+    fun getCurrentValuesAsString(): String = gson.toJson(readState().values)
 
     fun getCachedInitializationResponse(): InitializeResponse.SuccessfulInitializeResponse =
-        currentCache.values
+        readState().values
 
     private fun hydrateDynamicConfig(
         name: String,
@@ -863,44 +950,49 @@ internal class Store(
                 mapOf(),
                 null
             )
-        val emptyStickyUserExperiments = StickyUserExperiments(mutableMapOf())
+        val emptyStickyUserExperiments = StickyUserExperiments(ConcurrentHashMap())
         return Cache(emptyInitResponse, emptyStickyUserExperiments, "", System.currentTimeMillis())
     }
 
     // save and remove sticky values in memory only
     // a separate coroutine will persist them to storage
-    private fun removeStickyValue(expName: String) {
-        val expNameHash = Hashing.getHashedString(expName, currentCache.values.hashUsed)
-        currentCache.stickyUserExperiments.experiments.remove(expNameHash)
+    private fun removeStickyValue(snapshot: CacheSnapshot, expName: String) {
+        val expNameHash = Hashing.getHashedString(expName, snapshot.values.hashUsed)
+        snapshot.cache.stickyUserExperiments.experiments.remove(expNameHash)
         stickyDeviceExperiments.remove(expNameHash)
     }
 
     // save and remove sticky values in memory only
     // a separate coroutine will persist them to storage
-    private fun attemptToSaveStickyValue(expName: String, latestValue: APIDynamicConfig?) {
+    private fun attemptToSaveStickyValue(
+        snapshot: CacheSnapshot,
+        expName: String,
+        latestValue: APIDynamicConfig?
+    ) {
         if (latestValue == null) {
             return
         }
 
-        val expNameHash = Hashing.getHashedString(expName, currentCache.values.hashUsed)
+        val expNameHash = Hashing.getHashedString(expName, snapshot.values.hashUsed)
         if (latestValue.isExperimentActive && latestValue.isUserInExperiment) {
             if (latestValue.isDeviceBased) {
                 stickyDeviceExperiments[expNameHash] = latestValue
             } else {
-                currentCache.stickyUserExperiments.experiments[expNameHash] = latestValue
+                snapshot.cache.stickyUserExperiments.experiments[expNameHash] = latestValue
             }
         }
     }
 
-    private fun getStickyValue(expName: String): APIDynamicConfig? {
-        val hashName = Hashing.getHashedString(expName, currentCache.values.hashUsed)
-        return currentCache.stickyUserExperiments.experiments[hashName]
+    private fun getStickyValue(snapshot: CacheSnapshot, expName: String): APIDynamicConfig? {
+        val hashName = Hashing.getHashedString(expName, snapshot.values.hashUsed)
+        return snapshot.cache.stickyUserExperiments.experiments[hashName]
             ?: stickyDeviceExperiments[hashName]
     }
 
     suspend fun persistStickyValues() {
-        userCacheStorage.withFullUserCacheKeyLock(currentFullUserCacheKey) {
-            userCacheStorage.write(currentFullUserCacheKey, currentCache)
+        val (fullUserCacheKey, cache) = lock.read { currentFullUserCacheKey to currentCache }
+        userCacheStorage.withFullUserCacheKeyLock(fullUserCacheKey) {
+            userCacheStorage.write(fullUserCacheKey, cache)
         }
         keyValueStorage.writeValue(
             STORE_NAME,
@@ -914,7 +1006,7 @@ internal class Store(
         val scopedCacheKey = userCacheKeys.scopedCacheKey
 
         userCacheStorage.read(fullUserCacheKey)?.let { loaded ->
-            userCacheByKey[fullUserCacheKey] = loaded
+            lock.write { userCacheByKey[fullUserCacheKey] = loaded }
             return loaded
         }
 
@@ -922,7 +1014,7 @@ internal class Store(
             .readFullUserCacheKey(scopedCacheKey)
         if (mappedFullUserCacheKey != null) {
             userCacheStorage.read(mappedFullUserCacheKey)?.let { loaded ->
-                userCacheByKey[mappedFullUserCacheKey] = loaded
+                lock.write { userCacheByKey[mappedFullUserCacheKey] = loaded }
                 return loaded
             }
         }
@@ -950,11 +1042,8 @@ internal class Store(
             resolvedKey
         }
         val loaded = localCache[resolvedKey] ?: return null
-        userCacheByKey[canonicalKey] = loaded
-        cacheKeyMappingStore.upsertInMemory(
-            scopedCacheKey,
-            canonicalKey
-        )
+        lock.write { userCacheByKey[canonicalKey] = loaded }
+        cacheKeyMappingStore.upsertInMemory(scopedCacheKey, canonicalKey)
         return loaded
     }
 
@@ -994,7 +1083,7 @@ internal class Store(
                 return@withFullUserCacheKeyLock
             }
 
-            userCacheByKey.remove(fullUserCacheKey)
+            lock.write { userCacheByKey.remove(fullUserCacheKey) }
             userCacheStorage.delete(fullUserCacheKey)
         }
     }
@@ -1065,14 +1154,14 @@ internal class Store(
         bootstrapMetadata = cache.bootstrapMetadata
     )
 
-    internal fun notifyNetworkFailure() {
+    internal fun notifyNetworkFailure() = lock.write {
         // Mark NoValues if cache attempt did not complete
         if (sourceV2 != EvalSource.Cache) {
             sourceV2 = EvalSource.NoValues
         }
     }
 
-    internal fun notifyOfflineInit() {
+    internal fun notifyOfflineInit() = lock.write {
         // Mark NoValues if we still have a generated empty cache
         if (sourceV2 == EvalSource.Cache && currentCache.values.time == 0L &&
             currentCache.userHash == ""

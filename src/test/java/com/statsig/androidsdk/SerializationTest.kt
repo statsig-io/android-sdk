@@ -1,7 +1,9 @@
 package com.statsig.androidsdk
 
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
+import java.util.concurrent.ConcurrentHashMap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,6 +16,8 @@ import org.junit.Test
 class SerializationTest {
     val gson = Gson()
 
+    // Pre-existing long JSON fixture literal below - not related to this file's other changes.
+    @Suppress("ktlint:standard:max-line-length")
     @Test
     fun testSerializeResponseWithIncomplete() {
         val initializeResponseSkipFields = "{\"feature_gates\":{\"245595137\":{\"name\":\"245595137\",\"value\":true,\"rule_id\":\"1uj9J1jxY2jnBAChgGB1jR:0.00:35\",\"id_type\":\"userID\"}},\"dynamic_configs\":{\"2887220988\":{\"name\":\"2887220988\",\"value\":{\"num\": 13},\"rule_id\":\"prestart\",\"group\":\"prestart\",\"is_device_based\":false,\"id_type\":\"userID\",\"is_experiment_active\":true,\"is_user_in_experiment\":true}},\"layer_configs\":{},\"sdkParams\":{},\"has_updates\":true,\"time\":1717536742309,\"company_lcut\":1717536742309,\"hash_used\":\"djb2\"}"
@@ -77,5 +81,49 @@ class SerializationTest {
         assertEquals("NoValues", parsed["reason"])
         assertFalse(parsed.containsKey("lcut"))
         assertFalse(parsed.containsKey("receivedAt"))
+    }
+
+    // Mirrors Store.kt's private StickyUserExperiments shape to prove Gson preserves the declared
+    // concrete map type on cache reload.
+    private data class StickyUserExperimentsMirror(
+        @SerializedName("values") val experiments: ConcurrentHashMap<String, APIDynamicConfig>
+    )
+
+    private data class MutableMapExperimentsMirror(
+        @SerializedName("values") val experiments: MutableMap<String, APIDynamicConfig>
+    )
+
+    @Test
+    fun testConcurrentHashMapTypedFieldRoundTripsAsConcurrentHashMap() {
+        val prodGson = StatsigUtil.getOrBuildGson()
+        val original = StickyUserExperimentsMirror(
+            ConcurrentHashMap(
+                mapOf("exp_hash" to APIDynamicConfig("exp", mapOf("key" to "value")))
+            )
+        )
+
+        val serialized = prodGson.toJson(original)
+        val deserialized = prodGson.fromJson(serialized, StickyUserExperimentsMirror::class.java)
+
+        assertEquals(
+            "Expected experiments to deserialize as ConcurrentHashMap, was " +
+                deserialized.experiments.javaClass.name,
+            ConcurrentHashMap::class.java,
+            deserialized.experiments.javaClass
+        )
+        assertEquals("value", deserialized.experiments["exp_hash"]?.value?.get("key"))
+    }
+
+    @Test
+    fun testMutableMapTypedFieldDoesNotRoundTripAsConcurrentHashMap() {
+        val prodGson = StatsigUtil.getOrBuildGson()
+        val original = MutableMapExperimentsMirror(
+            mutableMapOf("exp_hash" to APIDynamicConfig("exp", mapOf("key" to "value")))
+        )
+
+        val serialized = prodGson.toJson(original)
+        val deserialized = prodGson.fromJson(serialized, MutableMapExperimentsMirror::class.java)
+
+        assertFalse(deserialized.experiments is ConcurrentHashMap<*, *>)
     }
 }
