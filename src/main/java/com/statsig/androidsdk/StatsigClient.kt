@@ -76,6 +76,9 @@ class StatsigClient : LifecycleEventListener {
             }
     }
     private lateinit var store: Store
+
+    // Published across threads for evaluation/logging calls that read without a client-level lock.
+    @Volatile
     private lateinit var user: StatsigUser
     private lateinit var application: Application
     private lateinit var keyValueStorage: KeyValueStorage<String>
@@ -273,6 +276,10 @@ class StatsigClient : LifecycleEventListener {
 
     /**
      * Check the value of a Feature Gate configured in the Statsig console for the initialized user
+     *
+     * Reads observe one internally-consistent cached-values snapshot. If this races with
+     * initialize/updateUser, it may return stale values, but not partially-applied ones.
+     *
      * @param gateName the name of the feature gate to check
      * @return the value of the gate for the initialized user, or false if not found
      * @throws IllegalStateException if the SDK has not been initialized
@@ -366,6 +373,7 @@ class StatsigClient : LifecycleEventListener {
      * @param configName the name of the Dynamic Config to check
      * @return the Dynamic Config the initialized user
      * @throws IllegalStateException if the SDK has not been initialized
+     * @see checkGate
      */
     fun getConfig(configName: String): DynamicConfig {
         val functionName = "getConfig"
@@ -414,6 +422,7 @@ class StatsigClient : LifecycleEventListener {
      * for the duration of the experiment
      * @return the Dynamic Config backing the experiment
      * @throws IllegalStateException if the SDK has not been initialized
+     * @see checkGate
      */
     fun getExperiment(experimentName: String, keepDeviceValue: Boolean = false): DynamicConfig {
         val functionName = "getExperiment"
@@ -472,6 +481,7 @@ class StatsigClient : LifecycleEventListener {
      * for the duration of any active experiments
      * @return the current layer values as a Layer object
      * @throws IllegalStateException if the SDK has not been initialized
+     * @see checkGate
      */
     fun getLayer(layerName: String, keepDeviceValue: Boolean = false): Layer {
         val functionName = "getLayer"
@@ -522,6 +532,10 @@ class StatsigClient : LifecycleEventListener {
         return layer
     }
 
+    /**
+     * Get a Parameter Store configured in the Statsig console for the initialized user
+     * @see checkGate
+     */
     fun getParameterStore(
         parameterStoreName: String,
         options: ParameterStoreEvaluationOptions? = null
@@ -662,9 +676,7 @@ class StatsigClient : LifecycleEventListener {
         )
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun widenStringMetadata(metadata: Map<String, String>?): Map<String, Any>? =
-        metadata as Map<String, Any>?
+    private fun widenStringMetadata(metadata: Map<String, String>?): Map<String, Any>? = metadata
 
     /**
      * Update the Statsig SDK with the given runtime-mutable options
