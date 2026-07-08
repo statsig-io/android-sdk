@@ -509,26 +509,38 @@ internal class Store(
 
     fun getLastUpdateTime(user: StatsigUser): Long? {
         val userCacheKeys = getUserCacheKeys(user)
-        val cachedValues = lock.read { this.getCachedValuesForUser(userCacheKeys) }
-        if (cachedValues?.userHash != userCacheKeys.userHash) {
-            return null
+        return lock.read {
+            val cachedValues = this.getCachedValuesForUser(userCacheKeys)
+            if (cachedValues?.userHash != userCacheKeys.userHash) {
+                null
+            } else {
+                cachedValues.values.time
+            }
         }
-        return cachedValues.values.time
     }
 
     fun getPreviousDerivedFields(user: StatsigUser): Map<String, String> {
         val userCacheKeys = getUserCacheKeys(user)
-        val cachedValues = lock.read { this.getCachedValuesForUser(userCacheKeys) }
-        if (cachedValues?.userHash != userCacheKeys.userHash) {
-            return mapOf()
+        return lock.read {
+            val cachedValues = this.getCachedValuesForUser(userCacheKeys)
+            if (cachedValues?.userHash != userCacheKeys.userHash) {
+                mapOf()
+            } else {
+                cachedValues.values.derivedFields ?: mapOf()
+            }
         }
-        return cachedValues.values.derivedFields ?: mapOf()
     }
 
     fun getFullChecksum(user: StatsigUser): String? {
         val userCacheKeys = getUserCacheKeys(user)
-        val cachedValues = lock.read { this.getCachedValuesForUser(userCacheKeys) }
-        return cachedValues?.values?.fullChecksum
+        return lock.read {
+            val cachedValues = this.getCachedValuesForUser(userCacheKeys)
+            if (cachedValues?.userHash != userCacheKeys.userHash) {
+                null
+            } else {
+                cachedValues.values.fullChecksum
+            }
+        }
     }
 
     private fun getUserCacheKeys(user: StatsigUser): UserCacheKeys {
@@ -577,29 +589,27 @@ internal class Store(
         data: InitializeResponse.SuccessfulInitializeResponse,
         userCacheKeys: UserCacheKeys
     ): Boolean = lock.write {
-        val scopedCacheKey = userCacheKeys.scopedCacheKey
-        val fullUserCacheKey = userCacheKeys.fullUserCacheKey
-        val isCurrentUser = scopedCacheKey == currentScopedCacheKey
-        if (isCurrentUser) {
-            currentFullUserCacheKey = fullUserCacheKey
-            receivedValuesAt = System.currentTimeMillis()
-            if (data.hasUpdates) {
-                val cache = userCacheByKey[fullUserCacheKey] ?: createEmptyCache()
-                cache.values = data
-                cache.evaluationTime = receivedValuesAt
-                cache.userHash = userCacheKeys.userHash
-                userCacheByKey[fullUserCacheKey] = cache
-
-                currentCache = cache
-                sourceV2 = EvalSource.Network
-            } else {
-                sourceV2 = EvalSource.NetworkNotModified
-                return@write false
-            }
+        if (!isCurrentUserCacheKeys(userCacheKeys)) {
+            return@write false
         }
 
-        val cacheToPersist = userCacheByKey[fullUserCacheKey] ?: currentCache
-        userCacheByKey[fullUserCacheKey] = cacheToPersist
+        val fullUserCacheKey = userCacheKeys.fullUserCacheKey
+        currentFullUserCacheKey = fullUserCacheKey
+        receivedValuesAt = System.currentTimeMillis()
+
+        if (!data.hasUpdates) {
+            sourceV2 = EvalSource.NetworkNotModified
+            return@write false
+        }
+
+        val cache = userCacheByKey[fullUserCacheKey] ?: createEmptyCache()
+        cache.values = data
+        cache.evaluationTime = receivedValuesAt
+        cache.userHash = userCacheKeys.userHash
+        userCacheByKey[fullUserCacheKey] = cache
+
+        currentCache = cache
+        sourceV2 = EvalSource.Network
 
         return@write true
     }
