@@ -123,14 +123,9 @@ afterEvaluate {
                     }
                     developers {
                         developer {
-                            id = "tore"
-                            name = "Tore Hanssen"
-                            email = "tore@statsig.com"
-                        }
-                        developer {
-                            id = "kevin"
-                            name = "Kevin Maurin"
-                            email = "kevin@statsig.com"
+                            id = "statsig"
+                            name = "Statsig"
+                            email = "support@statsig.com"
                         }
                     }
                     scm {
