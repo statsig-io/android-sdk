@@ -200,7 +200,7 @@ class StatsigNetworkTest {
     }
 
     @Test
-    fun initialize_retriesAgainstUserFallbackAfterDomainFailure() = runTest {
+    fun initialize_usesUserFallbackAfterDomainFailure() = runTest {
         val fallbackUrls = listOf("${wireMockRule.baseUrl()}/initialize")
 
         // First attempt fails against the dead primary, which records the fallback
@@ -212,7 +212,7 @@ class StatsigNetworkTest {
             )
         ).isEqualTo(fallbackUrls.first())
 
-        // The retry must leave the dead primary for the configured fallback
+        // initRetryLimit defaults to 0, so recovery lands on the next initialize, not this one
         makeInitializeRequest(api = DEAD_API, fallbackUrls = fallbackUrls)
 
         wireMockRule.verify(postRequestedFor(urlMatching("/initialize")))

@@ -47,7 +47,7 @@ internal class NetworkFallbackResolver(
         val entry = fallbackInfo?.get(urlConfig.endpoint)
         if (entry == null ||
             Date().time > (entry.expiryTime) ||
-            !isConfiguredFallbackUrl(entry.url, userFallbackUrls)
+            !isAllowedFallbackUrl(entry.url, userFallbackUrls)
         ) {
             fallbackInfo?.remove(urlConfig.endpoint)
             statsigScope.launch(dispatcherProvider.io) {
@@ -61,7 +61,7 @@ internal class NetworkFallbackResolver(
 
     // A cached entry outlives the options it was written under, so a url the app no longer
     // lists (e.g. one discovered via DNS before a custom api was configured) must not be served
-    private fun isConfiguredFallbackUrl(url: String?, userFallbackUrls: List<String>?): Boolean =
+    private fun isAllowedFallbackUrl(url: String?, userFallbackUrls: List<String>?): Boolean =
         userFallbackUrls == null ||
             userFallbackUrls.any { it.removeSuffix("/") == url?.removeSuffix("/") }
 
