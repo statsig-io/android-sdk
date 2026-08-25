@@ -10,6 +10,7 @@ import com.github.tomakehurst.wiremock.client.WireMock.stubFor
 import com.github.tomakehurst.wiremock.client.WireMock.urlMatching
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import com.github.tomakehurst.wiremock.junit.WireMockRule
+import com.google.common.truth.Truth.assertThat
 import com.statsig.androidsdk.HttpUtils.Companion.STATSIG_STABLE_ID_HEADER_KEY
 import io.mockk.every
 import io.mockk.spyk
@@ -44,6 +45,11 @@ class StatsigNetworkTest {
     private lateinit var options: StatsigOptions
     private lateinit var fallbackResolver: NetworkFallbackResolver
     private lateinit var keyValueStorage: KeyValueStorage<String>
+
+    private companion object {
+        // Refuses connections immediately, standing in for a domain that has stopped resolving
+        const val DEAD_API = "http://localhost:1/v1"
+    }
 
     @Before
     fun setup() {
@@ -93,9 +99,12 @@ class StatsigNetworkTest {
         } answers {
             mapOf("enable_log_event_compression" to true)
         }
+        // A domain failure is only recorded while the device reports a live connection
+        val connectivityListener = spyk(StatsigNetworkConnectivityListener(app))
+        every { connectivityListener.isNetworkAvailable() } returns true
         network =
             StatsigNetworkImpl(
-                StatsigNetworkConnectivityListener(app),
+                connectivityListener,
                 "client-key",
                 TestUtil.getTestKeyValueStore(app),
                 options,
@@ -190,10 +199,32 @@ class StatsigNetworkTest {
         )
     }
 
-    private suspend fun makeInitializeRequest() {
+    @Test
+    fun initialize_retriesAgainstUserFallbackAfterDomainFailure() = runTest {
+        val fallbackUrls = listOf("${wireMockRule.baseUrl()}/initialize")
+
+        // First attempt fails against the dead primary, which records the fallback
+        makeInitializeRequest(api = DEAD_API, fallbackUrls = fallbackUrls)
+
+        assertThat(
+            fallbackResolver.getActiveFallbackUrlFromMemory(
+                UrlConfig(Endpoint.Initialize, DEAD_API, fallbackUrls)
+            )
+        ).isEqualTo(fallbackUrls.first())
+
+        // The retry must leave the dead primary for the configured fallback
+        makeInitializeRequest(api = DEAD_API, fallbackUrls = fallbackUrls)
+
+        wireMockRule.verify(postRequestedFor(urlMatching("/initialize")))
+    }
+
+    private suspend fun makeInitializeRequest(
+        api: String = wireMockRule.baseUrl(),
+        fallbackUrls: List<String>? = null
+    ) {
         try {
             network.initializeImpl(
-                wireMockRule.baseUrl(),
+                api,
                 user,
                 null,
                 metadata,
@@ -203,7 +234,8 @@ class StatsigNetworkTest {
                 500,
                 HashAlgorithm.NONE,
                 mapOf(),
-                null
+                null,
+                fallbackUrls
             )
         } catch (e: Exception) {
             // noop
