@@ -112,8 +112,8 @@ class LogEventCompressionTest {
         }
         assert(!network.shouldCompressLogEvent(config, api))
 
-        api = "https://google.com"
-        fallbackUrl = "https://chatgpt.com"
+        api = "https://proxy.example.com/v1"
+        fallbackUrl = "https://fallback.example.com/v1/log_event"
         config = UrlConfig(Endpoint.Rgstr, api, listOf(fallbackUrl))
         network = setupNetwork(store, StatsigOptions(api, disableLoggingCompression = true))
         assert(!network.shouldCompressLogEvent(config, api))

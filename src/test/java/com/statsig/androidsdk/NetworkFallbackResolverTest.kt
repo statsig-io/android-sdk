@@ -35,6 +35,11 @@ class NetworkFallbackResolverTest {
         const val SDK_KEY = "client-test-sdk-key"
         val STORAGE_KEY = "statsig.network_fallback"
         const val SIX_DAYS = 6 * 24 * 60 * 60 * 1000L
+        const val ONE_DAY = 24 * 60 * 60 * 1000L
+        const val NETWORK_ERROR = "NetworkError when attempting to fetch resource"
+
+        const val FALLBACK_URL = "https://fallback.example.com/v1/initialize"
+        const val CUSTOM_API = "https://custom.api.com/v1"
 
         val DEFAULT_INIT_URL_CONFIG = UrlConfig(
             Endpoint.Initialize,
@@ -43,11 +48,16 @@ class NetworkFallbackResolverTest {
         val USER_FALLBACK_CONFIG = UrlConfig(
             Endpoint.Initialize,
             DEFAULT_INIT_API,
-            listOf("fallback.example.com")
+            listOf(FALLBACK_URL)
         )
-        val CUSTOM_FALLBACK_CONFIG = UrlConfig(
+        val CUSTOM_API_CONFIG = UrlConfig(
             Endpoint.Initialize,
-            "custom.api.com"
+            CUSTOM_API
+        )
+        val CUSTOM_API_WITH_USER_FALLBACK_CONFIG = UrlConfig(
+            Endpoint.Initialize,
+            CUSTOM_API,
+            listOf(FALLBACK_URL)
         )
     }
 
@@ -70,42 +80,38 @@ class NetworkFallbackResolverTest {
         TestUtil.reset()
     }
 
-    @Test
-    fun getsFallbackInfo() = runTest {
+    private suspend fun cacheFallbackUrl(
+        url: String,
+        expiryTime: Long = System.currentTimeMillis() + ONE_DAY
+    ) {
         val json = """
             {
                 "initialize": {
-                    "url": "fallback.example.com",
-                    "previous": [],
-                    "expiryTime": ${System.currentTimeMillis() + 999999}
-                }
-            }
-        """.trimIndent()
-        testKeyValueStorage.writeValue("networkfallback", STORAGE_KEY, json)
-
-        resolver.initializeFallbackInfo()
-        val activeUrl = resolver.getActiveFallbackUrlFromMemory(DEFAULT_INIT_URL_CONFIG)
-        assertTrue("gets the cached url", activeUrl == "fallback.example.com")
-    }
-
-    @Test
-    fun wipesFallbackInfoWhenExpired() = runBlocking {
-        val expiryTime = System.currentTimeMillis() - 7.days.inWholeMilliseconds
-
-        val json = """
-            {
-                "initialize": {
-                    "url": "fallback.example.com",
+                    "url": "$url",
                     "previous": [],
                     "expiryTime": $expiryTime
                 }
             }
         """.trimIndent()
         testKeyValueStorage.writeValue("networkfallback", STORAGE_KEY, json)
-        assertThat(testKeyValueStorage.readAll("networkfallback")).isNotEmpty()
-
-        // Make sure resolver has info in-memory
         resolver.initializeFallbackInfo()
+    }
+
+    @Test
+    fun getsFallbackInfo() = runTest {
+        cacheFallbackUrl(FALLBACK_URL)
+
+        val activeUrl = resolver.getActiveFallbackUrlFromMemory(DEFAULT_INIT_URL_CONFIG)
+        assertTrue("gets the cached url", activeUrl == FALLBACK_URL)
+    }
+
+    @Test
+    fun wipesFallbackInfoWhenExpired() = runBlocking {
+        cacheFallbackUrl(
+            FALLBACK_URL,
+            expiryTime = System.currentTimeMillis() - 7.days.inWholeMilliseconds
+        )
+        assertThat(testKeyValueStorage.readAll("networkfallback")).isNotEmpty()
 
         // Get expired info, expect null and a write to disk
         val result = resolver.getActiveFallbackUrlFromMemory(DEFAULT_INIT_URL_CONFIG)
@@ -122,18 +128,8 @@ class NetworkFallbackResolverTest {
 
     @Test
     fun bumpsExpiryTimeWhenUrlIsSuccessfullyUsed() = runTest {
-        val json = """
-            {
-                "initialize": {
-                    "url": "fallback.example.com",
-                    "previous": [],
-                    "expiryTime": ${System.currentTimeMillis() + 99999}
-                }
-            }
-        """.trimIndent()
-        testKeyValueStorage.writeValue("networkfallback", STORAGE_KEY, json)
+        cacheFallbackUrl(FALLBACK_URL)
 
-        resolver.initializeFallbackInfo()
         resolver.tryBumpExpiryTime(DEFAULT_INIT_URL_CONFIG)
 
         val cache = resolver.readFallbackInfoFromCache()
@@ -146,36 +142,60 @@ class NetworkFallbackResolverTest {
     }
 
     @Test
-    fun useUserFallbackIfProvided() = runTest {
+    fun servesUserFallbackAfterDomainFailure() = runTest {
         resolver.initializeFallbackInfo()
-        val activeUrl = resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG)
-        assertNull("no active url should be returned for user fallback", activeUrl)
+        assertNull(
+            "no fallback is active before a failure",
+            resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG)
+        )
+
+        resolver.tryFetchUpdatedFallbackInfo(USER_FALLBACK_CONFIG, NETWORK_ERROR, false, true)
+
+        assertThat(resolver.readFallbackInfoFromCache()?.get(Endpoint.Initialize)?.url)
+            .isEqualTo(FALLBACK_URL)
+        assertThat(resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG))
+            .isEqualTo(FALLBACK_URL)
+    }
+
+    @Test
+    fun servesUserFallbackAfterDomainFailureWithCustomApi() = runTest {
+        resolver.initializeFallbackInfo()
         resolver.tryFetchUpdatedFallbackInfo(
-            USER_FALLBACK_CONFIG,
-            "NetworkError when attempting to fetch resource",
+            CUSTOM_API_WITH_USER_FALLBACK_CONFIG,
+            NETWORK_ERROR,
             false,
             true
         )
 
-        val cache = resolver.readFallbackInfoFromCache()
-        assertTrue("cache should not be empty", cache != null)
-        assertTrue(
-            "cache should contain user fallback",
-            cache?.get(Endpoint.Initialize)?.url == "fallback.example.com"
+        assertThat(
+            resolver.getActiveFallbackUrlFromMemory(CUSTOM_API_WITH_USER_FALLBACK_CONFIG)
+        ).isEqualTo(FALLBACK_URL)
+    }
+
+    @Test
+    fun doesNotServeCachedFallbackForCustomApiWithoutUserFallbacks() = runTest {
+        cacheFallbackUrl(FALLBACK_URL)
+
+        assertNull(
+            "a custom api opts out of fallbacks entirely",
+            resolver.getActiveFallbackUrlFromMemory(CUSTOM_API_CONFIG)
+        )
+    }
+
+    @Test
+    fun doesNotServeCachedFallbackMissingFromUserFallbacks() = runTest {
+        cacheFallbackUrl("https://stale.example.com/v1/initialize")
+
+        assertNull(
+            "a url the app no longer lists is not served",
+            resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG)
         )
     }
 
     @Test
     fun doNotFetchFallbackForCustomUrl() = runTest {
         resolver.initializeFallbackInfo()
-        val activeUrl = resolver.getActiveFallbackUrlFromMemory(USER_FALLBACK_CONFIG)
-        assertNull("no active url should be returned for custom url", activeUrl)
-        resolver.tryFetchUpdatedFallbackInfo(
-            CUSTOM_FALLBACK_CONFIG,
-            "NetworkError when attempting to fetch resource",
-            false,
-            true
-        )
+        resolver.tryFetchUpdatedFallbackInfo(CUSTOM_API_CONFIG, NETWORK_ERROR, false, true)
 
         val cache = resolver.readFallbackInfoFromCache()
         assertTrue("cache should be empty", cache == null)
