@@ -1196,7 +1196,7 @@ class StatsigClient : LifecycleEventListener {
                         )
                     }
 
-                    this@StatsigClient.pollForUpdates()
+                    this@StatsigClient.pollForUpdates(user)
 
                     if (this@StatsigClient.options.disableLogEventRetries != true) {
                         retryScope.launch(dispatcherProvider.io) {
@@ -1436,9 +1436,7 @@ class StatsigClient : LifecycleEventListener {
                     } else {
                         store.notifyNetworkFailure(requestUser)
                     }
-                    if (store.isCurrentUser(requestUser)) {
-                        pollForUpdates()
-                    }
+                    pollForUpdates(requestUser)
                     logEndDiagnostics(
                         initResponse is InitializeResponse.SuccessfulInitializeResponse,
                         ContextType.UPDATE_USER,
@@ -1557,38 +1555,42 @@ class StatsigClient : LifecycleEventListener {
         return normalizedUser
     }
 
-    private fun pollForUpdates() {
+    private fun pollForUpdates(pollUser: StatsigUser) {
         if (!this@StatsigClient.options.enableAutoValueUpdate) {
             return
         }
-        pollingJob?.cancel()
-        val pollUser = user
-        pollingJob =
-            statsigNetwork
-                .pollForChanges(
-                    options.api,
-                    pollUser,
-                    statsigClientMetadata,
-                    (options.autoValueUpdateIntervalMinutes * 60 * 1000).toLong(),
-                    options.initializeFallbackUrls
-                )
-                .onEach {
-                    if (it != null) {
-                        store.awaitPendingSave()
-                        val applied = store.save(it, pollUser)
-                        integratedSdkExperiments.processSdkConfigs(
-                            store.getSDKConfigs() ?: emptyMap(),
-                            this
-                        )
-                        if (applied) {
-                            Log.i(TAG, "enableAutoValueUpdate: values changed")
-                            withContext(dispatcherProvider.main) {
-                                lifetimeCallback?.onValuesUpdated()
+        synchronized(userSwapLock) {
+            if (!store.isCurrentUser(pollUser)) {
+                return
+            }
+            pollingJob?.cancel()
+            pollingJob =
+                statsigNetwork
+                    .pollForChanges(
+                        options.api,
+                        pollUser,
+                        statsigClientMetadata,
+                        (options.autoValueUpdateIntervalMinutes * 60 * 1000).toLong(),
+                        options.initializeFallbackUrls
+                    )
+                    .onEach {
+                        if (it != null) {
+                            store.awaitPendingSave()
+                            val applied = store.save(it, pollUser)
+                            integratedSdkExperiments.processSdkConfigs(
+                                store.getSDKConfigs() ?: emptyMap(),
+                                this
+                            )
+                            if (applied) {
+                                Log.i(TAG, "enableAutoValueUpdate: values changed")
+                                withContext(dispatcherProvider.main) {
+                                    lifetimeCallback?.onValuesUpdated()
+                                }
                             }
                         }
                     }
-                }
-                .launchIn(statsigScope)
+                    .launchIn(statsigScope)
+        }
     }
 
     private fun populateStatsigMetadata() {
