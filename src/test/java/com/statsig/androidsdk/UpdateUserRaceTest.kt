@@ -217,6 +217,21 @@ class UpdateUserRaceTest {
     }
 
     @Test
+    fun supersededResponse_doesNotStartPollingForItsUser() {
+        startOn(user0)
+        val gateA = holdInitialize("user-a")
+        client.updateUserAsync(userA)
+        val bootstrapB =
+            TestUtil.makeBootstrapInitializeValues(userB, responseFor("user-b-bootstrap"))
+        client.updateUserAsync(userB, null, bootstrapB)
+
+        land(gateA)
+
+        assertThat(pollFlows.keys).doesNotContain("user-a")
+        assertThat(value()).isEqualTo("user-b-bootstrap_value")
+    }
+
+    @Test
     fun pollEmission_isAppliedOnlyToTheUserItWasStartedFor() = runBlocking {
         startOn(userA)
         client.updateUserAsync(userB)
