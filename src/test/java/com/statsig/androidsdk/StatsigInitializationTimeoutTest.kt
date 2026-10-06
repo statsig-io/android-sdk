@@ -69,7 +69,7 @@ class StatsigInitializationTimeoutTest {
         // so we can test that eb does not block initialization
         every {
             println("causing exception")
-            client["pollForUpdates"]()
+            client["pollForUpdates"](any<StatsigUser>())
         } throws (Exception("trigger the error boundary"))
 
         client.statsigNetwork = network
