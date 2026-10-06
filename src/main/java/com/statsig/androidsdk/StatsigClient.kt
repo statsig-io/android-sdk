@@ -107,6 +107,7 @@ class StatsigClient : LifecycleEventListener {
     private var initialized = AtomicBoolean(false)
     private var isBootstrapped = AtomicBoolean(false)
     private var isInitializing = AtomicBoolean(false)
+    private val userSwapLock = Any()
     private var onDeviceEvalAdapter: OnDeviceEvalAdapter? = null
     private val retryScope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
 
@@ -725,10 +726,9 @@ class StatsigClient : LifecycleEventListener {
                     KeyType.OVERALL,
                     overrideContext = ContextType.UPDATE_USER
                 )
-                this.user = normalizeUser(user)
-                this.resetUser()
+                val requestUser = swapUser(user)
                 if (values != null) {
-                    this.store.bootstrap(values, this.user)
+                    this.store.bootstrap(values, requestUser)
                     logEndDiagnostics(true, ContextType.UPDATE_USER, null)
                     Log.v(TAG, "updateUserAsync completed with provided values")
                     callback?.onStatsigUpdateUser()
@@ -736,7 +736,7 @@ class StatsigClient : LifecycleEventListener {
                 } else {
                     this.store.loadCacheForCurrentUser()
                     statsigScope.launch {
-                        updateUserImpl()
+                        updateUserImpl(requestUser)
                         withContext(dispatcherProvider.main) {
                             try {
                                 Log.v(TAG, "updateUserAsync completed")
@@ -764,15 +764,14 @@ class StatsigClient : LifecycleEventListener {
         enforceInitialized(functionName)
         errorBoundary.captureAsync(task = {
             diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
-            this.user = normalizeUser(user)
-            this.resetUser()
+            val requestUser = swapUser(user)
             if (values != null) {
-                this.store.bootstrap(values, this.user)
+                this.store.bootstrap(values, requestUser)
                 logEndDiagnostics(true, ContextType.UPDATE_USER, null)
                 Log.v(TAG, "updateUser completed with provided values")
             } else {
                 this.store.loadCacheForCurrentUser()
-                updateUserImpl()
+                updateUserImpl(requestUser)
                 Log.v(TAG, "updateUser completed")
             }
         }, tag = functionName)
@@ -795,8 +794,9 @@ class StatsigClient : LifecycleEventListener {
                     KeyType.OVERALL,
                     overrideContext = ContextType.UPDATE_USER
                 )
+                val requestUser = this.user
                 statsigScope.launch {
-                    updateUserImpl()
+                    updateUserImpl(requestUser)
                     withContext(dispatcherProvider.main) {
                         try {
                             callback?.onStatsigUpdateUser()
@@ -821,7 +821,7 @@ class StatsigClient : LifecycleEventListener {
         enforceInitialized(functionName)
         errorBoundary.captureAsync(task = {
             diagnostics.markStart(KeyType.OVERALL, overrideContext = ContextType.UPDATE_USER)
-            updateUserImpl()
+            updateUserImpl(this.user)
             Log.v(TAG, "refreshCache completed")
         }, tag = functionName)
     }
@@ -1156,9 +1156,7 @@ class StatsigClient : LifecycleEventListener {
                             statsigNetwork.initialize(
                                 this@StatsigClient.options.api,
                                 user,
-                                this@StatsigClient.store.getLastUpdateTime(
-                                    this@StatsigClient.user
-                                ),
+                                this@StatsigClient.store.getLastUpdateTime(user),
                                 this@StatsigClient.statsigClientMetadata,
                                 statsigScope,
                                 ContextType.INITIALIZE,
@@ -1168,12 +1166,8 @@ class StatsigClient : LifecycleEventListener {
                                 } else {
                                     HashAlgorithm.DJB2
                                 },
-                                this@StatsigClient.store.getPreviousDerivedFields(
-                                    this@StatsigClient.user
-                                ),
-                                this@StatsigClient.store.getFullChecksum(
-                                    this@StatsigClient.user
-                                )
+                                this@StatsigClient.store.getPreviousDerivedFields(user),
+                                this@StatsigClient.store.getFullChecksum(user)
                             )
                         }
                     if (initResponse is InitializeResponse.SuccessfulInitializeResponse &&
@@ -1183,13 +1177,14 @@ class StatsigClient : LifecycleEventListener {
                             KeyType.INITIALIZE,
                             StepType.PROCESS
                         )
-                        this@StatsigClient.store.saveAsync(initResponse, user) {
-                            integratedSdkExperiments.processSdkConfigs(
-                                store.getSDKConfigs() ?: emptyMap(),
-                                this@StatsigClient
-                            )
-                        }
-                        if (initResponse.hasUpdates) {
+                        val applied =
+                            this@StatsigClient.store.saveAsync(initResponse, user) {
+                                integratedSdkExperiments.processSdkConfigs(
+                                    store.getSDKConfigs() ?: emptyMap(),
+                                    this@StatsigClient
+                                )
+                            }
+                        if (applied) {
                             statsigScope.launch(dispatcherProvider.main) {
                                 lifetimeCallback?.onValuesUpdated()
                             }
@@ -1220,7 +1215,7 @@ class StatsigClient : LifecycleEventListener {
                     val success =
                         initResponse is InitializeResponse.SuccessfulInitializeResponse
                     if (!success && !options.initializeOffline) {
-                        store.notifyNetworkFailure()
+                        store.notifyNetworkFailure(user)
                     }
                     logEndDiagnostics(success, ContextType.INITIALIZE, initResponse)
                     InitializationDetails(
@@ -1371,30 +1366,36 @@ class StatsigClient : LifecycleEventListener {
         return normalizedUser
     }
 
-    private fun resetUser() {
-        val functionName = "resetUser"
-        errorBoundary.capture({
-            logger.onUpdateUser()
-            pollingJob?.cancel()
-            this.store.resetUser(this.user)
-        }, tag = functionName)
+    // Identity field and store keys change together so a concurrent swap cannot split them.
+    // Lock order: userSwapLock, then Store's lock.
+    private fun swapUser(user: StatsigUser?): StatsigUser {
+        val functionName = "swapUser"
+        val normalizedUser = normalizeUser(user)
+        synchronized(userSwapLock) {
+            this.user = normalizedUser
+            errorBoundary.capture({
+                logger.onUpdateUser()
+                pollingJob?.cancel()
+                this.store.resetUser(normalizedUser)
+            }, tag = functionName)
+        }
+        return normalizedUser
     }
 
-    private suspend fun updateUserImpl() {
+    private suspend fun updateUserImpl(requestUser: StatsigUser) {
         val functionName = "updateUserImpl"
         withContext(dispatcherProvider.io) {
             errorBoundary.captureAsync(
                 tag = functionName,
                 task = {
                     store.awaitPendingSave()
-                    val sinceTime = store.getLastUpdateTime(this@StatsigClient.user)
-                    val previousDerivedFields =
-                        store.getPreviousDerivedFields(this@StatsigClient.user)
-                    val fullChecksum = store.getFullChecksum(this@StatsigClient.user)
+                    val sinceTime = store.getLastUpdateTime(requestUser)
+                    val previousDerivedFields = store.getPreviousDerivedFields(requestUser)
+                    val fullChecksum = store.getFullChecksum(requestUser)
                     val initResponse =
                         statsigNetwork.initialize(
                             options.api,
-                            this@StatsigClient.user,
+                            requestUser,
                             sinceTime,
                             statsigClientMetadata,
                             statsigScope,
@@ -1416,12 +1417,12 @@ class StatsigClient : LifecycleEventListener {
                             StepType.PROCESS,
                             overrideContext = ContextType.UPDATE_USER
                         )
-                        store.save(initResponse, this@StatsigClient.user)
+                        val applied = store.save(initResponse, requestUser)
                         integratedSdkExperiments.processSdkConfigs(
                             store.getSDKConfigs() ?: emptyMap(),
                             this@StatsigClient
                         )
-                        if (initResponse.hasUpdates) {
+                        if (applied) {
                             statsigScope.launch(dispatcherProvider.main) {
                                 lifetimeCallback?.onValuesUpdated()
                             }
@@ -1433,9 +1434,11 @@ class StatsigClient : LifecycleEventListener {
                             overrideContext = ContextType.UPDATE_USER
                         )
                     } else {
-                        store.notifyNetworkFailure()
+                        store.notifyNetworkFailure(requestUser)
                     }
-                    pollForUpdates()
+                    if (store.isCurrentUser(requestUser)) {
+                        pollForUpdates()
+                    }
                     logEndDiagnostics(
                         initResponse is InitializeResponse.SuccessfulInitializeResponse,
                         ContextType.UPDATE_USER,
@@ -1559,11 +1562,12 @@ class StatsigClient : LifecycleEventListener {
             return
         }
         pollingJob?.cancel()
+        val pollUser = user
         pollingJob =
             statsigNetwork
                 .pollForChanges(
                     options.api,
-                    user,
+                    pollUser,
                     statsigClientMetadata,
                     (options.autoValueUpdateIntervalMinutes * 60 * 1000).toLong(),
                     options.initializeFallbackUrls
@@ -1571,12 +1575,12 @@ class StatsigClient : LifecycleEventListener {
                 .onEach {
                     if (it != null) {
                         store.awaitPendingSave()
-                        store.save(it, user)
+                        val applied = store.save(it, pollUser)
                         integratedSdkExperiments.processSdkConfigs(
                             store.getSDKConfigs() ?: emptyMap(),
                             this
                         )
-                        if (it.hasUpdates) {
+                        if (applied) {
                             Log.i(TAG, "enableAutoValueUpdate: values changed")
                             withContext(dispatcherProvider.main) {
                                 lifetimeCallback?.onValuesUpdated()

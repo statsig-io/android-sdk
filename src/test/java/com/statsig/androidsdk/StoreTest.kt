@@ -280,6 +280,27 @@ class StoreTest {
     }
 
     @Test
+    fun testBootstrapForSupersededUserIsDropped() {
+        val store = Store(
+            coroutineScope,
+            InMemoryKeyValueStorage(),
+            userJkw,
+            "client-apikey",
+            StatsigOptions(),
+            StatsigUtil.getOrBuildGson()
+        )
+        store.resetUser(userTore)
+
+        store.bootstrap(
+            TestUtil.makeBootstrapInitializeValues(userDloomb, getInitValue("dloomb")),
+            userDloomb
+        )
+
+        assertEquals("default", store.getConfig("config").getString("key", "default"))
+        assertEquals(EvalSource.Uninitialized, store.sourceV2)
+    }
+
+    @Test
     fun testReplacingCacheKeyMappingCleansUpOldUnreferencedUserCacheAsync() = runBlocking {
         val storage = InMemoryKeyValueStorage()
         val gson = StatsigUtil.getOrBuildGson()
