@@ -422,9 +422,17 @@ internal class Store(
         sourceV2 = EvalSource.Uninitialized
         currentUser = user
         receivedValuesAt = null
+        // Never leave the previous user's Cache live: bootstrap() mutates currentCache in place.
+        currentCache = createEmptyCache()
     }
 
-    fun bootstrap(initializeValues: Map<String, Any>, user: StatsigUser) = lock.write {
+    fun isCurrentUser(user: StatsigUser): Boolean =
+        lock.read { isCurrentUserCacheKeys(getUserCacheKeys(user)) }
+
+    fun bootstrap(initializeValues: Map<String, Any>, user: StatsigUser): Boolean = lock.write {
+        if (!isCurrentUserCacheKeys(getUserCacheKeys(user))) {
+            return@write false
+        }
         val isValid = BootstrapValidator.isValid(initializeValues, user)
         sourceV2 = if (isValid) EvalSource.Bootstrap else EvalSource.InvalidBootstrap
 
@@ -443,6 +451,7 @@ internal class Store(
         } catch (e: Exception) {
             // Do Nothing
         }
+        true
     }
 
     fun loadCacheForCurrentUser() {
@@ -553,27 +562,33 @@ internal class Store(
         )
     }
 
-    suspend fun save(data: InitializeResponse.SuccessfulInitializeResponse, user: StatsigUser) {
+    // Returns false when the response was not applied: superseded user or no updates.
+    suspend fun save(
+        data: InitializeResponse.SuccessfulInitializeResponse,
+        user: StatsigUser
+    ): Boolean {
         val userCacheKeys = getUserCacheKeys(user)
         if (!applySaveToMemory(data, userCacheKeys)) {
-            return
+            return false
         }
         persistSave(userCacheKeys)
+        return true
     }
 
     fun saveAsync(
         data: InitializeResponse.SuccessfulInitializeResponse,
         user: StatsigUser,
         onPersisted: suspend () -> Unit = {}
-    ) {
+    ): Boolean {
         val userCacheKeys = getUserCacheKeys(user)
         if (!applySaveToMemory(data, userCacheKeys)) {
-            return
+            return false
         }
         saveQueue.enqueue {
             persistSave(userCacheKeys)
             onPersisted()
         }
+        return true
     }
 
     suspend fun awaitPendingSave() {
@@ -1154,9 +1169,9 @@ internal class Store(
         bootstrapMetadata = cache.bootstrapMetadata
     )
 
-    internal fun notifyNetworkFailure() = lock.write {
+    internal fun notifyNetworkFailure(user: StatsigUser) = lock.write {
         // Mark NoValues if cache attempt did not complete
-        if (sourceV2 != EvalSource.Cache) {
+        if (isCurrentUserCacheKeys(getUserCacheKeys(user)) && sourceV2 != EvalSource.Cache) {
             sourceV2 = EvalSource.NoValues
         }
     }
