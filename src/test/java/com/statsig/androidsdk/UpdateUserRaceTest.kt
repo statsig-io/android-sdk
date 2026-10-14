@@ -5,6 +5,7 @@ import com.google.common.truth.Truth.assertThat
 import com.statsig.androidsdk.InitializeResponse.SuccessfulInitializeResponse
 import io.mockk.coEvery
 import io.mockk.every
+import io.mockk.spyk
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
@@ -108,6 +109,21 @@ class UpdateUserRaceTest {
 
     private fun value() = client.getConfig("a_config").getString("key", "default")
 
+    private fun bootstrapValues(user: StatsigUser, tag: String) =
+        TestUtil.makeBootstrapInitializeValues(user, responseFor(tag))
+
+    // Runs beforeApply between the client's user swap and the store applying values for user.
+    private fun interleaveBeforeBootstrap(user: StatsigUser, beforeApply: () -> Unit) {
+        val storeField = StatsigClient::class.java.getDeclaredField("store")
+        storeField.isAccessible = true
+        val store = spyk(client.getStore())
+        every { store.bootstrap(any(), match { it.userID == user.userID }) } answers {
+            beforeApply()
+            callOriginal()
+        }
+        storeField.set(client, store)
+    }
+
     private fun source() = client.getConfig("a_config").getEvalDetails().source
 
     @Test
@@ -163,9 +179,7 @@ class UpdateUserRaceTest {
         startOn(userA)
         assertThat(value()).isEqualTo("user-a_value")
 
-        val bootstrapB =
-            TestUtil.makeBootstrapInitializeValues(userB, responseFor("user-b-bootstrap"))
-        client.updateUserAsync(userB, null, bootstrapB)
+        client.updateUserAsync(userB, null, bootstrapValues(userB, "user-b-bootstrap"))
         assertThat(value()).isEqualTo("user-b-bootstrap_value")
 
         // Switch back to A with no network: A must get A's own cached values.
@@ -243,5 +257,30 @@ class UpdateUserRaceTest {
         pollFlows.getValue("user-b").emit(responseFor("user-b-poll"))
         client.getStore().awaitPendingSave()
         assertThat(value()).isEqualTo("user-b-poll_value")
+    }
+
+    @Test
+    fun bootstrappedUpdateUserAsync_firesOnValuesUpdated() {
+        startOn(userA)
+        val countBeforeSwitch = valuesUpdatedCount
+
+        client.updateUserAsync(userB, null, bootstrapValues(userB, "user-b-bootstrap"))
+
+        assertThat(valuesUpdatedCount).isEqualTo(countBeforeSwitch + 1)
+    }
+
+    @Test
+    fun supersededBootstrappedUpdateUserAsync_doesNotFireOnValuesUpdated() {
+        startOn(user0)
+        interleaveBeforeBootstrap(userA) {
+            client.updateUserAsync(userB, null, bootstrapValues(userB, "user-b-bootstrap"))
+        }
+        val countBeforeSwitch = valuesUpdatedCount
+
+        client.updateUserAsync(userA, null, bootstrapValues(userA, "user-a-bootstrap"))
+
+        // Only B's switch applied values.
+        assertThat(valuesUpdatedCount).isEqualTo(countBeforeSwitch + 1)
+        assertThat(value()).isEqualTo("user-b-bootstrap_value")
     }
 }

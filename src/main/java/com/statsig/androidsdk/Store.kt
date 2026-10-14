@@ -429,9 +429,9 @@ internal class Store(
     fun isCurrentUser(user: StatsigUser): Boolean =
         lock.read { isCurrentUserCacheKeys(getUserCacheKeys(user)) }
 
-    fun bootstrap(initializeValues: Map<String, Any>, user: StatsigUser) = lock.write {
+    fun bootstrap(initializeValues: Map<String, Any>, user: StatsigUser): Boolean = lock.write {
         if (!isCurrentUserCacheKeys(getUserCacheKeys(user))) {
-            return@write
+            return@write false
         }
         val isValid = BootstrapValidator.isValid(initializeValues, user)
         sourceV2 = if (isValid) EvalSource.Bootstrap else EvalSource.InvalidBootstrap
@@ -451,6 +451,7 @@ internal class Store(
         } catch (e: Exception) {
             // Do Nothing
         }
+        true
     }
 
     fun loadCacheForCurrentUser() {

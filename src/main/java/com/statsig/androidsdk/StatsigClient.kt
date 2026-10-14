@@ -728,11 +728,13 @@ class StatsigClient : LifecycleEventListener {
                 )
                 val requestUser = swapUser(user)
                 if (values != null) {
-                    this.store.bootstrap(values, requestUser)
+                    val applied = this.store.bootstrap(values, requestUser)
                     logEndDiagnostics(true, ContextType.UPDATE_USER, null)
                     Log.v(TAG, "updateUserAsync completed with provided values")
                     callback?.onStatsigUpdateUser()
-                    lifetimeCallback?.onValuesUpdated()
+                    if (applied) {
+                        lifetimeCallback?.onValuesUpdated()
+                    }
                 } else {
                     this.store.loadCacheForCurrentUser()
                     statsigScope.launch {
