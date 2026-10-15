@@ -2,15 +2,14 @@ name: Publish Android SDK
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: [Release Bot] 
-    types:
-      - completed 
+  pull_request:
+    types: [closed]
+    branches: [main, stable]
 
 jobs:
   build:
     runs-on: blacksmith-2vcpu-ubuntu-2404
-    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')  
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'releases/') && startsWith(github.event.pull_request.title, '[release] '))
     timeout-minutes: 15
 
     steps:
