@@ -2,8 +2,11 @@ package com.statsig.androidsdk
 
 import android.app.Application
 import com.google.gson.Gson
+import io.mockk.coEvery
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -17,6 +20,7 @@ class LayerExposureTest {
     lateinit var app: Application
     private var logs: LogEventData? = null
     private var initTime = System.currentTimeMillis()
+    private val initialLcut = 1_621_637_839_000L
 
     @Before
     fun setup() {
@@ -112,7 +116,8 @@ class LayerExposureTest {
                     "parameterName" to "an_int",
                     "isExplicitParameter" to "false",
                     "reason" to "Network:Recognized",
-                    "time" to time.toString()
+                    "time" to time.toString(),
+                    "lcut" to initialLcut.toString()
                 )
             ),
             Gson().toJson(logs.events[0].metadata)
@@ -159,7 +164,8 @@ class LayerExposureTest {
                     "parameterName" to "an_int",
                     "isExplicitParameter" to "true",
                     "reason" to "Network:Recognized",
-                    "time" to time.toString()
+                    "time" to time.toString(),
+                    "lcut" to initialLcut.toString()
                 )
             ),
             Gson().toJson(logs.events[0].metadata)
@@ -181,7 +187,8 @@ class LayerExposureTest {
                     "parameterName" to "a_string",
                     "isExplicitParameter" to "false",
                     "reason" to "Network:Recognized",
-                    "time" to time.toString()
+                    "time" to time.toString(),
+                    "lcut" to initialLcut.toString()
                 )
             ),
             Gson().toJson(logs.events[1].metadata)
@@ -320,17 +327,85 @@ class LayerExposureTest {
         )
         assertEquals("statsig::layer_exposure", logs.events[0].eventName)
         assertEquals("true", logs.events[0].metadata!!["isManualExposure"])
+        assertEquals(initialLcut.toString(), logs.events[0].metadata!!["lcut"])
         assertEquals("statsig::non_exposed_checks", logs.events[1].eventName)
+    }
+
+    @Test
+    fun testLayerExposureUsesEvaluationLcutAfterRefresh() {
+        val layerName = "layer!"
+        val initialLayer = APIDynamicConfig(
+            layerName,
+            mapOf("original_parameter" to "original", "fresh_parameter" to "original"),
+            "default"
+        )
+        val updatedLayer = initialLayer.copy(
+            value = mapOf("original_parameter" to "updated", "fresh_parameter" to "updated")
+        )
+        val updatedLcut = initialLcut + 1000
+        val network = TestUtil.mockNetwork(
+            layerConfigs = mapOf(layerName to initialLayer),
+            time = initialLcut
+        )
+        coEvery {
+            network.initialize(
+                any(), any(), any(), any(), any(), ContextType.UPDATE_USER,
+                any(), any(), any(), any()
+            )
+        } returns TestUtil.makeInitializeResponse(
+            layerConfigs = mapOf(layerName to updatedLayer),
+            time = updatedLcut
+        )
+        start(network)
+
+        val retainedLayer = Statsig.getLayer("layer")
+        runBlocking { Statsig.refreshCache() }
+        val freshLayer = Statsig.getLayer("layer")
+        assertEquals("original", retainedLayer.getString("original_parameter", "fallback"))
+        assertEquals("updated", freshLayer.getString("fresh_parameter", "fallback"))
+        Statsig.shutdown()
+
+        val exposures = logs!!.events.filter { it.eventName == "statsig::layer_exposure" }
+        val lcutByParameter = exposures.associate {
+            val metadata = it.metadata!!
+            metadata["parameterName"] to metadata["lcut"]
+        }
+        assertEquals(2, exposures.size)
+        assertEquals(
+            mapOf(
+                "original_parameter" to initialLcut.toString(),
+                "fresh_parameter" to updatedLcut.toString()
+            ),
+            lcutByParameter
+        )
+    }
+
+    @Test
+    fun testLayerExposureOmitsUnknownLcut() {
+        val network = TestUtil.mockNetwork(
+            layerConfigs = mapOf(
+                "layer!" to APIDynamicConfig("layer!", mapOf("an_int" to 99), "default")
+            ),
+            time = 0
+        )
+        start(network)
+
+        assertEquals(99, Statsig.getLayer("layer").getInt("an_int", 0))
+        Statsig.shutdown()
+
+        val event = logs!!.events.single()
+        assertEquals("statsig::layer_exposure", event.eventName)
+        assertFalse(event.metadata!!.containsKey("lcut"))
     }
 
     private fun start(
         layers: Map<String, APIDynamicConfig>,
         user: StatsigUser = StatsigUser(userID = "jkw")
     ) {
-        val network = TestUtil.mockNetwork(
-            layerConfigs = layers
-        )
+        start(TestUtil.mockNetwork(layerConfigs = layers, time = initialLcut), user)
+    }
 
+    private fun start(network: StatsigNetwork, user: StatsigUser = StatsigUser(userID = "jkw")) {
         TestUtil.captureLogs(network) { result ->
             // filter out diagnostics data
             val events = result.events.filter { event -> event.eventName != "statsig::diagnostics" }
