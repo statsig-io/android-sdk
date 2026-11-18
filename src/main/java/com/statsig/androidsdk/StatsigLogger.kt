@@ -208,6 +208,10 @@ internal class StatsigLogger(
             "reason" to detailedReason,
             "time" to details.receivedAt.toString()
         )
+        val lcut = details.lcut
+        if (lcut != null && lcut > 0) {
+            metadata["lcut"] = lcut.toString()
+        }
         addBootstrapMetadata(metadata)
         addManualFlag(metadata, isManual)
 
