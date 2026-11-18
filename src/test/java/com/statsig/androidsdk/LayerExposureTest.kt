@@ -405,10 +405,7 @@ class LayerExposureTest {
         start(TestUtil.mockNetwork(layerConfigs = layers, time = initialLcut), user)
     }
 
-    private fun start(
-        network: StatsigNetwork,
-        user: StatsigUser = StatsigUser(userID = "jkw")
-    ) {
+    private fun start(network: StatsigNetwork, user: StatsigUser = StatsigUser(userID = "jkw")) {
         TestUtil.captureLogs(network) { result ->
             // filter out diagnostics data
             val events = result.events.filter { event -> event.eventName != "statsig::diagnostics" }
